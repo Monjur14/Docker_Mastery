@@ -85,15 +85,6 @@ npx serve .
 # Then visit http://localhost:8080
 ```
 
-### Option 3 — Deploy to GitHub Pages
-
-1. Fork this repository
-2. Go to **Settings → Pages**
-3. Set the source branch to `main` and folder to `/ (root)`
-4. Your roadmap will be live at `https://your-username.github.io/docker-mastery-roadmap`
-
----
-
 ## 📁 Project Structure
 
 ```

@@ -263,8 +263,142 @@
   .empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 14px; }
   .empty-icon { font-size: 2rem; margin-bottom: .75rem; opacity: .4; }
 
+  /* ── Contribution + Credit Section ── */
+  .contrib-section {
+    max-width: 960px;
+    margin: 3.5rem auto 0;
+    padding: 0 2rem;
+  }
+  .contrib-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 1.75rem; padding-bottom: .875rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .contrib-header-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--intermediate), var(--beginner));
+    flex-shrink: 0;
+  }
+  .contrib-header-title {
+    font-size: 13px; font-weight: 600; font-family: var(--mono);
+    letter-spacing: .05em; text-transform: uppercase; color: var(--text);
+  }
+  .contrib-header-sub {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text-dim); margin-left: auto;
+  }
+  .contrib-body {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;
+  }
+  .contrib-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem 1.375rem; transition: border-color .2s;
+  }
+  .contrib-card:hover { border-color: var(--border-strong); }
+  .contrib-card-label {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+    letter-spacing: .1em; color: var(--text-dim); margin-bottom: .875rem;
+  }
+  .contrib-ways { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .contrib-way {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13px; color: var(--text-muted); line-height: 1.5;
+  }
+  .contrib-way-icon {
+    width: 24px; height: 24px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0; margin-top: 0px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .contrib-way strong { color: var(--text); font-weight: 500; display: block; margin-bottom: 1px; }
+  .contrib-way span { font-size: 12px; }
+  .commit-list { display: flex; flex-direction: column; gap: 7px; }
+  .commit-row { display: flex; align-items: center; gap: 10px; }
+  .commit-tag {
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    padding: 2px 9px; border-radius: 4px; flex-shrink: 0; min-width: 82px; text-align: center;
+  }
+  .commit-tag.feat     { background: var(--beginner-bg);     color: var(--beginner);     border: 1px solid var(--beginner-border); }
+  .commit-tag.fix      { background: var(--advanced-bg);     color: var(--advanced);     border: 1px solid var(--advanced-border); }
+  .commit-tag.docs     { background: var(--intermediate-bg); color: var(--intermediate); border: 1px solid var(--intermediate-border); }
+  .commit-tag.style    { background: rgba(188,140,255,.1);   color: #bc8cff;             border: 1px solid rgba(188,140,255,.25); }
+  .commit-tag.refactor { background: rgba(255,212,0,.08);    color: #e3b341;             border: 1px solid rgba(255,212,0,.2); }
+  .commit-tag.chore    { background: rgba(255,255,255,.04);  color: var(--text-muted);   border: 1px solid var(--border-strong); }
+  .commit-desc { font-size: 12px; color: var(--text-muted); }
+  .contrib-workflow {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem 1.375rem;
+    margin-bottom: 10px; transition: border-color .2s;
+  }
+  .contrib-workflow:hover { border-color: var(--border-strong); }
+  .workflow-steps {
+    display: grid; grid-template-columns: repeat(5,1fr);
+    gap: 0; position: relative; margin-top: 1rem;
+  }
+  .workflow-step {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; gap: 8px; position: relative;
+  }
+  .workflow-step:not(:last-child)::after {
+    content: ''; position: absolute;
+    top: 13px; left: calc(50% + 14px);
+    width: calc(100% - 28px); height: 1px;
+    background: linear-gradient(90deg, var(--border-strong), var(--border));
+  }
+  .workflow-num {
+    width: 27px; height: 27px; border-radius: 50%;
+    background: var(--surface-2); border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    color: var(--intermediate); flex-shrink: 0; z-index: 1;
+  }
+  .workflow-label { font-size: 11px; color: var(--text-muted); line-height: 1.4; font-weight: 500; }
+  .workflow-code  { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+  .maker-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.375rem 1.5rem;
+    display: flex; align-items: center; gap: 1.25rem;
+    transition: border-color .2s; position: relative; overflow: hidden;
+  }
+  .maker-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(88,166,255,.04), rgba(63,185,80,.03));
+    pointer-events: none;
+  }
+  .maker-card:hover { border-color: rgba(88,166,255,.3); }
+  .maker-avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--intermediate), var(--beginner));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 18px; color: #fff;
+    flex-shrink: 0; letter-spacing: -0.02em;
+    box-shadow: 0 0 0 3px rgba(88,166,255,.15);
+  }
+  .maker-info { flex: 1; min-width: 0; }
+  .maker-top { display: flex; align-items: center; gap: 10px; margin-bottom: 3px; flex-wrap: wrap; }
+  .maker-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .maker-badge {
+    font-family: var(--mono); font-size: 10px; padding: 1px 8px;
+    border-radius: 999px; background: var(--beginner-bg); color: var(--beginner);
+    border: 1px solid var(--beginner-border); letter-spacing: .04em;
+  }
+  .maker-role { font-size: 12px; color: var(--text-muted); font-family: var(--mono); margin-bottom: 11px; }
+  .maker-links { display: flex; gap: 7px; flex-wrap: wrap; }
+  .maker-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 11px; text-decoration: none;
+    padding: 4px 12px; border-radius: 999px;
+    border: 1px solid var(--border-strong); color: var(--text-muted); transition: all .15s;
+  }
+  .maker-link:hover { background: var(--surface-2); }
+  .maker-link.github:hover   { color: #e6edf3;         border-color: rgba(230,237,243,.4); }
+  .maker-link.linkedin:hover { color: var(--intermediate); border-color: var(--intermediate-border); }
+  .maker-link.facebook:hover { color: #79b8ff;          border-color: rgba(121,184,255,.4); }
+  .maker-link svg { flex-shrink: 0; }
+  .maker-heart { margin-left: auto; font-size: 20px; opacity: .5; flex-shrink: 0; }
+
   /* Footer */
-  .footer { max-width: 960px; margin: 3rem auto 0; padding: 1.5rem 2rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .footer { max-width: 960px; margin: 0 auto; padding: 1.5rem 2rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
   .footer-text { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .05em; }
   .reset-btn {
     font-family: var(--mono);
@@ -281,11 +415,17 @@
   }
   .reset-btn:hover { border-color: var(--advanced); color: var(--advanced); }
 
-  @media (max-width: 600px) {
-    .hero, .progress-section, .filters, .content { padding-left: 1rem; padding-right: 1rem; }
+  @media (max-width: 640px) {
+    .hero, .progress-section, .filters, .content, .contrib-section { padding-left: 1rem; padding-right: 1rem; }
     .grid { grid-template-columns: 1fr; }
     .progress-section { gap: 1rem; }
     .stats { gap: .75rem; }
+    .contrib-body { grid-template-columns: 1fr; }
+    .workflow-steps { grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .workflow-step::after { display: none; }
+    .maker-card { flex-direction: column; align-items: flex-start; gap: 1rem; }
+    .maker-heart { display: none; }
+    .contrib-header-sub { display: none; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -324,8 +464,120 @@
 
 <main class="content" id="content" aria-live="polite"></main>
 
+<!-- ── Contribution + Credit Section ── -->
+<section class="contrib-section" aria-label="Contributing and project creator">
+
+  <div class="contrib-header">
+    <div class="contrib-header-dot"></div>
+    <span class="contrib-header-title">Contributing</span>
+    <span class="contrib-header-sub">// open source &middot; community driven</span>
+  </div>
+
+  <!-- Workflow strip -->
+  <div class="contrib-workflow" aria-label="Contribution workflow">
+    <div class="contrib-card-label">&rarr; workflow</div>
+    <div class="workflow-steps">
+      <div class="workflow-step">
+        <div class="workflow-num">1</div>
+        <div class="workflow-label">Fork</div>
+        <div class="workflow-code">gh repo fork</div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-num">2</div>
+        <div class="workflow-label">Branch</div>
+        <div class="workflow-code">feat/my-change</div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-num">3</div>
+        <div class="workflow-label">Commit</div>
+        <div class="workflow-code">feat: add ...</div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-num">4</div>
+        <div class="workflow-label">Push</div>
+        <div class="workflow-code">git push origin</div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-num">5</div>
+        <div class="workflow-label">Pull Request</div>
+        <div class="workflow-code">open on GitHub</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two-column: ways + commit convention -->
+  <div class="contrib-body">
+
+    <div class="contrib-card">
+      <div class="contrib-card-label">&rarr; ways to contribute</div>
+      <ul class="contrib-ways">
+        <li class="contrib-way">
+          <span class="contrib-way-icon">&#128196;</span>
+          <div><strong>Task pages</strong><span>Write step-by-step instructions for task1.html &ndash; task43.html</span></div>
+        </li>
+        <li class="contrib-way">
+          <span class="contrib-way-icon">&#10133;</span>
+          <div><strong>New tasks</strong><span>Propose Docker topics not yet covered in the roadmap</span></div>
+        </li>
+        <li class="contrib-way">
+          <span class="contrib-way-icon">&#127912;</span>
+          <div><strong>UI / UX</strong><span>Improve layout, accessibility, or mobile experience</span></div>
+        </li>
+        <li class="contrib-way">
+          <span class="contrib-way-icon">&#127758;</span>
+          <div><strong>Translations</strong><span>Help make this resource available in more languages</span></div>
+        </li>
+        <li class="contrib-way">
+          <span class="contrib-way-icon">&#128027;</span>
+          <div><strong>Bug reports</strong><span>Open an issue for anything broken, wrong, or unclear</span></div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="contrib-card">
+      <div class="contrib-card-label">&rarr; commit convention</div>
+      <div class="commit-list">
+        <div class="commit-row"><span class="commit-tag feat">feat:</span>     <span class="commit-desc">New task page, feature, or section</span></div>
+        <div class="commit-row"><span class="commit-tag fix">fix:</span>      <span class="commit-desc">Bug fix or broken link</span></div>
+        <div class="commit-row"><span class="commit-tag docs">docs:</span>     <span class="commit-desc">README or documentation changes</span></div>
+        <div class="commit-row"><span class="commit-tag style">style:</span>    <span class="commit-desc">CSS or visual-only changes</span></div>
+        <div class="commit-row"><span class="commit-tag refactor">refactor:</span><span class="commit-desc">Code restructure, no behaviour change</span></div>
+        <div class="commit-row"><span class="commit-tag chore">chore:</span>    <span class="commit-desc">Maintenance, config, or tooling</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Creator card -->
+  <div class="maker-card" aria-label="Project creator" style="margin-bottom: 1.6rem;">
+    <div class="maker-avatar">MH</div>
+    <div class="maker-info">
+      <div class="maker-top">
+        <span class="maker-name">Monjur Hossen</span>
+        <span class="maker-badge">creator</span>
+      </div>
+      <div class="maker-role">$ developer --contributing open-source</div>
+      <div class="maker-links">
+        <a class="maker-link github" href="https://github.com/Monjur14" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+        <a class="maker-link linkedin" href="https://www.linkedin.com/in/monjurhossen14" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854V1.146zm4.943 12.248V6.169H2.542v7.225h2.401zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.52-1.248-1.342-1.248-.822 0-1.359.54-1.359 1.248 0 .694.521 1.248 1.327 1.248h.016zm4.908 8.212V9.359c0-.216.016-.432.08-.586.173-.431.568-.878 1.232-.878.869 0 1.216.662 1.216 1.634v3.865h2.401V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.193v.025h-.016a5.54 5.54 0 0 1 .016-.025V6.169h-2.4c.03.678 0 7.225 0 7.225h2.4z"/></svg>
+          LinkedIn
+        </a>
+        <a class="maker-link facebook" href="https://www.facebook.com/monjur.hossen.71697" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M16 8.049c0-4.446-3.582-8.05-8-8.05C3.58 0-.002 3.603-.002 8.05c0 4.017 2.926 7.347 6.75 7.951v-5.625h-2.03V8.05H6.75V6.275c0-2.017 1.195-3.131 3.022-3.131.876 0 1.791.157 1.791.157v1.98h-1.009c-.993 0-1.303.621-1.303 1.258v1.51h2.218l-.354 2.326H9.25V16c3.824-.604 6.75-3.934 6.75-7.951z"/></svg>
+          Facebook
+        </a>
+      </div>
+    </div>
+    <div class="maker-heart" aria-hidden="true">&#10084;&#65039;</div>
+  </div>
+
+</section>
+
 <footer class="footer">
-  <span class="footer-text">Progress saved locally &mdash; 43 tasks</span>
+  <span class="footer-text">Built with &#10084;&#65039; for the developer community &mdash; 43 tasks</span>
   <button class="reset-btn" onclick="resetAll()">Reset progress</button>
 </footer>
 
@@ -373,7 +625,7 @@ const TASKS = [
   {phase:'advanced',n:40,title:'Docker daemon security tuning',goal:'Enable rootless mode or apply a custom Seccomp/AppArmor profile to harden the Docker daemon.',link:'/task40.html'},
   {phase:'advanced',n:41,title:'CI pipeline integration',goal:'Set up a GitHub Actions workflow that builds, lints, and pushes your Docker image on every push to main.',link:'/task41.html'},
   {phase:'advanced',n:42,title:'Deploy a container on a VPS',goal:'SSH into a cloud server, install Docker, and deploy your stack in production with docker compose up -d.',link:'/task42.html'},
-  {phase:'advanced',n:43,title:'Multi-architecture builds with Buildx',goal:'Use docker buildx to build a single image targeting both amd64 and arm64 and push a multi-arch manifest.',link:'/task43.html      '},
+  {phase:'advanced',n:43,title:'Multi-architecture builds with Buildx',goal:'Use docker buildx to build a single image targeting both amd64 and arm64 and push a multi-arch manifest.',link:'/task43.html'},
 ];
 
 const PHASES = ['beginner','intermediate','advanced'];
