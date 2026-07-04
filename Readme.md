@@ -1,4 +1,4 @@
-# 🐳 Docker Mastery Roadmap
+# 🐳 Docker Mastery
 
 A free, interactive, browser-based learning tracker for mastering Docker — from your first `hello-world` container all the way to multi-architecture builds and CI/CD pipelines. No backend, no accounts, no cost.
 
@@ -6,11 +6,10 @@ A free, interactive, browser-based learning tracker for mastering Docker — fro
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black)
-![License](https://img.shields.io/badge/license-MIT-green?style=flat)
 
 ---
 
-## ✨ Features
+## Features
 
 - **43 hands-on tasks** organized across three progressive skill levels
 - **Progress tracking** — check off tasks as you complete them; state persists in `localStorage`
@@ -22,7 +21,7 @@ A free, interactive, browser-based learning tracker for mastering Docker — fro
 
 ---
 
-## 🗺️ Roadmap Structure
+## Roadmap Structure
 
 | Level | Tasks | What You'll Learn |
 |---|---|---|
@@ -60,7 +59,7 @@ Production-ready Docker skills used in professional environments.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 No installation required. The project is a single self-contained HTML file.
 
@@ -148,15 +147,7 @@ No frameworks. No bundlers. No build step. Just open and use.
 
 ---
 
-## 📄 License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
-
-You are free to use, copy, modify, and distribute this project for personal or commercial purposes with attribution.
-
----
-
-## 🙏 Acknowledgements
+## Acknowledgements
 
 - [Docker Documentation](https://docs.docker.com) — the authoritative reference behind every task
 - [Docker Hub](https://hub.docker.com) — the image registry used throughout the roadmap
