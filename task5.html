@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 5 — Container Logs & Troubleshooting</title>
+<link rel="icon" type="image/png" href="/assets/docker.png" >
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--yellow-bg);
+    color: var(--yellow);
+    border: 1px solid var(--yellow-border);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--yellow); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-label .icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: .5rem;
+    color: var(--text);
+  }
+  h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: .4rem;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid {
+    display: grid;
+    gap: 10px;
+  }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: .6rem;
+  }
+  .concept-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: flex;
+    gap: 0;
+    position: relative;
+  }
+  .step-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--yellow);
+    background: var(--bg);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .step-line {
+    width: 1px;
+    flex: 1;
+    background: var(--border);
+    margin: 4px 0;
+    min-height: 16px;
+  }
+  .step:last-child .step-line { display: none; }
+  .step-content {
+    padding: 0 0 2rem 1rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .step-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: .35rem;
+    padding-top: 3px;
+  }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color .15s, background .15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  pre .cmd { color: var(--blue); }
+  pre .flag { color: var(--yellow); }
+  pre .str { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .out { color: var(--text-muted); }
+  pre .hl { color: var(--purple); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px;
+    padding: .875rem 1rem;
+    margin: .75rem 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    border: 1px solid;
+    display: flex;
+    gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info { background: var(--blue-bg); border-color: rgba(88,166,255,0.2); }
+  .callout.tip { background: var(--green-bg); border-color: var(--green-border); }
+  .callout.warn { background: var(--yellow-bg); border-color: var(--yellow-border); }
+
+  /* ── Anatomy diagram ── */
+  .anatomy {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 14px;
+    display: flex;
+    align-items: baseline;
+    gap: 0;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    line-height: 2;
+  }
+  .anatomy-part {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    margin: 2px 2px;
+  }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-flag { background: rgba(188,140,255,0.14); color: var(--purple); }
+  .a-img  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12px;
+  }
+  .anatomy-tag {
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    flex-shrink: 0;
+    min-width: 52px;
+    text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--purple); background: rgba(188,140,255,0.12); }
+  .anatomy-row .anatomy-tag.a-img  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Output preview ── */
+  .output-preview {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .output-header {
+    background: var(--surface);
+    padding: .4rem .875rem;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .output-header .live-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--green);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .output-header .live-dot::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 0 rgba(63,185,80,0.5);
+  }
+  .output-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .r { color: #f85149; }
+
+  /* ── What happened grid ── */
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .875rem;
+    text-align: center;
+  }
+  .flow-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: .35rem;
+  }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    padding: .6rem .875rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── Flag reference table ── */
+  .flag-table {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .flag-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: .75rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .flag-row:last-child { border-bottom: none; }
+  .flag-code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--purple);
+    background: rgba(188,140,255,0.08);
+    padding: 3px 8px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    min-width: 96px;
+    text-align: center;
+  }
+  .flag-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Next steps ── */
+  .next-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    text-decoration: none;
+    transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .flag-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 5</span>
+  <span class="nav-badge">Intermediate</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 05 &nbsp;·&nbsp; Intermediate
+    </div>
+    <h1>Container Logs<br><span class="hl">& Troubleshooting</span></h1>
+    <p class="hero-desc">View and follow real-time stdout logs from a running container using <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--yellow)">docker logs --follow</code>. Learn to diagnose crashed containers, tail output, and debug live processes.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~10 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker installed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal / Shell
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">📝</div>
+          <div class="concept-title">stdout / stderr capture</div>
+        </div>
+        <div class="concept-body">
+          Docker captures everything a container's main process writes to <strong>stdout</strong> and <strong>stderr</strong>. It doesn't read log files inside the container by default — it reads the process's output streams directly, via a <strong>logging driver</strong>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🚚</div>
+          <div class="concept-title">Logging drivers</div>
+        </div>
+        <div class="concept-body">
+          By default Docker uses the <strong>json-file</strong> driver, storing each line as JSON on disk. Other drivers (<strong>journald</strong>, <strong>syslog</strong>, <strong>awslogs</strong>, etc.) forward logs elsewhere. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker logs</code> only works with drivers that support reading back.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">👀</div>
+          <div class="concept-title">Following vs. one-shot reads</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker logs</code> alone prints everything captured so far and exits. Adding <strong>--follow</strong> (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-f</code>) keeps the stream open, printing new lines as they're written — similar to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">tail -f</code> on a log file.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🩺</div>
+          <div class="concept-title">Logs after a crash</div>
+        </div>
+        <div class="concept-body">
+          Logs are stored per-container, not per-process — so <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker logs</code> still works on a <strong>stopped or crashed</strong> container. This is usually the first place to look when something exits unexpectedly.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🔢</div>
+          <div class="concept-title">Exit codes</div>
+        </div>
+        <div class="concept-body">
+          When a container stops, it reports an <strong>exit code</strong>. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">0</code> means success. Non-zero codes (like <strong>1</strong> for a general error or <strong>137</strong> for an out-of-memory kill) point you toward the cause before you even read a single log line.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🔧</div>
+          <div class="concept-title">Live debugging with exec</div>
+        </div>
+        <div class="concept-body">
+          Logs tell you what happened; <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker exec</code> lets you get a shell <strong>inside a running container</strong> to poke around live — check processes, files, or network state that logs alone won't show.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      Command anatomy
+    </div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">logs</span>
+        <span class="anatomy-part a-flag">--follow</span>
+        <span class="anatomy-part a-img">log-demo</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker</span>
+          <p>The CLI binary — how you talk to the Docker daemon from your terminal.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">logs</span>
+          <p>Subcommand that fetches the captured stdout/stderr output for a specific container.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--follow</span>
+          <p>Shorthand <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">-f</code>. Keeps the connection open and streams new log lines as they arrive, instead of exiting after the existing output.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-img">log-demo</span>
+          <p>The container's name or ID. You can find this with <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">docker ps</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Start a container that emits logs over time</div>
+          <div class="step-desc">Run a small BusyBox loop in the background that prints a timestamped line every 2 seconds — a stand-in for a real app's log stream.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">log-demo</span> busybox sh <span class="flag">-c</span> <span class="str">'i=0; while true; do echo "tick $i: $(date)"; i=$((i+1)); sleep 2; done'</span></pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><strong>-d</strong> runs the container in the background (detached) so it keeps running and printing logs after the command returns.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">View existing logs (one-shot)</div>
+          <div class="step-desc">Fetch everything logged so far, then return control to your terminal.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> logs log-demo</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">tick 0: Wed Jul 1 09:12:01 UTC 2026</span><br>
+<span class="w">tick 1: Wed Jul 1 09:12:03 UTC 2026</span><br>
+<span class="w">tick 2: Wed Jul 1 09:12:05 UTC 2026</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Follow logs in real time</div>
+          <div class="step-desc">Add <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--follow</code> to keep the stream open — new lines appear as the container writes them, just like <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">tail -f</code>.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> logs <span class="flag">--follow</span> log-demo</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header"><span>expected output</span><span class="live-dot">streaming</span></div>
+            <div class="output-body">
+<span class="w">tick 14: Wed Jul 1 09:12:29 UTC 2026</span><br>
+<span class="w">tick 15: Wed Jul 1 09:12:31 UTC 2026</span><br>
+<span class="w">tick 16: Wed Jul 1 09:12:33 UTC 2026</span><br>
+<span class="text-dim" style="color:var(--text-dim)">... new lines keep appearing every 2 seconds</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Press <strong>Ctrl+C</strong> to stop following. This only detaches your terminal from the stream — the container keeps running.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Narrow the output</div>
+          <div class="step-desc">For a noisy container, combine flags to see only recent, timestamped lines instead of scrolling through everything.</div>
+          <div class="flag-table">
+            <div class="flag-row">
+              <span class="flag-code">--tail N</span>
+              <span class="flag-desc">Show only the last N lines instead of the full history.</span>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">-t</span>
+              <span class="flag-desc">Prefix each line with an ISO 8601 timestamp Docker recorded when it captured it.</span>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">--since TIME</span>
+              <span class="flag-desc">Show logs since a given time — e.g. <code style="font-family:var(--mono);font-size:11px">10m</code> or an RFC3339 timestamp.</span>
+            </div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> logs <span class="flag">--tail</span> <span class="hl">5</span> <span class="flag">-t</span> <span class="flag">--follow</span> log-demo</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Simulate a crash and read the logs afterward</div>
+          <div class="step-desc">Start a container that fails on purpose, then confirm <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker logs</code> still works even though it already exited.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># A container that logs an error, then exits with a failure code</span>
+<span class="cmd">docker</span> run <span class="flag">--name</span> <span class="str">crash-demo</span> busybox sh <span class="flag">-c</span> <span class="str">'echo "starting up..."; echo "FATAL: config file not found" >&2; exit 1'</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">starting up...</span><br>
+<span class="r">FATAL: config file not found</span>
+            </div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Confirm the exit code and re-read the logs from a stopped container</span>
+<span class="cmd">docker</span> ps <span class="flag">-a</span> <span class="flag">--filter</span> <span class="str">name=crash-demo</span>
+<span class="cmd">docker</span> logs crash-demo</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">CONTAINER ID   IMAGE     COMMAND    CREATED         STATUS                     NAMES</span><br>
+<span class="r">7f3a9c1e2b0d   busybox   "sh -c …"  3 seconds ago   Exited (1) 2 seconds ago   crash-demo</span>
+            </div>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><strong>Exited (1)</strong> is a general error exit code. Common non-zero codes: <strong>1</strong> unhandled application error, <strong>126</strong> command not executable, <strong>127</strong> command not found, <strong>137</strong> killed (often out-of-memory, <code style="font-family:var(--mono);font-size:12px">SIGKILL</code>).</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Inspect for more detail</div>
+          <div class="step-desc">Logs tell you what was printed; <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker inspect</code> tells you the machine-readable facts — including the exact exit code and whether it was OOM-killed.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> inspect crash-demo <span class="flag">--format</span> <span class="str">'ExitCode: {{.State.ExitCode}}  OOMKilled: {{.State.OOMKilled}}'</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">ExitCode: 1  OOMKilled: false</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">7</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Get a live shell for deeper debugging</div>
+          <div class="step-desc">When logs aren't enough, exec into the <strong>running</strong> <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">log-demo</code> container to look around from the inside.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> exec <span class="flag">-it</span> log-demo sh</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">A stopped container has no running process to exec into — <code style="font-family:var(--mono);font-size:12px">docker exec</code> only works on containers that are currently <strong>up</strong>. Type <code style="font-family:var(--mono);font-size:12px">exit</code> to leave the shell.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">8</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Clean up</div>
+          <div class="step-desc">Stop and remove the containers used in this task.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> rm <span class="flag">-f</span> log-demo crash-demo</pre>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: WHAT JUST HAPPENED               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">🖨️</div>
+        <div class="flow-label">Process writes output</div>
+        <div class="flow-desc">The container's main process writes lines to stdout/stderr as it runs.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">💾</div>
+        <div class="flow-label">Daemon captures it</div>
+        <div class="flow-desc">The logging driver (json-file by default) persists each line to disk on the host.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">📡</div>
+        <div class="flow-label">CLI requests logs</div>
+        <div class="flow-desc"><code style="font-family:var(--mono);font-size:11px">docker logs</code> asks the daemon to read back what's stored.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🔗</div>
+        <div class="flow-label">Stream stays open</div>
+        <div class="flow-desc">With <code style="font-family:var(--mono);font-size:11px">--follow</code>, the daemon keeps pushing new lines over the same connection.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🧩</div>
+        <div class="flow-label">Exit code recorded</div>
+        <div class="flow-desc">When the process ends, its exit status is stored in the container's metadata.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🕵️</div>
+        <div class="flow-label">Post-mortem read</div>
+        <div class="flow-desc">Logs and inspect data remain available after the container stops, for debugging later.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How Docker captures a container's stdout/stderr via a logging driver</li>
+      <li><span class="chk"></span>The difference between a one-shot <code style="font-family:var(--mono);font-size:12px">docker logs</code> read and a live <code style="font-family:var(--mono);font-size:12px">--follow</code> stream</li>
+      <li><span class="chk"></span>How to narrow output with <code style="font-family:var(--mono);font-size:12px">--tail</code>, <code style="font-family:var(--mono);font-size:12px">-t</code>, and <code style="font-family:var(--mono);font-size:12px">--since</code></li>
+      <li><span class="chk"></span>That logs remain readable after a container stops or crashes</li>
+      <li><span class="chk"></span>How to read exit codes and use <code style="font-family:var(--mono);font-size:12px">docker inspect</code> for deeper failure details</li>
+      <li><span class="chk"></span>How to get a live shell inside a running container with <code style="font-family:var(--mono);font-size:12px">docker exec</code></li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

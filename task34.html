@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 34 — Docker Healthchecks</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --blue-border: rgba(88,166,255,0.2);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --purple-border: rgba(188,140,255,0.2);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.1);
+    --red-border: rgba(248,81,73,0.25);
+    --orange: #f0883e;
+    --orange-bg: rgba(240,136,62,0.1);
+    --orange-border: rgba(240,136,62,0.25);
+    --teal: #39d353;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep   { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--purple-bg);
+    color: var(--purple);
+    border: 1px solid var(--purple-border);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--purple); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon {
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body  { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Health state diagram ── */
+  .health-states {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: wrap;
+    row-gap: 1rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem 1.25rem;
+    margin: 1rem 0;
+  }
+  .hs-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .hs-pill {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 18px;
+    border-radius: 999px;
+    border: 1px solid;
+    white-space: nowrap;
+    letter-spacing: .03em;
+  }
+  .hs-pill.starting { color: var(--yellow); background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .hs-pill.healthy  { color: var(--green);  background: var(--green-bg);  border-color: var(--green-border); }
+  .hs-pill.unhealthy{ color: var(--red);    background: var(--red-bg);    border-color: var(--red-border); }
+  .hs-pill.none     { color: var(--text-dim); background: rgba(255,255,255,0.03); border-color: var(--border-strong); }
+  .hs-sub { font-family: var(--mono); font-size: 10px; color: var(--text-dim); text-align: center; line-height: 1.5; }
+  .hs-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 0 .5rem;
+  }
+  .hs-arrow-line {
+    width: 36px; height: 1px;
+    background: var(--border-strong);
+    position: relative;
+  }
+  .hs-arrow-line::after {
+    content: '▶';
+    position: absolute;
+    right: -6px; top: -7px;
+    font-size: 8px;
+    color: var(--text-dim);
+  }
+  .hs-arrow-label { font-family: var(--mono); font-size: 9.5px; color: var(--text-dim); white-space: nowrap; }
+
+  /* ── Anatomy ── */
+  .anatomy {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 13px;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    line-height: 2.2;
+    gap: 0;
+  }
+  .anatomy-part {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin: 2px 2px;
+  }
+  .a-kw   { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-flag { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-val  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-cmd  { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .a-note { background: rgba(240,136,62,0.12);  color: var(--orange); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row  { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag  {
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    flex-shrink: 0;
+    min-width: 60px;
+    text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-kw   { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-val  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .anatomy-tag.a-cmd  { color: var(--purple); background: rgba(188,140,255,0.1); }
+  .anatomy-row .anatomy-tag.a-note { color: var(--orange); background: rgba(240,136,62,0.1); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left {
+    display: flex; flex-direction: column; align-items: center;
+    width: 40px; flex-shrink: 0;
+  }
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px; font-weight: 600;
+    color: var(--purple);
+    background: var(--bg);
+    flex-shrink: 0; z-index: 1;
+  }
+  .step-line {
+    width: 1px; flex: 1;
+    background: var(--border);
+    margin: 4px 0; min-height: 16px;
+  }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc  { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px; color: var(--text-dim);
+    background: transparent; border: none; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px;
+    transition: color .15s, background .15s;
+    display: flex; align-items: center; gap: 4px;
+    letter-spacing: .04em;
+  }
+  .copy-btn:hover  { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px; line-height: 1.65;
+    color: var(--text);
+  }
+  pre .kw      { color: var(--blue); }
+  pre .str     { color: var(--green); }
+  pre .val     { color: var(--orange); }
+  pre .flag    { color: var(--yellow); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .hl      { color: var(--purple); }
+  pre .cmd     { color: var(--blue); }
+  pre .fn      { color: var(--purple); }
+  pre .num     { color: var(--orange); }
+  pre .prop    { color: var(--blue); }
+  pre .good    { color: var(--green); }
+  pre .warn    { color: var(--yellow); }
+  pre .bad     { color: var(--red); }
+
+  /* ── Tabs (Dockerfile vs Compose) ── */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: -1px;
+    position: relative;
+    z-index: 1;
+  }
+  .tab {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    background: var(--surface);
+    cursor: pointer;
+    transition: color .15s, background .15s;
+    letter-spacing: .03em;
+  }
+  .tab.active { color: var(--purple); background: var(--surface-2); border-color: var(--border-strong); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .tab-panel .code-block { border-radius: 0 8px 8px 8px; }
+
+  /* ── Param table ── */
+  .param-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 13px;
+    margin: 1rem 0;
+  }
+  .param-table th {
+    text-align: left;
+    padding: .7rem .9rem;
+    background: rgba(255,255,255,0.03);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  .param-table td {
+    padding: .7rem .9rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    vertical-align: top;
+    line-height: 1.55;
+  }
+  .param-table tr:last-child td { border-bottom: none; }
+  .param-table td.param-name { font-family: var(--mono); font-size: 12px; color: var(--yellow); white-space: nowrap; }
+  .param-table td.param-default { font-family: var(--mono); font-size: 12px; color: var(--green); }
+  .param-table td strong { color: var(--text); font-weight: 500; }
+
+  /* ── File tree ── */
+  .file-tree {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.9;
+    color: var(--text-muted);
+    margin: .6rem 0;
+  }
+  .file-tree .dir  { color: var(--blue); }
+  .file-tree .file { color: var(--text); }
+  .file-tree .new  { color: var(--green); }
+  .file-tree .dim  { color: var(--text-dim); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px;
+    padding: .875rem 1rem;
+    margin: .75rem 0;
+    font-size: 13.5px; line-height: 1.6;
+    border: 1px solid;
+    display: flex; gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info   { background: var(--blue-bg);   border-color: var(--blue-border); }
+  .callout.tip    { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn   { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.danger { background: var(--red-bg);    border-color: var(--red-border); }
+
+  /* ── Output preview ── */
+  .output-preview {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .output-header {
+    background: var(--surface);
+    padding: .4rem .875rem;
+    font-family: var(--mono);
+    font-size: 10px; color: var(--text-dim);
+    letter-spacing: .06em; text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 12.5px; line-height: 1.7;
+    color: #8b949e;
+  }
+  .output-body .g   { color: var(--green); }
+  .output-body .b   { color: var(--blue); }
+  .output-body .w   { color: var(--text); }
+  .output-body .y   { color: var(--yellow); }
+  .output-body .r   { color: var(--red); }
+  .output-body .p   { color: var(--purple); }
+  .output-body .dim { color: var(--text-dim); }
+
+  /* ── Flow grid ── */
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px; margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .875rem; text-align: center;
+  }
+  .flow-num   { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon  { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc  { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13.5px; color: var(--text-muted);
+    padding: .6rem .875rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px; line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3px; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── Next task ── */
+  .next-card {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.25rem;
+    text-decoration: none; transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); flex-shrink: 0; margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav  { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .param-table { display: block; overflow-x: auto; }
+    .health-states { flex-direction: column; align-items: center; }
+    .hs-arrow-line { width: 1px; height: 24px; }
+    .hs-arrow-line::after { content: '▼'; right: -5px; top: auto; bottom: -10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 34</span>
+  <span class="nav-badge">Advanced</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 34 &nbsp;·&nbsp; Advanced
+    </div>
+    <h1>Docker<br><span class="hl">Healthchecks</span></h1>
+    <p class="hero-desc">Add a <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--purple)">HEALTHCHECK</code> instruction to a Dockerfile and a <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--purple)">healthcheck:</code> block in Compose so Docker can tell the difference between a container that's running and one that's actually ready.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~20 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker + Compose installed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Familiarity with Dockerfiles
+      </span>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 1 — CONCEPTS                       -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">📖</span>Required concepts</div>
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(248,81,73,0.1)">❌</div>
+          <div class="concept-title">Running ≠ ready</div>
+        </div>
+        <div class="concept-body">
+          Docker marks a container as <strong>running</strong> the instant its main process starts — but a web server might take two more seconds to bind its port, or a database might need ten seconds to initialise its data files. Without a healthcheck, Docker has no way to know the difference.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">❤️</div>
+          <div class="concept-title">What a healthcheck is</div>
+        </div>
+        <div class="concept-body">
+          A healthcheck is a <strong>command Docker runs inside the container on a schedule</strong> — every 30 seconds by default. Exit code <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">0</code> means healthy. Exit code <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">1</code> means unhealthy. Docker tracks consecutive failures and updates the container's health status accordingly.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">⏳</div>
+          <div class="concept-title">The starting state</div>
+        </div>
+        <div class="concept-body">
+          When a container first launches, its health status is <strong>starting</strong> — healthchecks run but failures don't count toward the unhealthy threshold yet. Only after the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">start-period</code> elapses does Docker start counting failures.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🔗</div>
+          <div class="concept-title">depends_on + condition</div>
+        </div>
+        <div class="concept-body">
+          In Compose, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">depends_on</code> with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">condition: service_healthy</code> makes Compose hold off starting a dependent service — like a Node.js app — until the dependency's healthcheck reports <strong>healthy</strong>. This replaces fragile wait-for scripts.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">📍</div>
+          <div class="concept-title">Two places to define it</div>
+        </div>
+        <div class="concept-body">
+          A healthcheck can live in the <strong>Dockerfile</strong> — baked into the image, applied everywhere the image runs — or in <strong>Compose</strong>, which overrides the image's healthcheck for that specific deployment. Both use the same parameters; Compose just wins if both are present.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(240,136,62,0.1)">🛠️</div>
+          <div class="concept-title">What to probe</div>
+        </div>
+        <div class="concept-body">
+          For HTTP services, probe a <strong>dedicated <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/health</code> endpoint</strong> that returns 200 only when the app is fully ready. For databases, use their native ping command. Avoid probing business logic endpoints — they may be slow or state-dependent.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 2 — HEALTH STATES                  -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔄</span>Health status lifecycle</div>
+
+    <div class="health-states">
+      <div class="hs-box">
+        <div class="hs-pill none">none</div>
+        <div class="hs-sub">no healthcheck<br>defined</div>
+      </div>
+      <div class="hs-arrow">
+        <div class="hs-arrow-line"></div>
+        <div class="hs-arrow-label">on start</div>
+      </div>
+      <div class="hs-box">
+        <div class="hs-pill starting">starting</div>
+        <div class="hs-sub">within<br>start-period</div>
+      </div>
+      <div class="hs-arrow">
+        <div class="hs-arrow-line"></div>
+        <div class="hs-arrow-label">exit 0</div>
+      </div>
+      <div class="hs-box">
+        <div class="hs-pill healthy">healthy</div>
+        <div class="hs-sub">check passed<br>retries reset</div>
+      </div>
+      <div class="hs-arrow">
+        <div class="hs-arrow-line"></div>
+        <div class="hs-arrow-label">exit 1 × retries</div>
+      </div>
+      <div class="hs-box">
+        <div class="hs-pill unhealthy">unhealthy</div>
+        <div class="hs-sub">consecutive<br>failures hit</div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body"><strong>Docker never restarts a container just because it's unhealthy</strong> — it only updates the status label. It's up to Compose (with <code style="font-family:var(--mono);font-size:12px">restart: on-failure</code>), Swarm, or Kubernetes to act on that signal and restart or replace the container.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 3 — COMMAND ANATOMY                -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔬</span>Instruction anatomy</div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-kw">HEALTHCHECK</span>
+        <span class="anatomy-part a-flag">--interval=30s</span>
+        <span class="anatomy-part a-flag">--timeout=5s</span>
+        <span class="anatomy-part a-flag">--start-period=10s</span>
+        <span class="anatomy-part a-flag">--retries=3</span>
+        <span class="anatomy-part a-kw">CMD</span>
+        <span class="anatomy-part a-cmd">curl -f http://localhost/health || exit 1</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-kw">HEALTHCHECK</span>
+          <p>Dockerfile instruction that tells Docker how to test whether the container is healthy.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--interval</span>
+          <p>How often to run the check. Default: <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">30s</code>. Shorter = faster detection but more overhead.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--timeout</span>
+          <p>If the command hasn't finished within this time, it counts as a failure. Default: <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">30s</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--start-period</span>
+          <p>Grace window after container start — failures during this time don't count toward the retry threshold. Use this for slow-starting services. Default: <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">0s</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--retries</span>
+          <p>How many consecutive failures before the status becomes <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">unhealthy</code>. Default: <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">3</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-kw">CMD</span>
+          <p>The shell command to run. Exit <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">0</code> = healthy, exit <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">1</code> = unhealthy. <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">curl -f</code> fails with a non-zero exit code on HTTP 4xx/5xx responses.</p>
+        </div>
+      </div>
+    </div>
+
+    <table class="param-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Default</th>
+          <th>Advice</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="param-name">--interval</td>
+          <td class="param-default">30s</td>
+          <td>Use <strong>10–15s</strong> in dev for faster feedback; 30s is fine in production.</td>
+        </tr>
+        <tr>
+          <td class="param-name">--timeout</td>
+          <td class="param-default">30s</td>
+          <td>Keep well below <code style="font-family:var(--mono);font-size:11px">--interval</code>. <strong>5s</strong> is a sensible ceiling for most HTTP checks.</td>
+        </tr>
+        <tr>
+          <td class="param-name">--start-period</td>
+          <td class="param-default">0s</td>
+          <td>Set to the <strong>worst-case startup time</strong> of your service — e.g. <code style="font-family:var(--mono);font-size:11px">30s</code> for MySQL, <code style="font-family:var(--mono);font-size:11px">10s</code> for a Node.js app.</td>
+        </tr>
+        <tr>
+          <td class="param-name">--retries</td>
+          <td class="param-default">3</td>
+          <td><strong>3</strong> is right for most cases. Lower means faster detection; higher means more tolerance for transient blips.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 4 — STEP-BY-STEP                   -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🪜</span>Step-by-step guide</div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Set up the project</div>
+          <div class="step-desc">Create a minimal Express app with a <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/health</code> endpoint — the dedicated route your healthcheck will probe.</div>
+
+          <div class="file-tree">
+            <span class="dir">healthcheck-demo/</span><br>
+            &nbsp;&nbsp;<span class="new">├── app.js</span><br>
+            &nbsp;&nbsp;<span class="new">├── package.json</span><br>
+            &nbsp;&nbsp;<span class="new">├── Dockerfile</span><br>
+            &nbsp;&nbsp;<span class="new">└── compose.yaml</span>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre>mkdir healthcheck-demo && cd healthcheck-demo</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Write the app with a /health route</div>
+          <div class="step-desc">The app has two routes: the main endpoint and a dedicated health probe. The health route is intentionally lightweight — no DB queries, no business logic — so it always responds fast.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">app.js</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="kw">const</span> express = <span class="fn">require</span>(<span class="str">'express'</span>);
+<span class="kw">const</span> app = <span class="fn">express</span>();
+<span class="kw">const</span> PORT = process.env.PORT || <span class="num">3000</span>;
+
+<span class="comment">// Simulate a slow startup — app takes 5s to be "ready"</span>
+<span class="kw">let</span> ready = <span class="kw">false</span>;
+<span class="fn">setTimeout</span>(() => { ready = <span class="kw">true</span>; }, <span class="num">5000</span>);
+
+<span class="comment">// Main route</span>
+app.<span class="fn">get</span>(<span class="str">'/'</span>, (req, res) => {
+  res.<span class="fn">send</span>(<span class="str">'Hello from the app!'</span>);
+});
+
+<span class="comment">// Health probe — only returns 200 once the app is ready</span>
+app.<span class="fn">get</span>(<span class="str">'/health'</span>, (req, res) => {
+  <span class="kw">if</span> (ready) {
+    res.<span class="fn">status</span>(<span class="num">200</span>).<span class="fn">json</span>({ status: <span class="str">'ok'</span>, uptime: process.<span class="fn">uptime</span>() });
+  } <span class="kw">else</span> {
+    res.<span class="fn">status</span>(<span class="num">503</span>).<span class="fn">json</span>({ status: <span class="str">'starting'</span> });
+  }
+});
+
+app.<span class="fn">listen</span>(PORT, () => {
+  console.<span class="fn">log</span>(<span class="str">`Server listening on port <span class="hl">${PORT}</span>`</span>);
+});</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">The 5-second <code style="font-family:var(--mono);font-size:12px">setTimeout</code> simulates a real-world slow startup — database connections being established, config being loaded, caches being warmed. The <code style="font-family:var(--mono);font-size:12px">/health</code> route returns <strong>503</strong> until then, causing the healthcheck to fail and the container to stay in <code style="font-family:var(--mono);font-size:12px">starting</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Create package.json</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">package.json</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre>{
+  <span class="str">"name"</span>: <span class="str">"healthcheck-demo"</span>,
+  <span class="str">"version"</span>: <span class="str">"1.0.0"</span>,
+  <span class="str">"main"</span>: <span class="str">"app.js"</span>,
+  <span class="str">"dependencies"</span>: {
+    <span class="str">"express"</span>: <span class="str">"^4.19.0"</span>
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Write the Dockerfile with HEALTHCHECK</div>
+          <div class="step-desc">Add the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">HEALTHCHECK</code> instruction after exposing the port. Alpine images don't include <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">curl</code>, so we install it in the same <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">RUN</code> step as our dependencies.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Dockerfile</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="kw">FROM</span> <span class="val">node:22-alpine</span>
+
+<span class="comment"># Install curl for the healthcheck probe</span>
+<span class="kw">RUN</span> apk add --no-cache curl
+
+<span class="kw">WORKDIR</span> <span class="str">/app</span>
+
+<span class="kw">COPY</span> package.json .
+<span class="kw">RUN</span> npm install --omit=dev
+
+<span class="kw">COPY</span> app.js .
+
+<span class="kw">EXPOSE</span> <span class="num">3000</span>
+
+<span class="comment"># Healthcheck baked into the image</span>
+<span class="hl">HEALTHCHECK</span> <span class="flag">--interval=15s</span> <span class="flag">--timeout=5s</span> <span class="flag">--start-period=10s</span> <span class="flag">--retries=3</span> \
+  <span class="hl">CMD</span> curl <span class="flag">-f</span> http://localhost:<span class="num">3000</span>/health || exit 1
+
+<span class="kw">CMD</span> [<span class="str">"node"</span>, <span class="str">"app.js"</span>]</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">curl -f</code> exits non-zero on HTTP 4xx and 5xx responses — not just network failures. Without <code style="font-family:var(--mono);font-size:12px">-f</code>, a 503 would still exit 0 and be mistakenly reported as healthy.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Write compose.yaml with a healthcheck override</div>
+          <div class="step-desc">Compose can define or override the image's healthcheck. It also uses <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">condition: service_healthy</code> to hold off starting dependent services until the check passes.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">compose.yaml</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="prop">services</span>:
+
+  <span class="prop">app</span>:
+    <span class="prop">build</span>: .
+    <span class="prop">ports</span>:
+      - <span class="str">"3000:3000"</span>
+    <span class="prop">restart</span>: on-failure
+    <span class="comment">  # Override (or supplement) the Dockerfile healthcheck</span>
+    <span class="prop">healthcheck</span>:
+      <span class="prop">test</span>: [<span class="str">"CMD"</span>, <span class="str">"curl"</span>, <span class="str">"-f"</span>, <span class="str">"http://localhost:3000/health"</span>]
+      <span class="prop">interval</span>: <span class="val">15s</span>
+      <span class="prop">timeout</span>: <span class="val">5s</span>
+      <span class="prop">start_period</span>: <span class="val">10s</span>
+      <span class="prop">retries</span>: <span class="num">3</span>
+
+  <span class="comment">  # A hypothetical worker that must wait until app is healthy</span>
+  <span class="prop">worker</span>:
+    <span class="prop">image</span>: <span class="val">alpine</span>
+    <span class="prop">command</span>: sh -c <span class="str">"echo 'App is healthy, starting work!' && sleep infinity"</span>
+    <span class="prop">depends_on</span>:
+      <span class="prop">app</span>:
+        <span class="prop">condition</span>: <span class="val">service_healthy</span></pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">Use <code style="font-family:var(--mono);font-size:12px">CMD</code> form (JSON array) in the Compose <code style="font-family:var(--mono);font-size:12px">test:</code> field, not shell string form. <code style="font-family:var(--mono);font-size:12px">CMD-SHELL</code> also works and accepts a plain string: <code style="font-family:var(--mono);font-size:12px">test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]</code></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Build and bring up the stack</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="cmd">docker</span> compose up <span class="flag">--build</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (abridged)</div>
+            <div class="output-body">
+<span class="dim">[+] Building 14.2s (9/9) FINISHED</span><br>
+<span class="dim">[+] Running 2/2</span><br>
+<span class="dim"> ✔ Container healthcheck-demo-app-1     Started</span><br>
+<span class="y"> ⠿ Container healthcheck-demo-worker-1  Waiting  (waiting for app to be healthy)</span><br>
+<span class="dim">healthcheck-demo-app-1  | Server listening on port 3000</span><br>
+<span class="dim">...</span><br>
+<span class="g"> ✔ Container healthcheck-demo-worker-1  Started</span><br>
+<span class="g">healthcheck-demo-worker-1 | App is healthy, starting work!</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Notice the worker stays in <strong>Waiting</strong> until the app's healthcheck passes, then starts automatically. This is <code style="font-family:var(--mono);font-size:12px">condition: service_healthy</code> in action — no sleep scripts, no polling loops.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Watch the health status change in real time</div>
+          <div class="step-desc">Open a second terminal and watch <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker ps</code> refresh every second. You'll see the status move from <strong>starting</strong> to <strong>healthy</strong> as the check succeeds.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre>watch -n 1 <span class="str">"docker ps --format 'table {{.Names}}\t{{.Status}}'"</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">output evolves over ~15 seconds</div>
+            <div class="output-body">
+<span class="w">NAMES                          STATUS</span><br>
+<span class="y">healthcheck-demo-app-1         Up 4s (health: starting)</span><br>
+<br>
+<span class="dim">... 15 seconds later ...</span><br>
+<br>
+<span class="w">NAMES                          STATUS</span><br>
+<span class="g">healthcheck-demo-app-1         Up 19s (healthy)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Inspect the healthcheck history</div>
+          <div class="step-desc">Docker stores the last five healthcheck results per container. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker inspect</code> surfaces them along with the current status, timestamps, and any output the command produced.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="cmd">docker</span> inspect <span class="flag">--format</span> \
+  <span class="str">'{{json .State.Health}}'</span> \
+  healthcheck-demo-app-1 | python3 -m json.tool</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (abridged)</div>
+            <div class="output-body">
+<span class="dim">{</span><br>
+<span class="dim">  "Status": </span><span class="g">"healthy"</span><span class="dim">,</span><br>
+<span class="dim">  "FailingStreak": </span><span class="w">0</span><span class="dim">,</span><br>
+<span class="dim">  "Log": [</span><br>
+<span class="dim">    {</span><br>
+<span class="dim">      "Start": </span><span class="b">"2024-01-15T10:45:01Z"</span><span class="dim">,</span><br>
+<span class="dim">      "End":   </span><span class="b">"2024-01-15T10:45:01.08Z"</span><span class="dim">,</span><br>
+<span class="dim">      "ExitCode": </span><span class="g">0</span><span class="dim">,</span><br>
+<span class="dim">      "Output": </span><span class="g">"  % Total ... 200"</span><br>
+<span class="dim">    },</span><br>
+<span class="dim">    ...</span><br>
+<span class="dim">  ]</span><br>
+<span class="dim">}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Simulate an unhealthy container</div>
+          <div class="step-desc">Manually trigger a failure by making the health endpoint return 503 — exec into the container and set a flag, or simply stop the server process to watch the status degrade.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="comment"># Probe the /health endpoint manually to confirm it's 200</span>
+<span class="cmd">docker</span> exec healthcheck-demo-app-1 \
+  curl <span class="flag">-s</span> http://localhost:3000/health
+
+<span class="comment"># Kill the node process inside the container</span>
+<span class="comment"># (container stays running, but app port goes dark)</span>
+<span class="cmd">docker</span> exec healthcheck-demo-app-1 \
+  sh <span class="flag">-c</span> <span class="str">"kill 1"</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">docker ps after 3 failed checks (≈ 45 s)</div>
+            <div class="output-body">
+<span class="w">NAMES                    STATUS</span><br>
+<span class="r">healthcheck-demo-app-1   Up 2 minutes (unhealthy)</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">With <code style="font-family:var(--mono);font-size:12px">restart: on-failure</code> in Compose, the container will restart after the main process exits. Try <code style="font-family:var(--mono);font-size:12px">restart: unless-stopped</code> to watch it automatically recover and return to <strong>healthy</strong>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">10</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Add a healthcheck to MySQL</div>
+          <div class="step-desc">MySQL ships with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">mysqladmin ping</code> — a built-in liveness probe that exits 0 only when the server is accepting connections. Add it to a Compose stack to make a backend app wait for MySQL to be truly ready.</div>
+
+          <div class="tabs">
+            <button class="tab active" onclick="showTab(event,'tab-mysql-compose')">compose.yaml</button>
+            <button class="tab" onclick="showTab(event,'tab-mysql-cmd')">standalone docker run</button>
+          </div>
+
+          <div id="tab-mysql-compose" class="tab-panel active">
+            <div class="code-block">
+              <div class="code-header"><span class="code-lang">compose.yaml — mysql with healthcheck</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+              <pre><span class="prop">services</span>:
+
+  <span class="prop">db</span>:
+    <span class="prop">image</span>: <span class="val">mysql:8.4</span>
+    <span class="prop">environment</span>:
+      MYSQL_ROOT_PASSWORD: <span class="str">rootpass</span>
+      MYSQL_DATABASE: <span class="str">appdb</span>
+      MYSQL_USER: <span class="str">appuser</span>
+      MYSQL_PASSWORD: <span class="str">apppass</span>
+    <span class="prop">volumes</span>:
+      - <span class="val">mysql-data:/var/lib/mysql</span>
+    <span class="prop">healthcheck</span>:
+      <span class="prop">test</span>: [<span class="str">"CMD"</span>, <span class="str">"mysqladmin"</span>, <span class="str">"ping"</span>, <span class="str">"-h"</span>, <span class="str">"localhost"</span>,
+             <span class="str">"-u"</span>, <span class="str">"root"</span>, <span class="str">"-prootpass"</span>]
+      <span class="prop">interval</span>: <span class="val">10s</span>
+      <span class="prop">timeout</span>: <span class="val">5s</span>
+      <span class="prop">start_period</span>: <span class="val">30s</span>
+      <span class="prop">retries</span>: <span class="num">5</span>
+
+  <span class="prop">app</span>:
+    <span class="prop">build</span>: .
+    <span class="prop">ports</span>:
+      - <span class="str">"3000:3000"</span>
+    <span class="prop">environment</span>:
+      DB_HOST: <span class="str">db</span>
+      DB_USER: <span class="str">appuser</span>
+      DB_PASSWORD: <span class="str">apppass</span>
+      DB_NAME: <span class="str">appdb</span>
+    <span class="prop">depends_on</span>:
+      <span class="prop">db</span>:
+        <span class="prop">condition</span>: <span class="val">service_healthy</span>
+
+<span class="prop">volumes</span>:
+  <span class="prop">mysql-data</span>:</pre>
+            </div>
+          </div>
+
+          <div id="tab-mysql-cmd" class="tab-panel">
+            <div class="code-block">
+              <div class="code-header"><span class="code-lang">shell — override healthcheck at runtime</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+              <pre><span class="cmd">docker</span> run <span class="flag">-d</span> \
+  <span class="flag">--name</span> <span class="str">mysql-dev</span> \
+  <span class="flag">-e</span> <span class="hl">MYSQL_ROOT_PASSWORD</span>=<span class="str">rootpass</span> \
+  <span class="flag">-e</span> <span class="hl">MYSQL_DATABASE</span>=<span class="str">appdb</span> \
+  <span class="flag">--health-cmd</span>=<span class="str">"mysqladmin ping -h localhost -u root -prootpass"</span> \
+  <span class="flag">--health-interval</span>=10s \
+  <span class="flag">--health-timeout</span>=5s \
+  <span class="flag">--health-start-period</span>=30s \
+  <span class="flag">--health-retries</span>=5 \
+  <span class="val">mysql:8.4</span></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">11</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Disable the healthcheck when you don't need it</div>
+          <div class="step-desc">If a base image has a healthcheck baked in but you want to opt out — perhaps in a test environment — you can disable it entirely.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Dockerfile — disable inherited healthcheck</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="hl">HEALTHCHECK</span> NONE</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">compose.yaml — disable healthcheck for a service</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="prop">healthcheck</span>:
+  <span class="prop">disable</span>: <span class="val">true</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 12 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">12</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Tear down</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="cmd">docker</span> compose down <span class="flag">--volumes</span> <span class="flag">--rmi</span> local</pre>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 5 — WHAT HAPPENED UNDER THE HOOD   -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔍</span>What happened under the hood</div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">🚀</div>
+        <div class="flow-label">Container starts</div>
+        <div class="flow-desc">Status set to <code style="font-family:var(--mono);font-size:11px">starting</code>. Daemon schedules the first healthcheck after one <code style="font-family:var(--mono);font-size:11px">interval</code>.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">⏱️</div>
+        <div class="flow-label">Check fires</div>
+        <div class="flow-desc">Daemon execs the CMD inside the container's filesystem, same network namespace — no host network used.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">📊</div>
+        <div class="flow-label">Exit code read</div>
+        <div class="flow-desc">Exit 0 resets the failure streak and marks healthy. Exit 1 (or timeout) increments the failure counter.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">📋</div>
+        <div class="flow-label">Log stored</div>
+        <div class="flow-desc">Result is appended to the container's health log (last 5 kept). Visible via <code style="font-family:var(--mono);font-size:11px">docker inspect</code>.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">📡</div>
+        <div class="flow-label">Event emitted</div>
+        <div class="flow-desc">Status transitions emit Docker events — Compose, Swarm, and Kubernetes watch these to trigger orchestration actions.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🔁</div>
+        <div class="flow-label">Cycle repeats</div>
+        <div class="flow-desc">Daemon waits another <code style="font-family:var(--mono);font-size:11px">interval</code> and fires again — indefinitely for the container's lifetime.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 6 — WHAT YOU LEARNED               -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🎯</span>What you learned</div>
+    <ul class="checklist">
+      <li><span class="chk"></span>Why "running" and "ready" are different states, and why healthchecks exist to bridge that gap</li>
+      <li><span class="chk"></span>The four healthcheck parameters — <code style="font-family:var(--mono);font-size:12px">interval</code>, <code style="font-family:var(--mono);font-size:12px">timeout</code>, <code style="font-family:var(--mono);font-size:12px">start-period</code>, <code style="font-family:var(--mono);font-size:12px">retries</code> — and how to tune each one</li>
+      <li><span class="chk"></span>How to write a <code style="font-family:var(--mono);font-size:12px">HEALTHCHECK</code> instruction in a Dockerfile using <code style="font-family:var(--mono);font-size:12px">curl -f</code> to probe an HTTP endpoint</li>
+      <li><span class="chk"></span>How to define a <code style="font-family:var(--mono);font-size:12px">healthcheck:</code> block in Compose and use <code style="font-family:var(--mono);font-size:12px">condition: service_healthy</code> in <code style="font-family:var(--mono);font-size:12px">depends_on</code></li>
+      <li><span class="chk"></span>How to inspect live healthcheck state and history with <code style="font-family:var(--mono);font-size:12px">docker inspect</code> and <code style="font-family:var(--mono);font-size:12px">docker ps</code></li>
+      <li><span class="chk"></span>How to probe MySQL with <code style="font-family:var(--mono);font-size:12px">mysqladmin ping</code> and how to disable an inherited healthcheck with <code style="font-family:var(--mono);font-size:12px">HEALTHCHECK NONE</code></li>
+    </ul>
+  </section>
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+
+function showTab(e, id) {
+  const wrap = e.target.closest('.step-content');
+  wrap.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  wrap.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  e.target.classList.add('active');
+  wrap.querySelector('#' + id).classList.add('active');
+}
+</script>
+
+</body>
+</html>

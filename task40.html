@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 40 — Docker Daemon Security Tuning</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --purple-border: rgba(188,140,255,0.2);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.08);
+    --red-border: rgba(248,81,73,0.2);
+    --orange: #ffa657;
+    --orange-bg: rgba(255,166,87,0.08);
+    --orange-border: rgba(255,166,87,0.2);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  /* ── Nav ── */
+  .nav { border-bottom: 1px solid var(--border); padding: .875rem 2rem; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; background: rgba(13,17,23,0.92); backdrop-filter: blur(8px); z-index: 100; }
+  .nav-back { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); text-decoration: none; transition: color .15s; }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge { margin-left: auto; font-family: var(--mono); font-size: 10px; padding: 3px 10px; border-radius: 999px; background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); letter-spacing: .04em; text-transform: uppercase; }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero { padding: 3.5rem 0 3rem; border-bottom: 1px solid var(--border); margin-bottom: 3rem; }
+  .hero-eyebrow { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+  .hero h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem; }
+  .hero h1 .hl { color: var(--purple); }
+  .hero-desc { font-size: 16px; color: var(--text-muted); line-height: 1.65; max-width: 560px; margin-bottom: 1.75rem; }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem; }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Attack surface diagram ── */
+  .attack-diagram { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono); font-size: 12px; }
+  .ad-label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.25rem; }
+  .ad-layers { display: flex; flex-direction: column; gap: 6px; }
+  .ad-layer { display: flex; align-items: center; gap: 12px; padding: .55rem .875rem; border-radius: 6px; border: 1px solid; }
+  .ad-layer.l1 { background: rgba(248,81,73,0.06);    border-color: rgba(248,81,73,0.2);   }
+  .ad-layer.l2 { background: rgba(255,166,87,0.06);   border-color: rgba(255,166,87,0.2);  }
+  .ad-layer.l3 { background: rgba(227,179,65,0.06);   border-color: rgba(227,179,65,0.15); }
+  .ad-layer.l4 { background: rgba(63,185,80,0.06);    border-color: rgba(63,185,80,0.2);   }
+  .ad-layer.l5 { background: rgba(188,140,255,0.06);  border-color: rgba(188,140,255,0.2); }
+  .ad-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .l1 .ad-dot { background: var(--red); }
+  .l2 .ad-dot { background: var(--orange); }
+  .l3 .ad-dot { background: var(--yellow); }
+  .l4 .ad-dot { background: var(--green); }
+  .l5 .ad-dot { background: var(--purple); }
+  .ad-name { font-size: 12px; font-weight: 600; flex-shrink: 0; min-width: 130px; }
+  .l1 .ad-name { color: var(--red); }
+  .l2 .ad-name { color: var(--orange); }
+  .l3 .ad-name { color: var(--yellow); }
+  .l4 .ad-name { color: var(--green); }
+  .l5 .ad-name { color: var(--purple); }
+  .ad-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+  .ad-fix  { font-size: 10.5px; color: var(--text-dim); font-style: italic; margin-top: 2px; }
+
+  /* ── Approach tabs (visual only) ── */
+  .approach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 1rem 0; }
+  .approach-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; }
+  .approach-badge { display: inline-block; font-family: var(--mono); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; margin-bottom: .6rem; }
+  .approach-badge.root { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+  .approach-badge.sec  { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-border); }
+  .approach-title { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: .4rem; }
+  .approach-body  { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
+  .approach-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--purple); background: var(--bg); flex-shrink: 0; z-index: 1; }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Part headers (within steps) ── */
+  .part-header { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin: 1.25rem 0 .6rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); }
+  .part-header:first-of-type { margin-top: 0; }
+
+  /* ── Code blocks ── */
+  .code-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .code-header { display: flex; align-items: center; justify-content: space-between; padding: .45rem .875rem; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn { font-family: var(--mono); font-size: 10px; color: var(--text-dim); background: transparent; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s; display: flex; align-items: center; gap: 4px; letter-spacing: .04em; }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre { padding: .875rem 1rem; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text); }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .key     { color: var(--blue); }
+  pre .val     { color: var(--green); }
+  pre .sec     { color: var(--purple); }
+  pre .bad     { color: var(--red); }
+  pre .warn    { color: var(--orange); }
+  pre .num     { color: var(--yellow); }
+
+  /* ── Callouts ── */
+  .callout { border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0; font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px; }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info   { background: var(--blue-bg);    border-color: rgba(88,166,255,0.2); }
+  .callout.tip    { background: var(--green-bg);   border-color: var(--green-border); }
+  .callout.warn   { background: var(--yellow-bg);  border-color: var(--yellow-border); }
+  .callout.danger { background: var(--red-bg);     border-color: var(--red-border); }
+  .callout.sec    { background: var(--purple-bg);  border-color: var(--purple-border); }
+  .callout.orange { background: var(--orange-bg);  border-color: var(--orange-border); }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header { background: var(--surface); padding: .4rem .875rem; font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .output-body { padding: .875rem 1rem; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: #8b949e; }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .p { color: var(--purple); }
+  .output-body .r { color: var(--red); }
+  .output-body .o { color: var(--orange); }
+
+  /* ── Syscall table ── */
+  .syscall-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: .75rem 0; }
+  .syscall-header { display: grid; grid-template-columns: 160px 1fr 80px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .syscall-row    { display: grid; grid-template-columns: 160px 1fr 80px; border-bottom: 1px solid var(--border); }
+  .syscall-row:last-child { border-bottom: none; }
+  .syscall-header span, .syscall-row span { padding: .5rem .875rem; font-size: 12px; }
+  .syscall-header span { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .08em; text-transform: uppercase; }
+  .syscall-row span:first-child { font-family: var(--mono); font-size: 11.5px; color: var(--purple); }
+  .syscall-row span:nth-child(2) { font-size: 12px; color: var(--text-muted); line-height: 1.5; padding-top: .5rem; }
+  .syscall-row .action-block { font-family: var(--mono); font-size: 10px; padding: .5rem .875rem; }
+  .action-block.allow { color: var(--green); }
+  .action-block.deny  { color: var(--red); }
+
+  /* ── Flow grid ── */
+  .flow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 1rem 0; }
+  .flow-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .875rem; text-align: center; }
+  .flow-num  { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon  { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc  { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--text-muted); padding: .6rem .875rem; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; line-height: 1.5; }
+  .checklist li .chk { width: 16px; height: 16px; border: 1.5px solid var(--border-strong); border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Next / Prev ── */
+  .next-prev { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .next-card { display: flex; align-items: center; gap: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; text-decoration: none; transition: border-color .15s; }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-card.prev { flex-direction: row-reverse; }
+  .next-arrow { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center; color: var(--text-muted); flex-shrink: 0; margin-left: auto; }
+  .next-card.prev .next-arrow { margin-left: 0; margin-right: auto; }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .next-prev { grid-template-columns: 1fr; }
+    .approach-grid { grid-template-columns: 1fr; }
+    .syscall-header, .syscall-row { grid-template-columns: 130px 1fr 70px; }
+    .ad-name { min-width: 100px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 40</span>
+  <span class="nav-badge">Advanced</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 40 &nbsp;·&nbsp; Advanced
+    </div>
+    <h1>Docker Daemon<br><span class="hl">Security Tuning</span></h1>
+    <p class="hero-desc">Harden your Docker setup by enabling rootless mode — eliminating daemon root access entirely — and by writing a custom Seccomp profile to restrict the Linux syscalls your containers are allowed to make.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~35 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Tasks 35 &amp; 36 complete
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Linux host recommended
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: THE THREAT MODEL                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">⚠️</span>The default Docker attack surface</div>
+
+    <p style="font-size:13.5px;">Out of the box, Docker runs with significant privileges. A container escape, a misconfigured mount, or a compromised image could give an attacker root access to your host. This task closes those gaps layer by layer.</p>
+
+    <div class="attack-diagram">
+      <div class="ad-label">Attack surface — default Docker install, worst-first</div>
+      <div class="ad-layers">
+        <div class="ad-layer l1">
+          <div class="ad-dot"></div>
+          <div>
+            <div class="ad-name">Root daemon</div>
+            <div class="ad-desc">dockerd runs as root. The Docker socket (/var/run/docker.sock) grants full root equivalent to anyone who can write to it.</div>
+            <div class="ad-fix">→ Fixed by: Rootless mode (Part A)</div>
+          </div>
+        </div>
+        <div class="ad-layer l2">
+          <div class="ad-dot"></div>
+          <div>
+            <div class="ad-name">Unrestricted syscalls</div>
+            <div class="ad-desc">Containers can call hundreds of Linux kernel syscalls by default — many of which are not needed and could be weaponised for privilege escalation.</div>
+            <div class="ad-fix">→ Fixed by: Custom Seccomp profile (Part B)</div>
+          </div>
+        </div>
+        <div class="ad-layer l3">
+          <div class="ad-dot"></div>
+          <div>
+            <div class="ad-name">Excess capabilities</div>
+            <div class="ad-desc">Containers run with a large set of Linux capabilities (CAP_NET_ADMIN, CAP_SYS_PTRACE, etc.) most apps don't need. Each is a potential escalation vector.</div>
+            <div class="ad-fix">→ Mitigated by: --cap-drop=ALL --cap-add=... (covered in Task 35)</div>
+          </div>
+        </div>
+        <div class="ad-layer l4">
+          <div class="ad-dot"></div>
+          <div>
+            <div class="ad-name">Running as root in container</div>
+            <div class="ad-desc">If a process escapes the container namespace, root inside = root outside on a default install.</div>
+            <div class="ad-fix">→ Mitigated by: Non-root USER in Dockerfile (Task 35)</div>
+          </div>
+        </div>
+        <div class="ad-layer l5">
+          <div class="ad-dot"></div>
+          <div>
+            <div class="ad-name">Mandatory access control</div>
+            <div class="ad-desc">Without AppArmor or SELinux profiles, no MAC policy constrains what a container process can access on the host filesystem.</div>
+            <div class="ad-fix">→ Covered in Part C: AppArmor profiles</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">📖</span>Required concepts</div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">👤</div>
+          <div class="concept-title">Rootless Docker</div>
+        </div>
+        <div class="concept-body">
+          In rootless mode the entire Docker daemon — including the container runtimes — runs as a <strong>regular unprivileged user</strong>. Even if an attacker escapes a container and compromises the daemon, they only have your user's permissions, not root. The Docker socket is private to your user account.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🔒</div>
+          <div class="concept-title">Seccomp (Secure Computing Mode)</div>
+        </div>
+        <div class="concept-body">
+          Seccomp is a Linux kernel feature that <strong>filters syscalls</strong>. A Seccomp profile is a JSON allowlist (or blocklist) of syscall names. When a container process attempts a syscall not on the list, the kernel kills it with SIGSYS. Docker ships a default profile that blocks ~44 dangerous syscalls; you can write tighter custom profiles.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">🛡️</div>
+          <div class="concept-title">AppArmor</div>
+        </div>
+        <div class="concept-body">
+          AppArmor is a Linux <strong>mandatory access control</strong> (MAC) system that restricts what files, capabilities, and network operations a process can access — regardless of its UID or privileges. Docker loads a default AppArmor profile (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker-default</code>) for containers on systems where AppArmor is available.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">📜</div>
+          <div class="concept-title">Defence in depth</div>
+        </div>
+        <div class="concept-body">
+          No single hardening measure is enough. The goal is <strong>layered defences</strong>: rootless mode limits daemon blast radius, Seccomp limits syscall surface, AppArmor limits filesystem access, non-root USER (Task 35) limits container privilege, and secrets management (Task 36) limits credential exposure. Each layer makes exploitation harder.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">⚙️</div>
+          <div class="concept-title">daemon.json</div>
+        </div>
+        <div class="concept-body">
+          The Docker daemon's configuration file at <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/etc/docker/daemon.json</code> (root mode) or <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">~/.config/docker/daemon.json</code> (rootless mode) controls daemon-wide defaults — including the default Seccomp profile, logging driver, storage driver, and more.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🧪</div>
+          <div class="concept-title">Testing without breaking things</div>
+        </div>
+        <div class="concept-body">
+          Overly aggressive Seccomp profiles silently break applications. The workflow is: <strong>audit</strong> (run with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--security-opt seccomp=unconfined</code> and trace syscalls), <strong>build</strong> a profile allowing only what was observed, then <strong>enforce</strong>. Start from Docker's default profile — don't write from scratch.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Rootless vs root-mode comparison -->
+    <div class="approach-grid" style="margin-top:1.5rem;">
+      <div class="approach-card">
+        <div class="approach-badge root">Root mode (default)</div>
+        <div class="approach-title">dockerd runs as root</div>
+        <div class="approach-body">
+          Docker socket at <strong>/var/run/docker.sock</strong> — world-readable by the docker group. Equivalent to passwordless sudo for group members. Container escape → host root.
+        </div>
+      </div>
+      <div class="approach-card">
+        <div class="approach-badge sec">Rootless mode</div>
+        <div class="approach-title">dockerd runs as your user</div>
+        <div class="approach-body">
+          Socket at <strong>$XDG_RUNTIME_DIR/docker.sock</strong>. Only accessible to your UID. Daemon compromised → only user-level access. Recommended for all developer workstations and single-user servers.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🪜</span>Step-by-step guide</div>
+
+    <div class="steps">
+
+      <!-- ─── PART A: ROOTLESS MODE ─────────────── -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">A</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title" style="color:var(--purple);font-size:13px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;">Part A — Rootless Mode</div>
+        </div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Check prerequisites</div>
+          <div class="step-desc">Rootless mode requires <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">newuidmap</code> and <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">newgidmap</code> to be installed and your user to have subordinate UID/GID ranges configured in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/etc/subuid</code> and <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/etc/subgid</code>.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Install prerequisites (Ubuntu/Debian)</span>
+<span class="cmd">sudo</span> apt-get install <span class="flag">-y</span> uidmap dbus-user-session
+
+<span class="comment"># Verify your user has subuid/subgid ranges</span>
+<span class="cmd">grep</span> $(whoami) /etc/subuid   <span class="comment"># should show: username:100000:65536</span>
+<span class="cmd">grep</span> $(whoami) /etc/subgid
+
+<span class="comment"># If missing, add them</span>
+<span class="cmd">sudo</span> usermod <span class="flag">--add-subuids</span> 100000-165535 \
+              <span class="flag">--add-subgids</span> 100000-165535 $(whoami)</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected /etc/subuid output</div>
+            <div class="output-body"><span class="w">alice:100000:65536</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Install rootless Docker</div>
+          <div class="step-desc">Run the official rootless setup script as your regular user — not as root. It installs a user-scoped daemon and sets up the socket.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell — as regular user, not root</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">dockerd-rootless-setuptool.sh</span> install</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (key lines)</div>
+            <div class="output-body">
+<span class="g">[INFO] Creating /home/alice/.config/systemd/user/docker.service</span><br>
+<span class="g">[INFO] Starting systemd service docker.service</span><br>
+<span class="w">...</span><br>
+<span class="g">[INFO] Installed docker.service successfully.</span><br>
+<br>
+<span class="w">Make sure the following environment variables are set (or add to ~/.bashrc):</span><br>
+<span class="y">export PATH=/usr/bin:$PATH</span><br>
+<span class="y">export DOCKER_HOST=unix:///run/user/1000/docker.sock</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">If <code style="font-family:var(--mono);font-size:12px">dockerd-rootless-setuptool.sh</code> isn't found, install it first with <code style="font-family:var(--mono);font-size:12px">sudo apt-get install docker-ce-rootless-extras</code> or fetch the convenience script from <strong>get.docker.com</strong>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Configure your shell and start the daemon</div>
+          <div class="step-desc">Export the environment variables the installer printed, then enable the user-scoped systemd service so the daemon starts automatically on login.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Add to ~/.bashrc (or ~/.zshrc)</span>
+<span class="cmd">echo</span> <span class="str">'export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock'</span> >> ~/.bashrc
+<span class="cmd">source</span> ~/.bashrc
+
+<span class="comment"># Enable the user daemon to start on login</span>
+<span class="cmd">systemctl</span> <span class="flag">--user</span> enable docker
+<span class="cmd">systemctl</span> <span class="flag">--user</span> start docker
+
+<span class="comment"># Keep daemon running even when not logged in (servers)</span>
+<span class="cmd">sudo</span> loginctl enable-linger $(whoami)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Verify rootless mode is active</div>
+          <div class="step-desc">Confirm that <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker info</code> reports rootless mode and that the socket path is under your user's runtime directory — not <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/var/run</code>.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> info <span class="flag">--format</span> <span class="str">'Security Options: {{.SecurityOptions}}'</span>
+<span class="cmd">docker</span> info <span class="flag">--format</span> <span class="str">'Rootless: {{.ClientInfo.Context}}'</span>
+
+<span class="comment"># Verify socket is user-scoped</span>
+<span class="cmd">echo</span> $DOCKER_HOST
+
+<span class="comment"># Run a container — should work exactly as before</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> hello-world</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected docker info output</div>
+            <div class="output-body">
+<span class="w">Security Options: [</span><span class="g">name=rootless</span><span class="w"> name=seccomp,profile=builtin name=apparmor]</span><br>
+<span class="y">DOCKER_HOST=unix:///run/user/1000/docker.sock</span>
+            </div>
+          </div>
+          <div class="callout sec">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">The daemon is now running under your UID. <strong>The system-wide Docker socket no longer exists</strong> — or if root Docker is also installed, it's irrelevant to your user session. A container escape gives an attacker only your user's permissions.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── PART B: SECCOMP ───────────────────── -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">B</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title" style="color:var(--purple);font-size:13px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;">Part B — Custom Seccomp Profile</div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Understand what a Seccomp profile looks like</div>
+          <div class="step-desc">A Seccomp profile is a JSON document with a <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">defaultAction</code> and a list of syscalls that deviate from that default. The two common strategies: allowlist (default: KILL, allow specific calls) or blocklist (default: ALLOW, block specific calls). Allowlists are more secure.</div>
+
+          <div class="syscall-table">
+            <div class="syscall-header">
+              <span>Syscall</span>
+              <span>What it does</span>
+              <span>Default profile</span>
+            </div>
+            <div class="syscall-row">
+              <span>ptrace</span>
+              <span>Attach a debugger to any process — can be used to dump memory or inject code into other containers.</span>
+              <span class="action-block deny">BLOCK</span>
+            </div>
+            <div class="syscall-row">
+              <span>kexec_load</span>
+              <span>Load a new kernel — trivial host escape if allowed.</span>
+              <span class="action-block deny">BLOCK</span>
+            </div>
+            <div class="syscall-row">
+              <span>mount</span>
+              <span>Mount filesystems — blocked by default, re-bind-mounting host paths is a common escape vector.</span>
+              <span class="action-block deny">BLOCK</span>
+            </div>
+            <div class="syscall-row">
+              <span>open, read, write</span>
+              <span>Basic I/O — every app needs these.</span>
+              <span class="action-block allow">ALLOW</span>
+            </div>
+            <div class="syscall-row">
+              <span>clone</span>
+              <span>Create threads and processes — needed for most runtimes. Restricted to non-namespace-creating flags.</span>
+              <span class="action-block allow">ALLOW</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Download Docker's default profile as a starting point</div>
+          <div class="step-desc">Never write a Seccomp profile from scratch — start from Docker's well-tested default and tighten from there. The default already blocks ~44 dangerous syscalls.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Download the official default Seccomp profile</span>
+<span class="cmd">curl</span> <span class="flag">-o</span> seccomp-default.json \
+  https://raw.githubusercontent.com/moby/moby/master/profiles/seccomp/default.json
+
+<span class="comment"># Count how many syscalls it covers</span>
+<span class="cmd">jq</span> <span class="str">'.syscalls | length'</span> seccomp-default.json</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body"><span class="w">355</span>  <span style="color:var(--text-dim);font-style:italic;"># ~355 entries covering ~340 allowed + ~44 explicitly blocked</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Write a tight custom Seccomp profile for a Node.js app</div>
+          <div class="step-desc">This profile uses <strong>allowlist mode</strong>: the default action kills the process with SIGSYS, and only the syscalls a typical Node.js HTTP server actually needs are permitted. Save this as <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">seccomp-node.json</code>.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">seccomp-node.json</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>{
+  <span class="key">"defaultAction"</span>: <span class="val">"SCMP_ACT_ERRNO"</span>,   <span class="comment">// deny anything not listed</span>
+
+  <span class="key">"syscalls"</span>: [
+    {
+      <span class="key">"names"</span>: [
+        <span class="comment">// process lifecycle</span>
+        <span class="str">"execve"</span>, <span class="str">"exit"</span>, <span class="str">"exit_group"</span>, <span class="str">"wait4"</span>, <span class="str">"waitid"</span>,
+        <span class="comment">// memory management</span>
+        <span class="str">"mmap"</span>, <span class="str">"mprotect"</span>, <span class="str">"munmap"</span>, <span class="str">"brk"</span>, <span class="str">"madvise"</span>,
+        <span class="comment">// file I/O</span>
+        <span class="str">"open"</span>, <span class="str">"openat"</span>, <span class="str">"read"</span>, <span class="str">"write"</span>, <span class="str">"close"</span>,
+        <span class="str">"stat"</span>, <span class="str">"fstat"</span>, <span class="str">"lstat"</span>, <span class="str">"lseek"</span>, <span class="str">"pread64"</span>,
+        <span class="str">"readlink"</span>, <span class="str">"getcwd"</span>, <span class="str">"chdir"</span>,
+        <span class="comment">// directory listing</span>
+        <span class="str">"getdents"</span>, <span class="str">"getdents64"</span>,
+        <span class="comment">// networking</span>
+        <span class="str">"socket"</span>, <span class="str">"connect"</span>, <span class="str">"accept"</span>, <span class="str">"accept4"</span>,
+        <span class="str">"bind"</span>, <span class="str">"listen"</span>, <span class="str">"getsockname"</span>, <span class="str">"getpeername"</span>,
+        <span class="str">"setsockopt"</span>, <span class="str">"getsockopt"</span>, <span class="str">"sendto"</span>, <span class="str">"recvfrom"</span>,
+        <span class="str">"sendmsg"</span>, <span class="str">"recvmsg"</span>, <span class="str">"shutdown"</span>,
+        <span class="comment">// threads and signals</span>
+        <span class="str">"clone"</span>, <span class="str">"futex"</span>, <span class="str">"set_robust_list"</span>, <span class="str">"get_robust_list"</span>,
+        <span class="str">"sigaltstack"</span>, <span class="str">"rt_sigaction"</span>, <span class="str">"rt_sigprocmask"</span>,
+        <span class="str">"rt_sigreturn"</span>, <span class="str">"kill"</span>,
+        <span class="comment">// identity and time</span>
+        <span class="str">"getuid"</span>, <span class="str">"getgid"</span>, <span class="str">"geteuid"</span>, <span class="str">"getegid"</span>,
+        <span class="str">"getpid"</span>, <span class="str">"gettid"</span>, <span class="str">"clock_gettime"</span>, <span class="str">"nanosleep"</span>,
+        <span class="comment">// polling / epoll (Node.js event loop)</span>
+        <span class="str">"epoll_create"</span>, <span class="str">"epoll_create1"</span>, <span class="str">"epoll_ctl"</span>,
+        <span class="str">"epoll_wait"</span>, <span class="str">"epoll_pwait"</span>, <span class="str">"poll"</span>, <span class="str">"ppoll"</span>,
+        <span class="str">"select"</span>, <span class="str">"pselect6"</span>,
+        <span class="comment">// misc required by Node.js / V8</span>
+        <span class="str">"ioctl"</span>, <span class="str">"fcntl"</span>, <span class="str">"pipe"</span>, <span class="str">"pipe2"</span>, <span class="str">"eventfd2"</span>,
+        <span class="str">"prctl"</span>, <span class="str">"arch_prctl"</span>, <span class="str">"set_tid_address"</span>,
+        <span class="str">"uname"</span>, <span class="str">"sysinfo"</span>, <span class="str">"tgkill"</span>
+      ],
+      <span class="key">"action"</span>: <span class="val">"SCMP_ACT_ALLOW"</span>
+    }
+  ]
+}</pre>
+          </div>
+          <div class="callout orange">
+            <span class="callout-icon">⚡</span>
+            <div class="callout-body"><strong>This list is illustrative, not exhaustive.</strong> Real apps often need additional syscalls discovered through testing. Use the audit workflow in Step 9 to find missing syscalls before enforcing this profile in production.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Apply the Seccomp profile to a container</div>
+          <div class="step-desc">Pass the profile JSON to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--security-opt</code>. Docker loads it and hands it to the kernel before the container process starts.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell — run with custom Seccomp profile</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> run <span class="flag">--rm</span> \
+  <span class="flag">--security-opt</span> <span class="sec">seccomp=./seccomp-node.json</span> \
+  <span class="flag">-p</span> 3000:3000 \
+  my-node-app</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">docker-compose.yml — security_opt block</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="key">services</span>:
+  <span class="key">app</span>:
+    <span class="key">image</span>: <span class="val">my-node-app</span>
+    <span class="key">security_opt</span>:
+      - <span class="sec">seccomp:./seccomp-node.json</span>
+    <span class="key">ports</span>:
+      - <span class="str">"3000:3000"</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Audit: find what syscalls your app actually uses</div>
+          <div class="step-desc">Before enforcing a tight profile, run with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">strace</code> inside the container to capture every syscall the app makes under realistic load, then build your allowlist from that output.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell — audit mode (unconfined + strace)</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Run completely unconfined so nothing is blocked</span>
+<span class="cmd">docker</span> run <span class="flag">-it</span> <span class="flag">--rm</span> \
+  <span class="flag">--security-opt</span> <span class="warn">seccomp=unconfined</span> \
+  <span class="flag">--cap-add</span> SYS_PTRACE \
+  my-node-app sh
+
+<span class="comment"># Inside the container — trace the app's syscalls</span>
+<span class="cmd">apk</span> add strace
+<span class="cmd">strace</span> <span class="flag">-f</span> <span class="flag">-e</span> trace=all <span class="flag">-o</span> /tmp/syscalls.txt node app.js &
+
+<span class="comment"># Exercise your app (run requests, trigger all code paths)</span>
+<span class="comment"># Then extract the unique syscall names used</span>
+<span class="cmd">grep</span> <span class="flag">-oP</span> <span class="str">'^[a-z_0-9]+'</span> /tmp/syscalls.txt | sort -u</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Alternatively, the <strong>Inspektor Gadget</strong> project and <strong>tracee</strong> (by Aqua Security) can record syscall usage from outside the container without needing strace inside it — useful for production audits.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">10</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Verify the profile blocks a forbidden syscall</div>
+          <div class="step-desc">Confirm enforcement is working by trying to run a syscall your profile blocks — like <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">ptrace</code>. Under the custom profile it should fail; under <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">unconfined</code> it would succeed.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># With our custom profile — ptrace should be blocked</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> \
+  <span class="flag">--security-opt</span> <span class="sec">seccomp=./seccomp-node.json</span> \
+  alpine strace <span class="flag">-e</span> trace=ptrace ls</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output — syscall denied</div>
+            <div class="output-body">
+<span class="r">strace: ptrace(PTRACE_TRACEME, ...): Operation not permitted</span><br>
+<span class="r">strace: attach: ptrace(PTRACE_SEIZE, 1, ...): Operation not permitted</span>
+            </div>
+          </div>
+          <div class="callout sec">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">The kernel returned <strong>EPERM (Operation not permitted)</strong> — the syscall was blocked by Seccomp before it could execute. An attacker who gains code execution inside this container cannot use ptrace to inspect or manipulate other processes.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── PART C: APPARMOR ───────────────────── -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">C</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title" style="color:var(--purple);font-size:13px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;">Part C — AppArmor Profile</div>
+        </div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">11</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Check AppArmor availability and Docker's default profile</div>
+          <div class="step-desc">AppArmor is available on Ubuntu/Debian by default. Docker automatically loads its <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker-default</code> profile for every container when AppArmor is present.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Check if AppArmor is enabled</span>
+<span class="cmd">aa-status</span> <span class="flag">--enabled</span> && echo "AppArmor is active"
+
+<span class="comment"># See the profiles currently loaded</span>
+<span class="cmd">aa-status</span> | grep docker
+
+<span class="comment"># Confirm a container uses the default profile</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> ubuntu cat /proc/1/attr/current</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">AppArmor is active</span><br>
+<span class="w">   docker-default (enforce)</span><br>
+<span class="p">docker-default (enforce)</span>  <span class="comment">← /proc/1/attr/current</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 12 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">12</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Write and load a custom AppArmor profile</div>
+          <div class="step-desc">Create a profile that tightens the default — explicitly denying write access to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/etc/</code> and disabling certain capabilities. Save it to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/etc/apparmor.d/docker-node-app</code>.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">/etc/apparmor.d/docker-node-app</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>#include &lt;tunables/global&gt;
+
+profile docker-node-app flags=(attach_disconnected,mediate_deleted) {
+  <span class="comment"># Include Docker's base rules</span>
+  #include &lt;abstractions/base&gt;
+
+  <span class="comment"># Allow read access to most of the filesystem</span>
+  <span class="str">/** r</span>,
+
+  <span class="comment"># Allow write only to specific directories</span>
+  <span class="str">/tmp/** rw</span>,
+  <span class="str">/run/secrets/** r</span>,   <span class="comment"># Docker secrets (read-only)</span>
+  <span class="str">/app/** rw</span>,           <span class="comment"># app working directory</span>
+
+  <span class="comment"># Explicitly deny writes to sensitive locations</span>
+  <span class="bad">deny /etc/** w</span>,
+  <span class="bad">deny /bin/** w</span>,
+  <span class="bad">deny /sbin/** w</span>,
+  <span class="bad">deny /usr/bin/** w</span>,
+  <span class="bad">deny /proc/** w</span>,
+  <span class="bad">deny /sys/** w</span>,
+
+  <span class="comment"># Allow networking</span>
+  network inet tcp,
+  network inet udp,
+  network inet6 tcp,
+  network inet6 udp,
+
+  <span class="comment"># Deny dangerous capabilities</span>
+  <span class="bad">deny capability sys_admin</span>,
+  <span class="bad">deny capability sys_ptrace</span>,
+  <span class="bad">deny capability net_admin</span>,
+}</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell — load and enforce the profile</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Parse and load the profile into the kernel</span>
+<span class="cmd">sudo</span> apparmor_parser <span class="flag">-r</span> <span class="flag">-W</span> /etc/apparmor.d/docker-node-app
+
+<span class="comment"># Confirm it's loaded</span>
+<span class="cmd">sudo</span> aa-status | grep docker-node-app</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body"><span class="g">   docker-node-app (enforce)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 13 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">13</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Run a container with the custom AppArmor profile</div>
+          <div class="step-desc">Apply both Seccomp and AppArmor profiles together for layered protection. Then verify that writing to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/etc/</code> is denied.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Run with both profiles enforced</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> <span class="flag">-it</span> \
+  <span class="flag">--security-opt</span> <span class="sec">apparmor=docker-node-app</span> \
+  <span class="flag">--security-opt</span> <span class="sec">seccomp=./seccomp-node.json</span> \
+  ubuntu bash
+
+<span class="comment"># Inside — try to write to /etc/ (should be denied)</span>
+<span class="cmd">echo</span> <span class="str">"hacked"</span> >> /etc/passwd</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output — write denied</div>
+            <div class="output-body"><span class="r">bash: /etc/passwd: Permission denied</span></div>
+          </div>
+          <div class="callout sec">
+            <span class="callout-icon">🛡️</span>
+            <div class="callout-body">AppArmor denied the write at the MAC layer — <strong>regardless of file permissions or the process's UID</strong>. Even running as root inside the container, the AppArmor policy overrides traditional DAC permissions. This is the power of mandatory access control.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 14 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">14</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Set Seccomp profile as the daemon-wide default</div>
+          <div class="step-desc">Instead of passing <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--security-opt</code> to every container, configure the daemon to use your profile by default for all containers.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">~/.config/docker/daemon.json (rootless) or /etc/docker/daemon.json (root)</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>{
+  <span class="key">"seccomp-profile"</span>: <span class="val">"/home/alice/seccomp-node.json"</span>,
+  <span class="key">"log-driver"</span>: <span class="val">"json-file"</span>,
+  <span class="key">"log-opts"</span>: {
+    <span class="key">"max-size"</span>: <span class="val">"10m"</span>,
+    <span class="key">"max-file"</span>: <span class="val">"3"</span>
+  }
+}</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell — reload daemon config</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Rootless mode</span>
+<span class="cmd">systemctl</span> <span class="flag">--user</span> restart docker
+
+<span class="comment"># Root mode</span>
+<span class="cmd">sudo</span> systemctl restart docker</pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">Restarting the daemon <strong>stops all running containers</strong>. In production, apply configuration changes during a maintenance window. Use <code style="font-family:var(--mono);font-size:12px">dockerd --validate</code> to check daemon.json syntax before restarting.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: WHAT JUST HAPPENED               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔍</span>What happened under the hood</div>
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Part A</div>
+        <div class="flow-icon">👤</div>
+        <div class="flow-label">Rootless daemon</div>
+        <div class="flow-desc">dockerd runs as UID 1000. Socket is at /run/user/1000/docker.sock — inaccessible to other users.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Part A</div>
+        <div class="flow-icon">🗂️</div>
+        <div class="flow-label">User namespace</div>
+        <div class="flow-desc">Root inside the container maps to an unprivileged UID on the host via /etc/subuid. Container escape → non-root on host.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Part B</div>
+        <div class="flow-icon">🔒</div>
+        <div class="flow-label">Syscall filter loaded</div>
+        <div class="flow-desc">The kernel BPF program enforcing the Seccomp profile runs on every syscall before it reaches the kernel handler.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Part B</div>
+        <div class="flow-icon">🚫</div>
+        <div class="flow-label">Denied syscalls</div>
+        <div class="flow-desc">Blocked calls return EPERM immediately — the kernel never executes them. Zero performance cost for allowed calls.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Part C</div>
+        <div class="flow-icon">🛡️</div>
+        <div class="flow-label">MAC enforcement</div>
+        <div class="flow-desc">AppArmor policy checked on every file access, network call, and capability request — independent of UID.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">All</div>
+        <div class="flow-icon">🧅</div>
+        <div class="flow-label">Layered defence</div>
+        <div class="flow-desc">An attacker must bypass rootless namespacing, Seccomp filter, AppArmor MAC, and non-root USER — all independently.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🎯</span>What you learned</div>
+    <ul class="checklist">
+      <li><span class="chk"></span>Why the default Docker daemon running as root is a significant attack surface and how rootless mode eliminates it</li>
+      <li><span class="chk"></span>How to install and enable rootless Docker using <code style="font-family:var(--mono);font-size:12px">dockerd-rootless-setuptool.sh</code> and a user-scoped systemd service</li>
+      <li><span class="chk"></span>What Seccomp is and how to write a custom allowlist JSON profile that restricts containers to only the syscalls they need</li>
+      <li><span class="chk"></span>How to apply Seccomp profiles per-container with <code style="font-family:var(--mono);font-size:12px">--security-opt seccomp=</code> and daemon-wide via <code style="font-family:var(--mono);font-size:12px">daemon.json</code></li>
+      <li><span class="chk"></span>How to audit a running application's actual syscall usage with <code style="font-family:var(--mono);font-size:12px">strace</code> before building a tight profile</li>
+      <li><span class="chk"></span>How AppArmor provides mandatory access control for file and capability access independent of UID, and how to write and load a custom profile</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 35 — Non-root User in Dockerfile</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --blue-border: rgba(88,166,255,0.2);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --purple-border: rgba(188,140,255,0.2);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.1);
+    --red-border: rgba(248,81,73,0.25);
+    --orange: #f0883e;
+    --orange-bg: rgba(240,136,62,0.1);
+    --orange-border: rgba(240,136,62,0.25);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep   { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--purple-bg);
+    color: var(--purple);
+    border: 1px solid var(--purple-border);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--purple); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px; color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 1.5rem;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon {
+    width: 22px; height: 22px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body  { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Root vs non-root comparison ── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 1rem 0;
+  }
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .compare-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: .65rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .compare-header.bad  { background: var(--red-bg);   color: var(--red);   border-bottom-color: var(--red-border); }
+  .compare-header.good { background: var(--green-bg); color: var(--green); border-bottom-color: var(--green-border); }
+  .compare-header svg { flex-shrink: 0; }
+  .compare-body { padding: .875rem 1rem; }
+  .compare-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.55;
+    margin-bottom: .55rem;
+  }
+  .compare-item:last-child { margin-bottom: 0; }
+  .compare-item .dot-bad  { width: 5px; height: 5px; border-radius: 50%; background: var(--red);   flex-shrink: 0; margin-top: 5px; }
+  .compare-item .dot-good { width: 5px; height: 5px; border-radius: 50%; background: var(--green); flex-shrink: 0; margin-top: 5px; }
+
+  /* ── UID/GID anatomy ── */
+  .anatomy {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 13px;
+    display: flex; align-items: baseline; flex-wrap: wrap;
+    margin-bottom: 1.25rem; line-height: 2.2; gap: 0;
+  }
+  .anatomy-part {
+    padding: 2px 6px; border-radius: 4px;
+    font-size: 12px; margin: 2px 2px;
+  }
+  .a-kw   { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-flag { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-val  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-user { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row  { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag  {
+    padding: 1px 8px; border-radius: 3px; font-size: 11px;
+    flex-shrink: 0; min-width: 60px; text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-kw   { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-val  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .anatomy-tag.a-user { color: var(--purple); background: rgba(188,140,255,0.1); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left {
+    display: flex; flex-direction: column; align-items: center;
+    width: 40px; flex-shrink: 0;
+  }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--purple); background: var(--bg);
+    flex-shrink: 0; z-index: 1;
+  }
+  .step-line {
+    width: 1px; flex: 1; background: var(--border);
+    margin: 4px 0; min-height: 16px;
+  }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc  { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin: .6rem 0;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .45rem .875rem; border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    background: transparent; border: none; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px;
+    transition: color .15s, background .15s;
+    display: flex; align-items: center; gap: 4px; letter-spacing: .04em;
+  }
+  .copy-btn:hover  { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text);
+  }
+  pre .kw      { color: var(--blue); }
+  pre .str     { color: var(--green); }
+  pre .val     { color: var(--orange); }
+  pre .flag    { color: var(--yellow); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .hl      { color: var(--purple); }
+  pre .cmd     { color: var(--blue); }
+  pre .fn      { color: var(--purple); }
+  pre .num     { color: var(--orange); }
+  pre .good    { color: var(--green); }
+  pre .bad     { color: var(--red); }
+  pre .dim     { color: var(--text-dim); }
+
+  /* ── Diff blocks (before/after) ── */
+  .diff-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin: .6rem 0;
+  }
+  .diff-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .45rem .875rem; border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: .06em; text-transform: uppercase;
+  }
+  .diff-header .copy-btn { margin-left: auto; }
+  .diff-pre {
+    padding: .875rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65;
+  }
+  .diff-add { background: rgba(63,185,80,0.08);  color: var(--green);  display: block; margin: 0 -1rem; padding: 0 1rem; }
+  .diff-del { background: rgba(248,81,73,0.08);  color: var(--red);    display: block; margin: 0 -1rem; padding: 0 1rem; }
+  .diff-ctx { color: var(--text-muted); display: block; }
+  .diff-kw  { color: var(--blue); }
+  .diff-val { color: var(--orange); }
+  .diff-str { color: var(--green); }
+  .diff-hl  { color: var(--purple); }
+  .diff-cmt { color: var(--text-dim); font-style: italic; }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0;
+    font-size: 13.5px; line-height: 1.6; border: 1px solid;
+    display: flex; gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info   { background: var(--blue-bg);   border-color: var(--blue-border); }
+  .callout.tip    { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn   { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.danger { background: var(--red-bg);    border-color: var(--red-border); }
+
+  /* ── Output preview ── */
+  .output-preview {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin: .6rem 0;
+  }
+  .output-header {
+    background: var(--surface); padding: .4rem .875rem;
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: .06em; text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: #8b949e;
+  }
+  .output-body .g   { color: var(--green); }
+  .output-body .b   { color: var(--blue); }
+  .output-body .w   { color: var(--text); }
+  .output-body .y   { color: var(--yellow); }
+  .output-body .r   { color: var(--red); }
+  .output-body .p   { color: var(--purple); }
+  .output-body .dim { color: var(--text-dim); }
+
+  /* ── Permission matrix ── */
+  .perm-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 13px;
+    margin: 1rem 0;
+  }
+  .perm-table th {
+    text-align: left; padding: .7rem .9rem;
+    background: rgba(255,255,255,0.03);
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: .04em; text-transform: uppercase;
+    color: var(--text-dim); border-bottom: 1px solid var(--border);
+  }
+  .perm-table td {
+    padding: .7rem .9rem; border-bottom: 1px solid var(--border);
+    color: var(--text-muted); vertical-align: middle; line-height: 1.5;
+  }
+  .perm-table tr:last-child td { border-bottom: none; }
+  .perm-table td.path-cell { font-family: var(--mono); font-size: 12px; color: var(--blue); white-space: nowrap; }
+  .perm-table td strong { color: var(--text); font-weight: 500; }
+  .badge {
+    display: inline-block; font-family: var(--mono); font-size: 10px;
+    padding: 1px 7px; border-radius: 999px; border: 1px solid; vertical-align: middle;
+  }
+  .badge.ok  { color: var(--green);  background: var(--green-bg);  border-color: var(--green-border); }
+  .badge.no  { color: var(--red);    background: var(--red-bg);    border-color: var(--red-border); }
+  .badge.own { color: var(--purple); background: var(--purple-bg); border-color: var(--purple-border); }
+
+  /* ── Flow grid ── */
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px; margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .875rem; text-align: center;
+  }
+  .flow-num   { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon  { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc  { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13.5px; color: var(--text-muted);
+    padding: .6rem .875rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 7px; line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3px; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── Next task ── */
+  .next-card {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.25rem;
+    text-decoration: none; transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); flex-shrink: 0; margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav  { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .perm-table { display: block; overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 35</span>
+  <span class="nav-badge">Advanced</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 35 &nbsp;·&nbsp; Advanced
+    </div>
+    <h1>Non-root User<br><span class="hl">in Dockerfile</span></h1>
+    <p class="hero-desc">Create a dedicated system user in your Dockerfile and switch to it with <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--purple)">USER</code> so your app never runs as root — limiting the blast radius if a vulnerability is ever exploited.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~15 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker installed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Familiarity with Dockerfiles
+      </span>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 1 — CONCEPTS                       -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">📖</span>Required concepts</div>
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--red-bg)">🚨</div>
+          <div class="concept-title">Containers run as root by default</div>
+        </div>
+        <div class="concept-body">
+          Unless told otherwise, every process inside a Docker container runs as <strong>UID 0 — root</strong>. That means your Node.js server, your Python worker, your entire app — all root. If an attacker exploits a vulnerability in your app, they immediately have root inside the container.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--blue-bg)">🧱</div>
+          <div class="concept-title">Container root ≠ host root — but almost</div>
+        </div>
+        <div class="concept-body">
+          Docker's namespaces isolate the container, so root inside a container isn't automatically root on the host. But kernel vulnerabilities, misconfigured volume mounts, and <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--privileged</code> mode can all let container root <strong>escape to become host root</strong>. Running non-root eliminates this entire category of risk.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--purple-bg)">👤</div>
+          <div class="concept-title">The USER instruction</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">USER</code> sets the user (and optionally group) for all subsequent <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">RUN</code>, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">CMD</code>, and <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">ENTRYPOINT</code> instructions in the Dockerfile. It takes a username, a UID, or both. Everything before the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">USER</code> line still runs as root.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--yellow-bg)">📂</div>
+          <div class="concept-title">File ownership must be set before switching</div>
+        </div>
+        <div class="concept-body">
+          The new user can only read and write files it <strong>owns or has permission to access</strong>. If you copy app files as root and then switch users, the app can't write to its own working directory. You must <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">chown</code> the relevant directories to the new user before the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">USER</code> switch.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--green-bg)">🔢</div>
+          <div class="concept-title">Use high UIDs for compatibility</div>
+        </div>
+        <div class="concept-body">
+          System UIDs below 1000 are often reserved on Linux. Using a high UID like <strong>10001</strong> avoids collisions with system accounts on the host, and works correctly with Kubernetes security policies that commonly enforce non-root by rejecting UIDs below a threshold.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--orange-bg)">🚫</div>
+          <div class="concept-title">Some things still need root</div>
+        </div>
+        <div class="concept-body">
+          Binding to ports below 1024 (like port 80) requires root or the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">NET_BIND_SERVICE</code> capability. The solution is to bind your app to a high port (like 3000) and let Docker's port publishing (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-p 80:3000</code>) map it — no root needed inside the container.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 2 — ROOT vs NON-ROOT COMPARISON    -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">⚖️</span>Root vs non-root</div>
+
+    <div class="compare-grid">
+      <div class="compare-card">
+        <div class="compare-header bad">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.4"/><line x1="4" y1="4" x2="9" y2="9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><line x1="9" y1="4" x2="4" y2="9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          Running as root
+        </div>
+        <div class="compare-body">
+          <div class="compare-item"><span class="dot-bad"></span>Can read/write any file in the container filesystem</div>
+          <div class="compare-item"><span class="dot-bad"></span>Can install packages, modify system files mid-runtime</div>
+          <div class="compare-item"><span class="dot-bad"></span>Container escape may grant host root privileges</div>
+          <div class="compare-item"><span class="dot-bad"></span>Rejected by many Kubernetes PodSecurityAdmission policies</div>
+          <div class="compare-item"><span class="dot-bad"></span>Violates principle of least privilege</div>
+        </div>
+      </div>
+      <div class="compare-card">
+        <div class="compare-header good">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.4"/><polyline points="3.5,6.5 5.5,8.5 9.5,4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Running as non-root
+        </div>
+        <div class="compare-body">
+          <div class="compare-item"><span class="dot-good"></span>Can only access files it owns or has explicit permission to</div>
+          <div class="compare-item"><span class="dot-good"></span>Cannot install packages or alter system files</div>
+          <div class="compare-item"><span class="dot-good"></span>Container escape limited to unprivileged host user</div>
+          <div class="compare-item"><span class="dot-good"></span>Compatible with strict Kubernetes security contexts</div>
+          <div class="compare-item"><span class="dot-good"></span>Passes most container security scanners</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 3 — INSTRUCTION ANATOMY            -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔬</span>Instruction anatomy</div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-kw">RUN</span>
+        <span class="anatomy-part a-flag">addgroup</span>
+        <span class="anatomy-part a-flag">-g 10001</span>
+        <span class="anatomy-part a-flag">-S</span>
+        <span class="anatomy-part a-user">appgroup</span>
+        <span class="anatomy-part" style="color:var(--text-dim)">&amp;&amp;</span>
+        <span class="anatomy-part a-flag">adduser</span>
+        <span class="anatomy-part a-flag">-u 10001</span>
+        <span class="anatomy-part a-flag">-S</span>
+        <span class="anatomy-part a-flag">-G</span>
+        <span class="anatomy-part a-user">appgroup</span>
+        <span class="anatomy-part a-user">appuser</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-kw">RUN</span>
+          <p>Runs during image build as root — fine here because we're creating a user, not running app code.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">addgroup</span>
+          <p>Creates the group. On Alpine, <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">addgroup</code>; on Debian/Ubuntu use <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">groupadd</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-g 10001</span>
+          <p>Assign GID 10001 — a high number that avoids clashing with system groups on the host.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-S</span>
+          <p>Create a <strong>system</strong> group (no login shell, no home directory, minimal footprint).</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">adduser</span>
+          <p>Creates the user. Alpine uses <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">adduser -S</code>; Debian/Ubuntu use <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">useradd --system --no-create-home</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-u 10001</span>
+          <p>Assign UID 10001. Using a numeric UID (not just a name) ensures identity is consistent even if <code style="font-family:var(--mono);font-size:11px;background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">/etc/passwd</code> isn't present.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-user">appuser</span>
+          <p>The username. Short, descriptive, tied to the app — not a generic name like <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">nobody</code> which is shared across the system.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 4 — STEP-BY-STEP                   -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🪜</span>Step-by-step guide</div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Prove the default is root</div>
+          <div class="step-desc">Run any image without a <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">USER</code> instruction and check who owns the process. The answer is almost always root.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="cmd">docker</span> run <span class="flag">--rm</span> node:22-alpine whoami</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body"><span class="r">root</span></div>
+          </div>
+          <div class="callout danger">
+            <span class="callout-icon">🚨</span>
+            <div class="callout-body">This is the default for almost every official image. It means every <code style="font-family:var(--mono);font-size:12px">RUN</code> step in your Dockerfile and your app process at runtime both execute as <strong>UID 0</strong> unless you explicitly change it.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Write a Dockerfile with a non-root user (Alpine)</div>
+          <div class="step-desc">The pattern: install deps as root → create user/group → <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">chown</code> app files to the new user → switch with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">USER</code> → run the app. Order matters.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Dockerfile — Node.js on Alpine</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="kw">FROM</span> <span class="val">node:22-alpine</span>
+
+<span class="comment"># 1. Create a dedicated group and user (still running as root here)</span>
+<span class="kw">RUN</span> addgroup <span class="flag">-g</span> <span class="num">10001</span> <span class="flag">-S</span> <span class="hl">appgroup</span> && \
+    adduser  <span class="flag">-u</span> <span class="num">10001</span> <span class="flag">-S</span> <span class="flag">-G</span> <span class="hl">appgroup</span> <span class="hl">appuser</span>
+
+<span class="kw">WORKDIR</span> <span class="str">/app</span>
+
+<span class="comment"># 2. Install dependencies as root (needs write access to node_modules)</span>
+<span class="kw">COPY</span> package.json .
+<span class="kw">RUN</span> npm install --omit=dev
+
+<span class="comment"># 3. Copy app source</span>
+<span class="kw">COPY</span> app.js .
+
+<span class="comment"># 4. Transfer ownership of /app to the new user BEFORE switching</span>
+<span class="kw">RUN</span> chown <span class="flag">-R</span> <span class="hl">appuser</span>:<span class="hl">appgroup</span> /app
+
+<span class="comment"># 5. Switch — everything below here runs as appuser</span>
+<span class="hl">USER</span> <span class="hl">appuser</span>
+
+<span class="kw">EXPOSE</span> <span class="num">3000</span>
+
+<span class="kw">CMD</span> [<span class="str">"node"</span>, <span class="str">"app.js"</span>]</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Steps 1–4 run as root because they need elevated privileges — creating users, installing packages, setting ownership. Step 5's <code style="font-family:var(--mono);font-size:12px">USER</code> drops privileges permanently for everything that follows, including the final <code style="font-family:var(--mono);font-size:12px">CMD</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">The same pattern for Debian/Ubuntu base images</div>
+          <div class="step-desc">Alpine and Debian use different user-creation commands. Here's the translation for images like <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node:22</code> (Debian) or <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">python:3.12</code>.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Dockerfile — Node.js on Debian</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="kw">FROM</span> <span class="val">node:22</span>
+
+<span class="comment"># Debian uses groupadd / useradd</span>
+<span class="kw">RUN</span> groupadd <span class="flag">--gid</span> <span class="num">10001</span> <span class="flag">--system</span> <span class="hl">appgroup</span> && \
+    useradd  <span class="flag">--uid</span> <span class="num">10001</span> <span class="flag">--system</span> \
+             <span class="flag">--gid</span> <span class="hl">appgroup</span> \
+             <span class="flag">--no-create-home</span> \
+             <span class="flag">--shell</span> /sbin/nologin \
+             <span class="hl">appuser</span>
+
+<span class="kw">WORKDIR</span> /app
+
+<span class="kw">COPY</span> package.json .
+<span class="kw">RUN</span> npm install --omit=dev
+
+<span class="kw">COPY</span> app.js .
+
+<span class="kw">RUN</span> chown <span class="flag">-R</span> <span class="hl">appuser</span>:<span class="hl">appgroup</span> /app
+
+<span class="hl">USER</span> <span class="hl">appuser</span>
+
+<span class="kw">EXPOSE</span> <span class="num">3000</span>
+<span class="kw">CMD</span> [<span class="str">"node"</span>, <span class="str">"app.js"</span>]</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">--no-create-home</code> and <code style="font-family:var(--mono);font-size:12px">--shell /sbin/nologin</code> ensure the account has no home directory and can never be used to log in interactively — reducing attack surface further.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Build and verify</div>
+          <div class="step-desc">Build the image and confirm the running process is no longer root.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="comment"># Build the image</span>
+<span class="cmd">docker</span> build <span class="flag">-t</span> <span class="str">myapp:secure</span> .
+
+<span class="comment"># Check the user at runtime</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> <span class="str">myapp:secure</span> whoami
+<span class="cmd">docker</span> run <span class="flag">--rm</span> <span class="str">myapp:secure</span> id</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">appuser</span><br>
+<span class="g">uid=10001(appuser) gid=10001(appgroup) groups=10001(appgroup)</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">You can also inspect the image config without running a container: <code style="font-family:var(--mono);font-size:12px">docker inspect myapp:secure --format '{{.Config.User}}'</code> — it should return <code style="font-family:var(--mono);font-size:12px">appuser</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Understand the permission boundaries</div>
+          <div class="step-desc">With non-root in place, verify what the user can and cannot touch — this is the security guarantee you just gained.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="comment"># Can write to /app (we chown'd it)</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> <span class="str">myapp:secure</span> \
+  sh <span class="flag">-c</span> <span class="str">"touch /app/test.txt && echo 'write OK'"</span>
+
+<span class="comment"># Cannot write outside /app</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> <span class="str">myapp:secure</span> \
+  sh <span class="flag">-c</span> <span class="str">"touch /etc/hacked 2>&1 || echo 'write denied — good'"</span>
+
+<span class="comment"># Cannot install packages</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> <span class="str">myapp:secure</span> \
+  sh <span class="flag">-c</span> <span class="str">"apk add curl 2>&1 || echo 'install denied — good'"</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">write OK</span><br>
+<span class="g">write denied — good</span><br>
+<span class="g">install denied — good</span>
+            </div>
+          </div>
+
+          <table class="perm-table" style="margin-top:1rem">
+            <thead>
+              <tr><th>Path</th><th>appuser can read?</th><th>appuser can write?</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="path-cell">/app</td>
+                <td><span class="badge ok">yes</span></td>
+                <td><span class="badge ok">yes</span> — we chown'd it</td>
+              </tr>
+              <tr>
+                <td class="path-cell">/tmp</td>
+                <td><span class="badge ok">yes</span></td>
+                <td><span class="badge ok">yes</span> — world-writable by default</td>
+              </tr>
+              <tr>
+                <td class="path-cell">/etc, /usr, /bin</td>
+                <td><span class="badge ok">yes</span></td>
+                <td><span class="badge no">no</span> — owned by root</td>
+              </tr>
+              <tr>
+                <td class="path-cell">/root</td>
+                <td><span class="badge no">no</span></td>
+                <td><span class="badge no">no</span> — root's home dir, mode 700</td>
+              </tr>
+              <tr>
+                <td class="path-cell">Mounted volumes</td>
+                <td><span class="badge own">depends</span></td>
+                <td><span class="badge own">depends</span> — host ownership rules apply</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">The optimised pattern with COPY --chown</div>
+          <div class="step-desc">Instead of a separate <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">RUN chown</code> layer, use the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--chown</code> flag directly on the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">COPY</code> instruction. This sets ownership at copy time — fewer layers, smaller image.</div>
+
+          <div class="diff-block">
+            <div class="diff-header">
+              <span>Dockerfile — before (separate chown layer)</span>
+            </div>
+            <div class="diff-pre">
+              <span class="diff-ctx"><span class="diff-kw">FROM</span> <span class="diff-val">node:22-alpine</span></span>
+              <span class="diff-ctx"><span class="diff-kw">RUN</span> addgroup -g 10001 -S appgroup && adduser -u 10001 -S -G appgroup appuser</span>
+              <span class="diff-ctx"><span class="diff-kw">WORKDIR</span> /app</span>
+              <span class="diff-ctx"><span class="diff-kw">COPY</span> package.json .</span>
+              <span class="diff-ctx"><span class="diff-kw">RUN</span> npm install --omit=dev</span>
+              <span class="diff-ctx"><span class="diff-kw">COPY</span> app.js .</span>
+              <span class="diff-del"><span class="diff-kw">RUN</span> chown -R appuser:appgroup /app   <span class="diff-cmt"># extra layer</span></span>
+              <span class="diff-ctx"><span class="diff-kw">USER</span> appuser</span>
+            </div>
+          </div>
+
+          <div class="diff-block">
+            <div class="diff-header">
+              <span>Dockerfile — after (--chown on COPY)</span>
+              <button class="copy-btn" onclick="copyCodeFromDiff(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+            <div class="diff-pre">
+              <span class="diff-ctx"><span class="diff-kw">FROM</span> <span class="diff-val">node:22-alpine</span></span>
+              <span class="diff-ctx"><span class="diff-kw">RUN</span> addgroup -g 10001 -S appgroup && adduser -u 10001 -S -G appgroup appuser</span>
+              <span class="diff-ctx"><span class="diff-kw">WORKDIR</span> /app</span>
+              <span class="diff-add"><span class="diff-kw">COPY</span> --chown=appuser:appgroup package.json .  <span class="diff-cmt"># owned immediately</span></span>
+              <span class="diff-ctx"><span class="diff-kw">RUN</span> npm install --omit=dev</span>
+              <span class="diff-add"><span class="diff-kw">COPY</span> --chown=appuser:appgroup app.js .       <span class="diff-cmt"># owned immediately</span></span>
+              <span class="diff-ctx"><span class="diff-kw">USER</span> appuser</span>
+            </div>
+          </div>
+
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">--chown</code> also accepts numeric IDs: <code style="font-family:var(--mono);font-size:12px">COPY --chown=10001:10001 . .</code> — useful in multi-stage builds where the user may not be defined in the earlier stage being copied from.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Use numeric UID in USER for maximum portability</div>
+          <div class="step-desc">Kubernetes and many container runtimes prefer a numeric UID in the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">USER</code> instruction — it works even if <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/etc/passwd</code> is absent in a scratch or distroless base image.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Dockerfile snippet</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="comment"># Username is readable; numeric UID is portable</span>
+<span class="hl">USER</span> <span class="num">10001</span>
+
+<span class="comment"># Or set both user and group explicitly</span>
+<span class="hl">USER</span> <span class="num">10001</span>:<span class="num">10001</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Combining USER with a healthcheck</div>
+          <div class="step-desc">The <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">HEALTHCHECK</code> command also runs as the user set by <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">USER</code>. Confirm <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">curl</code> is installed before the switch, and the healthcheck works without root.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Dockerfile — USER + HEALTHCHECK together</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="kw">FROM</span> <span class="val">node:22-alpine</span>
+
+<span class="comment"># Install curl while still root (system-level package)</span>
+<span class="kw">RUN</span> apk add --no-cache curl
+
+<span class="kw">RUN</span> addgroup <span class="flag">-g</span> <span class="num">10001</span> <span class="flag">-S</span> <span class="hl">appgroup</span> && \
+    adduser  <span class="flag">-u</span> <span class="num">10001</span> <span class="flag">-S</span> <span class="flag">-G</span> <span class="hl">appgroup</span> <span class="hl">appuser</span>
+
+<span class="kw">WORKDIR</span> /app
+<span class="kw">COPY</span> <span class="flag">--chown</span>=<span class="hl">appuser</span>:<span class="hl">appgroup</span> package.json .
+<span class="kw">RUN</span> npm install --omit=dev
+<span class="kw">COPY</span> <span class="flag">--chown</span>=<span class="hl">appuser</span>:<span class="hl">appgroup</span> app.js .
+
+<span class="comment"># Switch before HEALTHCHECK and CMD</span>
+<span class="hl">USER</span> <span class="hl">appuser</span>
+
+<span class="comment"># healthcheck runs as appuser — curl is available, no root needed</span>
+<span class="hl">HEALTHCHECK</span> <span class="flag">--interval=15s</span> <span class="flag">--timeout=5s</span> <span class="flag">--start-period=10s</span> <span class="flag">--retries=3</span> \
+  <span class="hl">CMD</span> curl <span class="flag">-f</span> http://localhost:<span class="num">3000</span>/health || exit 1
+
+<span class="kw">EXPOSE</span> <span class="num">3000</span>
+<span class="kw">CMD</span> [<span class="str">"node"</span>, <span class="str">"app.js"</span>]</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Override the user at runtime when needed</div>
+          <div class="step-desc">Sometimes you need to run a one-off command as root inside a container — for debugging or an admin task. You can override the image's <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">USER</code> at runtime without rebuilding.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="comment"># Override user for a one-off debug shell</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> <span class="flag">-it</span> <span class="flag">--user</span> <span class="val">root</span> <span class="str">myapp:secure</span> sh
+
+<span class="comment"># Or use a numeric UID</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> <span class="flag">--user</span> <span class="val">0</span> <span class="str">myapp:secure</span> whoami</pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">Never use <code style="font-family:var(--mono);font-size:12px">--user root</code> in production or CI pipelines — it defeats the purpose entirely. Reserve runtime overrides for local debugging only.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">10</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Scan the image for root-user violations</div>
+          <div class="step-desc">Trivy, Docker Scout, and Snyk all flag containers running as root. Run a quick scan to confirm your image passes the check that previously would have failed.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell — Docker Scout (built into Docker Desktop)</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="cmd">docker</span> scout cves <span class="str">myapp:secure</span>
+<span class="cmd">docker</span> scout recommendations <span class="str">myapp:secure</span></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell — Trivy (open source, standalone)</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre>trivy image <span class="str">myapp:secure</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">scout / trivy — look for this in output</div>
+            <div class="output-body">
+<span class="dim">✓ Recommended tag:     node:22-alpine</span><br>
+<span class="g">✓ Non-root user:       appuser (uid=10001)</span><br>
+<span class="g">✓ No critical CVEs found</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 5 — WHAT HAPPENED UNDER THE HOOD   -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔍</span>What happened under the hood</div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">🔨</div>
+        <div class="flow-label">Build as root</div>
+        <div class="flow-desc">All <code style="font-family:var(--mono);font-size:11px">RUN</code> steps before <code style="font-family:var(--mono);font-size:11px">USER</code> execute as UID 0 — needed to create accounts and install packages.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">👤</div>
+        <div class="flow-label">User created</div>
+        <div class="flow-desc">An entry is written to <code style="font-family:var(--mono);font-size:11px">/etc/passwd</code> and <code style="font-family:var(--mono);font-size:11px">/etc/group</code> inside the image layer.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">🔑</div>
+        <div class="flow-label">Ownership set</div>
+        <div class="flow-desc"><code style="font-family:var(--mono);font-size:11px">COPY --chown</code> writes inode ownership metadata — UID/GID stored in each file's inode on the image layer.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🔒</div>
+        <div class="flow-label">USER recorded</div>
+        <div class="flow-desc">The <code style="font-family:var(--mono);font-size:11px">USER</code> instruction writes the UID into the image config JSON — read by the runtime when starting the container.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🚀</div>
+        <div class="flow-label">Runtime applies UID</div>
+        <div class="flow-desc">containerd/runc reads the config and sets the UID before launching the container's PID 1. No capability to elevate to root.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🛡️</div>
+        <div class="flow-label">Kernel enforces limits</div>
+        <div class="flow-desc">Linux's DAC (Discretionary Access Control) denies any write to files not owned by UID 10001 — kernel-level enforcement, not Docker magic.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 6 — WHAT YOU LEARNED               -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🎯</span>What you learned</div>
+    <ul class="checklist">
+      <li><span class="chk"></span>Why Docker containers run as root by default and why that's a security problem worth fixing</li>
+      <li><span class="chk"></span>How to create a dedicated system user and group with <code style="font-family:var(--mono);font-size:12px">adduser</code>/<code style="font-family:var(--mono);font-size:12px">addgroup</code> (Alpine) and <code style="font-family:var(--mono);font-size:12px">useradd</code>/<code style="font-family:var(--mono);font-size:12px">groupadd</code> (Debian)</li>
+      <li><span class="chk"></span>Why file ownership must be set <strong>before</strong> the <code style="font-family:var(--mono);font-size:12px">USER</code> switch — and how <code style="font-family:var(--mono);font-size:12px">COPY --chown</code> handles this without an extra layer</li>
+      <li><span class="chk"></span>Why numeric UIDs like <code style="font-family:var(--mono);font-size:12px">10001</code> are preferred over usernames for portability across runtimes and Kubernetes</li>
+      <li><span class="chk"></span>How to use <code style="font-family:var(--mono);font-size:12px">--user</code> at runtime to temporarily override the image user for debugging</li>
+      <li><span class="chk"></span>That <code style="font-family:var(--mono);font-size:12px">HEALTHCHECK</code> and <code style="font-family:var(--mono);font-size:12px">CMD</code> both inherit the <code style="font-family:var(--mono);font-size:12px">USER</code> context — and how to ensure the tools they need are installed before the switch</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+
+function copyCodeFromDiff(btn) {
+  const pre = btn.closest('.diff-block').querySelector('.diff-pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

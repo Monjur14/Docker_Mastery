@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 17 — Tag Images with Semantic Versions</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(88,166,255,0.1);
+    color: var(--blue);
+    border: 1px solid rgba(88,166,255,0.2);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--blue); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-label .icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: .6rem;
+  }
+  .concept-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Semver diagram ── */
+  .semver-diagram {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.75rem 1.5rem 1.5rem;
+    margin: 1rem 0;
+    text-align: center;
+  }
+  .semver-display {
+    font-family: var(--mono);
+    font-size: clamp(2rem, 6vw, 3.25rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-bottom: 1.5rem;
+  }
+  .sv-major { color: #f85149; }
+  .sv-dot   { color: var(--text-dim); }
+  .sv-minor { color: var(--yellow); }
+  .sv-patch { color: var(--green); }
+  .semver-labels {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .semver-label {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .75rem .875rem;
+  }
+  .semver-label-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: .3rem;
+  }
+  .semver-label-name.major { color: #f85149; }
+  .semver-label-name.minor { color: var(--yellow); }
+  .semver-label-name.patch { color: var(--green); }
+  .semver-label-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Anatomy diagram ── */
+  .anatomy {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 14px;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    line-height: 2;
+  }
+  .anatomy-part {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    margin: 2px 2px;
+  }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-nam  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-tag  { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .a-ctx  { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12px;
+  }
+  .anatomy-tag-pill {
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    flex-shrink: 0;
+    min-width: 56px;
+    text-align: center;
+  }
+  .anatomy-row .a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .a-nam  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .a-tag  { color: var(--purple); background: rgba(188,140,255,0.08); }
+  .anatomy-row .a-ctx  { color: var(--text-muted); background: rgba(255,255,255,0.04); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--blue);
+    background: var(--bg);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .step-line {
+    width: 1px;
+    flex: 1;
+    background: var(--border);
+    margin: 4px 0;
+    min-height: 16px;
+  }
+  .step:last-child .step-line { display: none; }
+  .step-content {
+    padding: 0 0 2rem 1rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .step-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: .35rem;
+    padding-top: 3px;
+  }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color .15s, background .15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .tag     { color: var(--purple); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .dim     { color: var(--text-dim); }
+  pre .err     { color: #f85149; }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px;
+    padding: .875rem 1rem;
+    margin: .75rem 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    border: 1px solid;
+    display: flex;
+    gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info { background: var(--blue-bg); border-color: rgba(88,166,255,0.2); }
+  .callout.tip  { background: var(--green-bg); border-color: var(--green-border); }
+  .callout.warn { background: var(--yellow-bg); border-color: var(--yellow-border); }
+
+  /* ── Output preview ── */
+  .output-preview {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .output-header {
+    background: var(--surface);
+    padding: .4rem .875rem;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .p { color: var(--purple); }
+  .output-body .y { color: var(--yellow); }
+
+  /* ── Tag timeline ── */
+  .tag-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 1rem 0;
+  }
+  .tag-entry {
+    display: flex;
+    gap: 0;
+    position: relative;
+  }
+  .tag-entry-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 36px;
+    flex-shrink: 0;
+  }
+  .tag-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    background: var(--bg);
+    flex-shrink: 0;
+    margin-top: 5px;
+    z-index: 1;
+  }
+  .tag-dot.active { background: var(--blue); border-color: var(--blue); }
+  .tag-vline {
+    width: 1px;
+    flex: 1;
+    background: var(--border);
+    margin: 3px 0;
+    min-height: 12px;
+  }
+  .tag-entry:last-child .tag-vline { display: none; }
+  .tag-entry-content {
+    padding: 0 0 1.25rem .875rem;
+    flex: 1;
+  }
+  .tag-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: .3rem;
+  }
+  .tag-pill {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 1px 8px;
+    border-radius: 4px;
+    background: rgba(188,140,255,0.1);
+    color: var(--purple);
+    border: 1px solid rgba(188,140,255,0.2);
+  }
+  .tag-event {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .tag-entry-desc {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.55;
+  }
+
+  /* ── Convention table ── */
+  .conv-table {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 1rem 0;
+  }
+  .conv-table-header {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1.5fr;
+    padding: .5rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .conv-table-header span {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .conv-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1.5fr;
+    padding: .6rem 1rem;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    gap: 8px;
+  }
+  .conv-row:last-child { border-bottom: none; }
+  .conv-tag {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--purple);
+  }
+  .conv-when {
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+  .conv-note {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.45;
+  }
+
+  /* ── Flow grid ── */
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .875rem;
+    text-align: center;
+  }
+  .flow-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: .35rem;
+  }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    padding: .6rem .875rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── Task nav ── */
+  .task-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .prev-card, .next-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    text-decoration: none;
+    transition: border-color .15s;
+  }
+  .prev-card:hover, .next-card:hover { border-color: var(--border-strong); }
+  .nav-arrow {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .next-card .nav-arrow { margin-left: auto; }
+  .nav-card-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .nav-card-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .semver-labels { grid-template-columns: 1fr; }
+    .conv-table-header, .conv-row { grid-template-columns: 1fr 1fr; }
+    .conv-table-header span:last-child, .conv-row .conv-note { display: none; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .task-nav { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 17</span>
+  <span class="nav-badge">Intermediate</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 17 &nbsp;·&nbsp; Intermediate
+    </div>
+    <h1>Tag Images with<br><span class="hl">Semantic Versions</span></h1>
+    <p class="hero-desc">Apply specific version tags like <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--purple)">myapp:1.0.0</code> instead of relying on the default <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--text-muted)">latest</code> tag — so every image is traceable, rollbacks are safe, and teammates always know what they're running.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~15 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Completed Tasks 14 – 16
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Built image from Task 15
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🏷️</div>
+          <div class="concept-title">What is a Tag?</div>
+        </div>
+        <div class="concept-body">
+          A tag is a <strong>human-readable pointer</strong> to a specific image ID. The full name of an image is <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">name:tag</code>. If you omit the tag, Docker silently appends <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">:latest</code> — which sounds helpful but is a common source of confusion in teams.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(248,81,73,0.1)">⚠️</div>
+          <div class="concept-title">The Problem with <code style="font-family:var(--mono);font-size:13px">latest</code></div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">latest</code> is just a tag — it has <strong>no special meaning</strong> to Docker. It doesn't automatically update. Two machines pulling <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">myapp:latest</code> at different times may get completely different images without any warning.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🔢</div>
+          <div class="concept-title">Semantic Versioning (SemVer)</div>
+        </div>
+        <div class="concept-body">
+          SemVer uses the format <strong>MAJOR.MINOR.PATCH</strong>. Increment PATCH for bug fixes, MINOR for new backwards-compatible features, and MAJOR for breaking changes. Most of the ecosystem — npm, PyPI, Docker Hub — follows this convention.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🪝</div>
+          <div class="concept-title">One Image, Multiple Tags</div>
+        </div>
+        <div class="concept-body">
+          A single image ID can carry <strong>many tags at once</strong>. It's common to tag a release as both <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">1.2.3</code> and <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">1.2</code> and <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">latest</code> simultaneously — they all point at the same image, giving callers flexibility in how precisely they pin their dependency.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">🔁</div>
+          <div class="concept-title">Tagging vs. Rebuilding</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker tag</code> adds a new name to an <strong>already-built</strong> image without copying or rebuilding anything. It's instant and costs no disk space — both names share the same underlying layers.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">📌</div>
+          <div class="concept-title">Immutable Releases</div>
+        </div>
+        <div class="concept-body">
+          Once you push <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">myapp:1.0.0</code>, treat it as <strong>immutable</strong> — never rebuild and re-push under the same version tag. If something changes, that's <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">1.0.1</code>. Immutability is what makes rollbacks reliable.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: SEMVER DIAGRAM                   -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔢</span>
+      Anatomy of a version tag
+    </div>
+
+    <div class="semver-diagram">
+      <div class="semver-display">
+        <span class="sv-major">2</span><span class="sv-dot">.</span><span class="sv-minor">4</span><span class="sv-dot">.</span><span class="sv-patch">1</span>
+      </div>
+      <div class="semver-labels">
+        <div class="semver-label">
+          <div class="semver-label-name major">Major</div>
+          <div class="semver-label-desc">Breaking change. Callers must update their code to keep working.</div>
+        </div>
+        <div class="semver-label">
+          <div class="semver-label-name minor">Minor</div>
+          <div class="semver-label-desc">New feature, backwards compatible. Existing callers are unaffected.</div>
+        </div>
+        <div class="semver-label">
+          <div class="semver-label-name patch">Patch</div>
+          <div class="semver-label-desc">Bug fix only. Safe to update without reading the changelog.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      Command anatomy
+    </div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">build</span>
+        <span class="anatomy-part a-sub">-t</span>
+        <span class="anatomy-part a-nam">myapp</span>
+        <span style="color:var(--text-dim);font-size:13px;padding:0 1px;">:</span>
+        <span class="anatomy-part a-tag">1.0.0</span>
+        <span class="anatomy-part a-ctx">.</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag-pill a-bin">docker</span>
+          <p>The CLI binary.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag-pill a-sub">build -t</span>
+          <p>Build an image and assign it a tag. <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">-t</code> is short for <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">--tag</code>. Can be repeated for multiple tags in one build.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag-pill a-nam">name</span>
+          <p>The image repository name. Locally this is freeform; on Docker Hub it becomes <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">username/myapp</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag-pill a-tag">:tag</span>
+          <p>The version label — anything after the colon. Omit it and Docker silently uses <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">:latest</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag-pill a-ctx">.</span>
+          <p>The build context — the directory Docker packages and sends to the daemon.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: STEP-BY-STEP                     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Build your first versioned image</div>
+          <div class="step-desc">Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-t</code> to assign an explicit version tag at build time. Start at <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">1.0.0</code> for a new project.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button>
+            </div>
+            <pre><span class="cmd">docker</span> build <span class="flag">-t</span> <span class="str">myapp</span>:<span class="tag">1.0.0</span> .</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">This image gets <strong>exactly one tag</strong>: <code style="font-family:var(--mono);font-size:12px">myapp:1.0.0</code>. Unlike omitting the tag, Docker will NOT automatically create <code style="font-family:var(--mono);font-size:12px">myapp:latest</code> — you'd have to add it explicitly.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Build with multiple tags at once</div>
+          <div class="step-desc">Repeat <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-t</code> to assign several tags in a single build. All three point at the same image ID — nothing is duplicated.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button>
+            </div>
+            <pre><span class="cmd">docker</span> build \
+  <span class="flag">-t</span> <span class="str">myapp</span>:<span class="tag">1.0.0</span> \
+  <span class="flag">-t</span> <span class="str">myapp</span>:<span class="tag">1.0</span> \
+  <span class="flag">-t</span> <span class="str">myapp</span>:<span class="tag">latest</span> \
+  .</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">The floating tags (<code style="font-family:var(--mono);font-size:12px">1.0</code>, <code style="font-family:var(--mono);font-size:12px">latest</code>) let users opt into automatic minor/patch updates while pinned consumers can lock to <code style="font-family:var(--mono);font-size:12px">1.0.0</code> forever. This is how the official Node.js and Python images are tagged on Docker Hub.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Verify all tags point to the same image</div>
+          <div class="step-desc">List your images filtered by name. Notice the IMAGE ID is identical across all three tags — they're the same image bytes, just different names.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button>
+            </div>
+            <pre><span class="cmd">docker</span> images myapp</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">REPOSITORY   TAG       IMAGE ID       CREATED          SIZE</span><br>
+<span class="g">myapp        1.0.0     a3f72b9c1d4e   10 seconds ago   145MB</span><br>
+<span class="g">myapp        1.0       a3f72b9c1d4e   10 seconds ago   145MB</span><br>
+<span class="g">myapp        latest    a3f72b9c1d4e   10 seconds ago   145MB</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">All three rows share the same <strong>IMAGE ID</strong> (<code style="font-family:var(--mono);font-size:12px">a3f72b9c1d4e</code>). Three names, one set of layers on disk.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Add a tag to an existing image with docker tag</div>
+          <div class="step-desc">If you forgot a tag, or want to add one after the build, use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker tag</code>. No rebuild, no copy — it's instant.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button>
+            </div>
+            <pre><span class="comment"># Add a 'stable' alias to whatever 1.0.0 points at</span>
+<span class="cmd">docker</span> tag <span class="str">myapp</span>:<span class="tag">1.0.0</span> <span class="str">myapp</span>:<span class="tag">stable</span></pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">docker tag SOURCE TARGET</code> — the source can be a name:tag or a raw image ID. Both work.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Simulate a patch release</div>
+          <div class="step-desc">Make a small change to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">index.js</code> (e.g. fix a typo), then rebuild under <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">1.0.1</code>. Move the floating tags to the new release.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button>
+            </div>
+            <pre><span class="comment"># Build the patch release — pin it exactly</span>
+<span class="cmd">docker</span> build <span class="flag">-t</span> <span class="str">myapp</span>:<span class="tag">1.0.1</span> .
+
+<span class="comment"># Move the floating tags to the new release</span>
+<span class="cmd">docker</span> tag <span class="str">myapp</span>:<span class="tag">1.0.1</span> <span class="str">myapp</span>:<span class="tag">1.0</span>
+<span class="cmd">docker</span> tag <span class="str">myapp</span>:<span class="tag">1.0.1</span> <span class="str">myapp</span>:<span class="tag">latest</span></pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">Notice <code style="font-family:var(--mono);font-size:12px">myapp:1.0.0</code> is <strong>left untouched</strong>. Anyone pinned to that exact tag still has the original image. Only the floating tags (<code style="font-family:var(--mono);font-size:12px">1.0</code>, <code style="font-family:var(--mono);font-size:12px">latest</code>) moved forward.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Inspect your tag history</div>
+          <div class="step-desc">Now you can see the version history at a glance. Two image IDs, four tags — the old <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">1.0.0</code> is preserved and the floating tags point at the latest patch.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button>
+            </div>
+            <pre><span class="cmd">docker</span> images myapp</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">REPOSITORY   TAG       IMAGE ID       CREATED          SIZE</span><br>
+<span class="g">myapp        1.0.1     c9e14b2f8a7d   30 seconds ago   145MB</span><br>
+<span class="g">myapp        1.0       c9e14b2f8a7d   30 seconds ago   145MB</span><br>
+<span class="g">myapp        latest    c9e14b2f8a7d   30 seconds ago   145MB</span><br>
+<span class="b">myapp        1.0.0     a3f72b9c1d4e   5 minutes ago    145MB</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Simulate a rollback</div>
+          <div class="step-desc">Because <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">1.0.0</code> still exists locally, rolling back is just a <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker run</code> away — no rebuild required.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button>
+            </div>
+            <pre><span class="comment"># Something broke in 1.0.1 — roll back instantly</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> <span class="str">myapp</span>:<span class="tag">1.0.0</span></pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">This is the core value of versioned tags. With <code style="font-family:var(--mono);font-size:12px">latest</code> only, a rollback means a rebuild. With pinned versions, it's <strong>deterministic and instant</strong>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Remove a specific tag</div>
+          <div class="step-desc">Removing a tag with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker rmi</code> only deletes that name — not the underlying image — as long as another tag still points to the same ID.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button>
+            </div>
+            <pre><span class="comment"># Remove the 'stable' alias — image layers are NOT deleted</span>
+<span class="cmd">docker</span> rmi <span class="str">myapp</span>:<span class="tag">stable</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">Untagged: myapp:stable</span><br>
+<span class="dim"># No "Deleted:" lines — layers still referenced by myapp:1.0.0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: VERSION TIMELINE                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📅</span>
+      A release timeline in tags
+    </div>
+
+    <div class="tag-timeline">
+      <div class="tag-entry">
+        <div class="tag-entry-left">
+          <div class="tag-dot"></div>
+          <div class="tag-vline"></div>
+        </div>
+        <div class="tag-entry-content">
+          <div class="tag-entry-header">
+            <span class="tag-pill">1.0.0</span>
+            <span class="tag-event">Initial release</span>
+          </div>
+          <div class="tag-entry-desc">First production build. Also tagged <code style="font-family:var(--mono);font-size:12px">1.0</code> and <code style="font-family:var(--mono);font-size:12px">latest</code>.</div>
+        </div>
+      </div>
+      <div class="tag-entry">
+        <div class="tag-entry-left">
+          <div class="tag-dot"></div>
+          <div class="tag-vline"></div>
+        </div>
+        <div class="tag-entry-content">
+          <div class="tag-entry-header">
+            <span class="tag-pill">1.0.1</span>
+            <span class="tag-event">Bug fix</span>
+          </div>
+          <div class="tag-entry-desc">Fixed a crash on empty input. <code style="font-family:var(--mono);font-size:12px">1.0</code> and <code style="font-family:var(--mono);font-size:12px">latest</code> moved here. <code style="font-family:var(--mono);font-size:12px">1.0.0</code> preserved.</div>
+        </div>
+      </div>
+      <div class="tag-entry">
+        <div class="tag-entry-left">
+          <div class="tag-dot"></div>
+          <div class="tag-vline"></div>
+        </div>
+        <div class="tag-entry-content">
+          <div class="tag-entry-header">
+            <span class="tag-pill">1.1.0</span>
+            <span class="tag-event">New feature</span>
+          </div>
+          <div class="tag-entry-desc">Added a /health endpoint. Backwards compatible — only MINOR bumped. <code style="font-family:var(--mono);font-size:12px">latest</code> moved here.</div>
+        </div>
+      </div>
+      <div class="tag-entry">
+        <div class="tag-entry-left">
+          <div class="tag-dot active"></div>
+          <div class="tag-vline"></div>
+        </div>
+        <div class="tag-entry-content">
+          <div class="tag-entry-header">
+            <span class="tag-pill">2.0.0</span>
+            <span class="tag-event">Breaking change — you are here</span>
+          </div>
+          <div class="tag-entry-desc">Restructured the API response format. MAJOR bumped. The <code style="font-family:var(--mono);font-size:12px">1.x</code> images are still available for anyone not ready to migrate.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: TAGGING CONVENTIONS              -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📋</span>
+      Common tagging conventions
+    </div>
+
+    <div class="conv-table">
+      <div class="conv-table-header">
+        <span>Tag</span>
+        <span>When to use</span>
+        <span>Notes</span>
+      </div>
+      <div class="conv-row">
+        <div class="conv-tag">myapp:1.0.0</div>
+        <div class="conv-when">Every release</div>
+        <div class="conv-note">Pinned, immutable. Never re-push over an existing version tag.</div>
+      </div>
+      <div class="conv-row">
+        <div class="conv-tag">myapp:1.0</div>
+        <div class="conv-when">Floating minor</div>
+        <div class="conv-note">Points to latest patch in the 1.0.x line. Move forward on each patch.</div>
+      </div>
+      <div class="conv-row">
+        <div class="conv-tag">myapp:1</div>
+        <div class="conv-when">Floating major</div>
+        <div class="conv-note">Points to latest in 1.x.x. Move forward on each minor/patch.</div>
+      </div>
+      <div class="conv-row">
+        <div class="conv-tag">myapp:latest</div>
+        <div class="conv-when">Convenience alias</div>
+        <div class="conv-note">Points to the newest stable release. Never rely on it in production.</div>
+      </div>
+      <div class="conv-row">
+        <div class="conv-tag">myapp:main</div>
+        <div class="conv-when">CI/CD branch builds</div>
+        <div class="conv-note">Tracks the main branch tip. Useful for staging, not production.</div>
+      </div>
+      <div class="conv-row">
+        <div class="conv-tag">myapp:sha-a1b2c3d</div>
+        <div class="conv-when">CI/CD commit pinning</div>
+        <div class="conv-note">Fully immutable — tied to a specific Git commit. Best for automated deployments.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 7: WHAT HAPPENED                    -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">🏗️</div>
+        <div class="flow-label">Image built</div>
+        <div class="flow-desc">Layers assembled and assigned a content-addressed SHA256 digest.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">🏷️</div>
+        <div class="flow-label">Tag stored</div>
+        <div class="flow-desc">Docker's local store maps <code style="font-family:var(--mono);font-size:11px">myapp:1.0.0</code> → the image ID.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">🔗</div>
+        <div class="flow-label">Alias added</div>
+        <div class="flow-desc"><code style="font-family:var(--mono);font-size:11px">docker tag</code> adds another pointer — no copy, no bytes moved.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🔄</div>
+        <div class="flow-label">Tag moved</div>
+        <div class="flow-desc">Re-tagging <code style="font-family:var(--mono);font-size:11px">latest</code> updates the pointer; the old image remains.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">⏪</div>
+        <div class="flow-label">Rollback</div>
+        <div class="flow-desc">Old pinned tag still resolves — layers already on disk, start is instant.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🗑️</div>
+        <div class="flow-label">Untag only</div>
+        <div class="flow-desc"><code style="font-family:var(--mono);font-size:11px">rmi</code> on one tag removes the name; layers survive while any other tag references them.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 8: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>Why <code style="font-family:var(--mono);font-size:12px">:latest</code> is just a tag with no automatic tracking — and why that causes drift in teams</li>
+      <li><span class="chk"></span>How to apply a semantic version tag at build time with <code style="font-family:var(--mono);font-size:12px">docker build -t name:tag</code></li>
+      <li><span class="chk"></span>How to assign multiple tags in one build by repeating <code style="font-family:var(--mono);font-size:12px">-t</code></li>
+      <li><span class="chk"></span>How to add a tag to an existing image instantly with <code style="font-family:var(--mono);font-size:12px">docker tag</code></li>
+      <li><span class="chk"></span>The difference between pinned tags (<code style="font-family:var(--mono);font-size:12px">1.0.0</code>) and floating tags (<code style="font-family:var(--mono);font-size:12px">1.0</code>, <code style="font-family:var(--mono);font-size:12px">latest</code>)</li>
+      <li><span class="chk"></span>How immutable version tags make rollbacks deterministic and instant</li>
+    </ul>
+  </section>
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

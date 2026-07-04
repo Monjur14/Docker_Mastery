@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docker Mastery Roadmap</title>
+<link rel="icon" type="image/png" href="/assets/docker.png" >
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.15);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+
+    --beginner: #3fb950;
+    --beginner-bg: rgba(63,185,80,0.1);
+    --beginner-border: rgba(63,185,80,0.25);
+
+    --intermediate: #58a6ff;
+    --intermediate-bg: rgba(88,166,255,0.1);
+    --intermediate-border: rgba(88,166,255,0.25);
+
+    --advanced: #f78166;
+    --advanced-bg: rgba(247,129,102,0.1);
+    --advanced-border: rgba(247,129,102,0.25);
+
+    --done-bg: rgba(255,255,255,0.03);
+    --radius: 8px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    padding: 0 0 4rem;
+  }
+
+  /* Header */
+  .hero {
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .hero-eyebrow span { color: var(--beginner); }
+  .hero h1 {
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin-bottom: .75rem;
+  }
+  .hero h1 em { font-style: normal; color: var(--intermediate); }
+  .hero-sub {
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    max-width: 520px;
+  }
+
+  /* Progress */
+  .progress-section {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.75rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .stats { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat-n { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .stat-n.accent { color: var(--intermediate); }
+  .stat-l { font-size: 11px; color: var(--text-muted); margin-top: 3px; font-family: var(--mono); text-transform: uppercase; letter-spacing: .05em; }
+  .progress-wrap { flex: 1; min-width: 200px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-family: var(--mono); }
+  .progress-track { height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--beginner), var(--intermediate)); border-radius: 3px; transition: width .4s ease; width: 0%; }
+
+  /* Filters */
+  .filters {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.25rem 2rem;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .filter-btn:hover { border-color: var(--text-muted); color: var(--text); }
+  .filter-btn.active { background: var(--surface-2); border-color: var(--intermediate); color: var(--intermediate); }
+
+  /* Main content */
+  .content { max-width: 960px; margin: 0 auto; padding: 2rem 2rem 0; }
+
+  /* Phase */
+  .phase { margin-bottom: 2.5rem; }
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1rem;
+    padding-bottom: .75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .phase-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .phase-title { font-size: 13px; font-weight: 600; font-family: var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+  .phase-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    border: 1px solid;
+  }
+
+  .phase[data-phase="beginner"] .phase-dot { background: var(--beginner); }
+  .phase[data-phase="beginner"] .phase-title { color: var(--beginner); }
+  .phase[data-phase="beginner"] .phase-pill { color: var(--beginner); border-color: var(--beginner-border); background: var(--beginner-bg); }
+
+  .phase[data-phase="intermediate"] .phase-dot { background: var(--intermediate); }
+  .phase[data-phase="intermediate"] .phase-title { color: var(--intermediate); }
+  .phase[data-phase="intermediate"] .phase-pill { color: var(--intermediate); border-color: var(--intermediate-border); background: var(--intermediate-bg); }
+
+  .phase[data-phase="advanced"] .phase-dot { background: var(--advanced); }
+  .phase[data-phase="advanced"] .phase-title { color: var(--advanced); }
+  .phase[data-phase="advanced"] .phase-pill { color: var(--advanced); border-color: var(--advanced-border); background: var(--advanced-bg); }
+
+  /* Task grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 8px;
+  }
+
+  /* Task card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .875rem 1rem;
+    transition: border-color .15s, background .15s, opacity .2s;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .card:hover { border-color: var(--border-strong); }
+  .card.done { opacity: .45; background: var(--done-bg); }
+  .card.done .card-title { text-decoration: line-through; color: var(--text-muted); }
+
+  .num-badge {
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .card[data-phase="beginner"] .num-badge { background: var(--beginner-bg); color: var(--beginner); border: 1px solid var(--beginner-border); }
+  .card[data-phase="intermediate"] .num-badge { background: var(--intermediate-bg); color: var(--intermediate); border: 1px solid var(--intermediate-border); }
+  .card[data-phase="advanced"] .num-badge { background: var(--advanced-bg); color: var(--advanced); border: 1px solid var(--advanced-border); }
+  .card.done .num-badge { background: rgba(255,255,255,0.04); color: var(--text-dim); border-color: transparent; }
+
+  .card-body { flex: 1; min-width: 0; }
+  .card-title { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 4px; transition: color .15s; }
+  .card-goal { font-size: 12px; color: var(--text-muted); line-height: 1.55; }
+
+  /* Actions column */
+  .card-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  /* Square checkbox */
+  .check-btn {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border-strong);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color .15s, background .15s, transform .1s;
+    color: transparent;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .check-btn:hover { transform: scale(1.1); }
+  .check-btn:active { transform: scale(0.93); }
+  .check-btn svg { pointer-events: none; display: block; }
+
+  .card[data-phase="beginner"]     .check-btn:not(.checked):hover { border-color: var(--beginner);     color: var(--beginner); }
+  .card[data-phase="intermediate"] .check-btn:not(.checked):hover { border-color: var(--intermediate); color: var(--intermediate); }
+  .card[data-phase="advanced"]     .check-btn:not(.checked):hover { border-color: var(--advanced);     color: var(--advanced); }
+
+  .card[data-phase="beginner"]     .check-btn.checked { background: var(--beginner);     border-color: var(--beginner);     color: #fff; }
+  .card[data-phase="intermediate"] .check-btn.checked { background: var(--intermediate); border-color: var(--intermediate); color: #fff; }
+  .card[data-phase="advanced"]     .check-btn.checked { background: var(--advanced);     border-color: var(--advanced);     color: #fff; }
+
+  /* Redirect icon link */
+  .redirect-btn {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: border-color .15s, color .15s, transform .1s;
+    flex-shrink: 0;
+  }
+  .redirect-btn:hover { border-color: var(--border-strong); color: var(--text-muted); transform: scale(1.1); }
+  .redirect-btn:active { transform: scale(0.93); }
+  .redirect-btn.no-link { pointer-events: none; opacity: .22; }
+  .redirect-btn svg { pointer-events: none; display: block; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 14px; }
+  .empty-icon { font-size: 2rem; margin-bottom: .75rem; opacity: .4; }
+
+  /* Footer */
+  .footer { max-width: 960px; margin: 3rem auto 0; padding: 1.5rem 2rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .footer-text { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .05em; }
+  .reset-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    transition: all .15s;
+  }
+  .reset-btn:hover { border-color: var(--advanced); color: var(--advanced); }
+
+  @media (max-width: 600px) {
+    .hero, .progress-section, .filters, .content { padding-left: 1rem; padding-right: 1rem; }
+    .grid { grid-template-columns: 1fr; }
+    .progress-section { gap: 1rem; }
+    .stats { gap: .75rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card, .progress-fill, .check-btn, .redirect-btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-eyebrow"><span>$</span> docker learn --level all</div>
+  <h1>Docker <em>Mastery</em><br>Roadmap</h1>
+  <p class="hero-sub">43 hands-on tasks across three levels — beginner to advanced. Check off tasks as you complete them. Progress is saved in your browser.</p>
+</header>
+
+<section class="progress-section">
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="stat-total">43</div><div class="stat-l">Tasks</div></div>
+    <div class="stat"><div class="stat-n accent" id="stat-done">0</div><div class="stat-l">Done</div></div>
+    <div class="stat"><div class="stat-n" id="stat-left">43</div><div class="stat-l">Left</div></div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-label"><span>Progress</span><span id="stat-pct">0%</span></div>
+    <div class="progress-track"><div class="progress-fill" id="prog"></div></div>
+  </div>
+</section>
+
+<nav class="filters" aria-label="Filter tasks">
+  <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+  <button class="filter-btn" onclick="setFilter('beginner',this)">Beginner</button>
+  <button class="filter-btn" onclick="setFilter('intermediate',this)">Intermediate</button>
+  <button class="filter-btn" onclick="setFilter('advanced',this)">Advanced</button>
+  <button class="filter-btn" onclick="setFilter('done',this)">Completed</button>
+  <button class="filter-btn" onclick="setFilter('todo',this)">To do</button>
+</nav>
+
+<main class="content" id="content" aria-live="polite"></main>
+
+<footer class="footer">
+  <span class="footer-text">Progress saved locally &mdash; 43 tasks</span>
+  <button class="reset-btn" onclick="resetAll()">Reset progress</button>
+</footer>
+
+<script>
+const TASKS = [
+  {phase:'beginner',n:1,title:'Hello World container',goal:'Run the hello-world image from Docker Hub to verify Docker is installed and working correctly.',link:'/task1.html'},
+  {phase:'beginner',n:2,title:'Pull and run an Nginx web server',goal:'Fetch the official Nginx image and start it in the foreground to see live output.',link:'/task2.html'},
+  {phase:'beginner',n:3,title:'Detached mode and port mapping',goal:'Run Nginx in the background and map container port 80 to host port 8080. Access it in your browser.',link:'/task3.html'},
+  {phase:'beginner',n:4,title:'List and inspect running containers',goal:'View active and stopped containers with docker ps, then explore detailed metadata via docker inspect.',link:'/task4.html'},
+  {phase:'beginner',n:5,title:'Container logs and troubleshooting',goal:'View and follow real-time stdout logs from a running container using docker logs --follow.',link:'/task5.html'},
+  {phase:'beginner',n:6,title:'Stop, start, and restart containers',goal:'Manage the lifecycle of an existing container — stop, start, and restart — without destroying it.',link:'/task6.html'},
+  {phase:'beginner',n:7,title:'Container removal and cleanup',goal:'Stop a container, delete it, and prune unused resources including dangling images and volumes.',link:'/task7.html'},
+  {phase:'beginner',n:8,title:'Interactive shell access (Ubuntu)',goal:'Spin up an Ubuntu container and access its bash terminal interactively to run Linux commands.',link:'/task8.html'},
+  {phase:'beginner',n:9,title:'Copying files to and from containers',goal:'Transfer a file from the host into a running container and back out using docker cp.',link:'/task9.html'},
+  {phase:'beginner',n:10,title:'Real-time resource stats monitoring',goal:'Monitor CPU, memory, and network usage of active containers live with docker stats.',link:'/task10.html'},
+  {phase:'beginner',n:11,title:'Pull different images from Docker Hub',goal:'Search and pull several official images (Alpine, Python, Node.js) and explore the image registry.',link:'/task11.html'},
+  {phase:'beginner',n:12,title:'Inspect image metadata',goal:'Use docker image inspect and docker history to explore layers, environment variables, and config.',link:'/task12.html'},
+  {phase:'beginner',n:13,title:'Map multiple ports in one container',goal:'Run a container that exposes several ports simultaneously and verify each is accessible on the host.',link:'/task13.html'},
+  {phase:'intermediate',n:14,title:'Build your first Dockerfile (Node.js app)',goal:'Write a Dockerfile for a simple Node.js app — copy source, install dependencies, expose a port, define CMD.',link:'/task14.html'},
+  {phase:'intermediate',n:15,title:'Run a custom-built image',goal:'Build the image from Task 14 and run it, understanding the full build → tag → run workflow.',link:'/task15.html'},
+  {phase:'intermediate',n:16,title:'Use a .dockerignore file',goal:'Add a .dockerignore to exclude node_modules and other unnecessary files, reducing image size.',link:'/task16.html'},
+  {phase:'intermediate',n:17,title:'Tag images with semantic versions',goal:'Apply specific version tags (e.g. myapp:1.0.0) instead of relying on the default latest tag.',link:'/task17.html'},
+  {phase:'intermediate',n:18,title:'Modify a Dockerfile and rebuild',goal:'Change your app, bump the version tag, rebuild, and observe how layer caching speeds things up.',link:'/task18.html'},
+  {phase:'intermediate',n:19,title:'Push your image to Docker Hub',goal:'Authenticate with Docker Hub and push your custom image to a public repository for others to pull.',link:'/task19.html'},
+  {phase:'intermediate',n:20,title:'Local directory bind mounts',goal:'Mount a host source-code directory into a container to enable live-reload during development.',link:'/task20.html'},
+  {phase:'intermediate',n:21,title:'Named Docker volumes for databases',goal:'Create a persistent Docker volume, attach it to a PostgreSQL container, and verify data survives container deletion.',link:'/task21.html'},
+  {phase:'intermediate',n:22,title:'Inspect Docker volumes',goal:'List, inspect, and understand how named volumes work and where Docker stores their data on disk.',link:'/task22.html'},
+  {phase:'intermediate',n:23,title:'Run a MySQL container',goal:'Start MySQL with environment variables for credentials and connect to it from a database client.',link:'/task23.html'},
+  {phase:'intermediate',n:24,title:'Connect a backend app to MySQL',goal:'Network a Node.js (or Python) app container to your MySQL container and run a successful DB query.',link:'/task24.html'},
+  {phase:'intermediate',n:25,title:'Run MongoDB in Docker',goal:'Start a MongoDB container, persist its data with a volume, and insert/read documents via mongosh.',link:'/task25.html'},
+  {phase:'intermediate',n:26,title:'Custom bridge networks',goal:'Create a user-defined bridge network and connect two containers so they communicate by container name.',link:'/task26.html'},
+  {phase:'intermediate',n:27,title:'Full Node.js + MongoDB stack',goal:'Run a complete backend stack — Node.js app + MongoDB + named volume + custom network — manually.',link:'/task27.html'},
+  {phase:'intermediate',n:28,title:'Docker Compose for multi-container apps',goal:'Translate your manual stack (Task 27) into a docker-compose.yml and bring it up with one command.',link:'/task28.html'},
+  {phase:'intermediate',n:29,title:'Scale a service with Docker Compose',goal:'Use docker compose up --scale to run multiple replicas of your app service and observe load distribution.',link:'/task29.html'},
+  {phase:'intermediate',n:30,title:'Environment variable injection',goal:'Pass runtime config and secrets into containers via --env-file and Compose environment: fields.',link:'/task30.html'},
+  {phase:'advanced',n:31,title:'Multistage Docker builds',goal:'Separate compile and runtime stages in your Dockerfile to drastically shrink the final image size.',link:'/task31.html'},
+  {phase:'advanced',n:32,title:'Build cache optimization',goal:'Reorder Dockerfile instructions strategically so frequently-changing layers (app code) come last.',link:'/task32.html'},
+  {phase:'advanced',n:33,title:'Container resource limits',goal:'Restrict CPU shares and max RAM a container can consume using --cpus and --memory flags.',link:'/task33.html'},
+  {phase:'advanced',n:34,title:'Docker healthchecks',goal:'Add a HEALTHCHECK instruction in a Dockerfile and a healthcheck: block in Compose to monitor readiness.',link:'/task34.html'},
+  {phase:'advanced',n:35,title:'Non-root user in Dockerfile',goal:'Create a dedicated system user in your Dockerfile and switch to it with USER to avoid running as root.',link:'/task35.html'},
+  {phase:'advanced',n:36,title:'Secure secret management',goal:'Inject API keys and certs using Docker Compose secrets so they never appear in environment variables or image layers.',link:'/task36.html'},
+  {phase:'advanced',n:37,title:'Scan images for vulnerabilities',goal:'Use docker scout or trivy to scan a custom image for known CVEs and review the security report.',link:'/task37.html'},
+  {phase:'advanced',n:38,title:'Container logging drivers',goal:'Configure a container to forward logs to a file with rotation or an external system instead of json-file.',link:'/task38.html'},
+  {phase:'advanced',n:39,title:'Self-hosted private registry',goal:'Run the official registry:2 container locally, push an image to it, and pull it on another machine.',link:'/task39.html'},
+  {phase:'advanced',n:40,title:'Docker daemon security tuning',goal:'Enable rootless mode or apply a custom Seccomp/AppArmor profile to harden the Docker daemon.',link:'/task40.html'},
+  {phase:'advanced',n:41,title:'CI pipeline integration',goal:'Set up a GitHub Actions workflow that builds, lints, and pushes your Docker image on every push to main.',link:'/task41.html'},
+  {phase:'advanced',n:42,title:'Deploy a container on a VPS',goal:'SSH into a cloud server, install Docker, and deploy your stack in production with docker compose up -d.',link:'/task42.html'},
+  {phase:'advanced',n:43,title:'Multi-architecture builds with Buildx',goal:'Use docker buildx to build a single image targeting both amd64 and arm64 and push a multi-arch manifest.',link:'/task43.html      '},
+];
+
+const PHASES = ['beginner','intermediate','advanced'];
+const LABELS = {beginner:'Beginner',intermediate:'Intermediate',advanced:'Advanced'};
+
+let done = {};
+try { done = JSON.parse(localStorage.getItem('docker_roadmap_done') || '{}'); } catch(e) {}
+
+let filter = 'all';
+
+function save() {
+  try { localStorage.setItem('docker_roadmap_done', JSON.stringify(done)); } catch(e) {}
+}
+
+function setFilter(f, btn) {
+  filter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function toggle(n) {
+  if (done[n]) delete done[n]; else done[n] = true;
+  save();
+  render();
+}
+
+function resetAll() {
+  if (!confirm('Reset all progress?')) return;
+  done = {};
+  save();
+  render();
+}
+
+const CHECK_SVG = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+  <polyline points="1.5,6.5 4.5,9.5 10.5,2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
+const REDIRECT_SVG = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+  <path d="M2 9L9 2M9 2H4.5M9 2V6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
+function render() {
+  const total = TASKS.length;
+  const doneCount = Object.keys(done).length;
+  const pct = Math.round(doneCount / total * 100);
+
+  document.getElementById('stat-done').textContent = doneCount;
+  document.getElementById('stat-left').textContent = total - doneCount;
+  document.getElementById('stat-pct').textContent = pct + '%';
+  document.getElementById('prog').style.width = pct + '%';
+
+  let html = '';
+  PHASES.forEach(phase => {
+    let tasks = TASKS.filter(t => t.phase === phase);
+    if (filter === 'beginner' || filter === 'intermediate' || filter === 'advanced') {
+      tasks = tasks.filter(t => t.phase === filter);
+    }
+    if (filter === 'done') tasks = tasks.filter(t => done[t.n]);
+    if (filter === 'todo') tasks = tasks.filter(t => !done[t.n]);
+    if (!tasks.length) return;
+
+    const doneInPhase = tasks.filter(t => done[t.n]).length;
+
+    html += `<section class="phase" data-phase="${phase}">
+      <div class="phase-header">
+        <div class="phase-dot"></div>
+        <span class="phase-title">${LABELS[phase]}</span>
+        <span class="phase-pill">${doneInPhase}/${tasks.length} done</span>
+      </div>
+      <div class="grid">`;
+
+    tasks.forEach(t => {
+      const isDone = !!done[t.n];
+      const hasLink = t.link && t.link.trim() !== '';
+      const redirectAttrs = hasLink
+        ? `href="${t.link}" target="_blank" rel="noopener noreferrer" title="Open task page"`
+        : `href="#" onclick="return false;" title="Link not set yet"`;
+
+      html += `<div class="card${isDone ? ' done' : ''}" data-phase="${t.phase}">
+        <div class="num-badge">${t.n}</div>
+        <div class="card-body">
+          <div class="card-title">${t.title}</div>
+          <div class="card-goal">${t.goal}</div>
+        </div>
+        <div class="card-actions">
+          <button
+            class="check-btn${isDone ? ' checked' : ''}"
+            onclick="toggle(${t.n})"
+            aria-label="${isDone ? 'Uncheck' : 'Check'}: ${t.title}"
+            title="${isDone ? 'Mark incomplete' : 'Mark complete'}"
+          >${CHECK_SVG}</button>
+          <a
+            class="redirect-btn${hasLink ? '' : ' no-link'}"
+            ${redirectAttrs}
+            aria-label="Go to task page: ${t.title}"
+          >${REDIRECT_SVG}</a>
+        </div>
+      </div>`;
+    });
+
+    html += `</div></section>`;
+  });
+
+  if (!html) {
+    html = `<div class="empty"><div class="empty-icon">📭</div>No tasks match this filter.</div>`;
+  }
+
+  document.getElementById('content').innerHTML = html;
+}
+
+render();
+</script>
+</body>
+</html>

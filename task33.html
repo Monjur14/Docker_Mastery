@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 33 — Container Resource Limits</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.08);
+    --red-border: rgba(248,81,73,0.2);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px;
+    color: var(--text-muted); text-decoration: none; transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 10px; padding: 3px 10px;
+    border-radius: 999px; background: var(--purple-bg); color: var(--purple);
+    border: 1px solid rgba(188,140,255,0.25); letter-spacing: .04em; text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700;
+    letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--purple); }
+  .hero-desc {
+    font-size: 16px; color: var(--text-muted); line-height: 1.65;
+    max-width: 560px; margin-bottom: 1.75rem;
+  }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px; color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon {
+    width: 22px; height: 22px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--purple); background: var(--bg); flex-shrink: 0; z-index: 1;
+  }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin: .6rem 0;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .45rem .875rem; border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    background: transparent; border: none; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s;
+    display: flex; align-items: center; gap: 4px; letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text);
+  }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .hl      { color: var(--purple); }
+  pre .kw      { color: var(--blue); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0;
+    font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info  { background: var(--blue-bg);   border-color: rgba(88,166,255,0.2); }
+  .callout.tip   { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn  { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.bad   { background: var(--red-bg);    border-color: var(--red-border); }
+
+  /* ── Anatomy ── */
+  .anatomy {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 14px; display: flex; align-items: baseline;
+    flex-wrap: wrap; margin-bottom: 1.25rem; line-height: 2;
+  }
+  .anatomy-part { padding: 2px 6px; border-radius: 4px; font-size: 13px; margin: 2px 2px; }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-flag { background: rgba(188,140,255,0.14); color: var(--purple); }
+  .a-val  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-img  { background: rgba(88,166,255,0.10);  color: var(--blue); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag {
+    padding: 1px 8px; border-radius: 3px; font-size: 11px;
+    flex-shrink: 0; min-width: 72px; text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--purple); background: rgba(188,140,255,0.12); }
+  .anatomy-row .anatomy-tag.a-val  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .anatomy-tag.a-img  { color: var(--blue);   background: rgba(88,166,255,0.10); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header {
+    background: var(--surface); padding: .4rem .875rem;
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem; font-family: var(--mono);
+    font-size: 12.5px; line-height: 1.7; color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .p { color: var(--purple); }
+  .output-body .r { color: var(--red); }
+
+  /* ── Resource gauge diagram ── */
+  .gauge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: .75rem 0; }
+  .gauge-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.1rem;
+  }
+  .gauge-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: .6rem;
+  }
+  .gauge-title { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: .35rem; }
+  .gauge-bar-track {
+    height: 8px; border-radius: 999px;
+    background: var(--surface-2); border: 1px solid var(--border); margin-bottom: .5rem; overflow: hidden;
+  }
+  .gauge-bar-fill { height: 100%; border-radius: 999px; }
+  .gauge-meta { font-family: var(--mono); font-size: 11.5px; color: var(--text-muted); }
+  .gauge-meta strong { color: var(--text); }
+
+  /* ── Flag reference table ── */
+  .flag-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: .75rem 0; }
+  .flag-row { display: flex; align-items: flex-start; gap: 14px; padding: .75rem 1rem; border-bottom: 1px solid var(--border); }
+  .flag-row:last-child { border-bottom: none; }
+  .flag-code {
+    font-family: var(--mono); font-size: 12px; color: var(--purple);
+    background: rgba(188,140,255,0.08); padding: 3px 8px; border-radius: 5px;
+    flex-shrink: 0; min-width: 130px; text-align: center;
+  }
+  .flag-desc { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+  .flag-desc strong { color: var(--text); font-weight: 500; }
+
+  /* ── Inspect highlight table ── */
+  .inspect-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: .75rem 0; }
+  .inspect-row { display: flex; align-items: center; gap: 14px; padding: .65rem 1rem; border-bottom: 1px solid var(--border); }
+  .inspect-row:last-child { border-bottom: none; }
+  .inspect-key {
+    font-family: var(--mono); font-size: 12px; color: var(--blue);
+    background: var(--blue-bg); padding: 3px 8px; border-radius: 5px;
+    flex-shrink: 0; min-width: 160px;
+  }
+  .inspect-val { font-family: var(--mono); font-size: 12px; color: var(--green); flex-shrink: 0; min-width: 80px; }
+  .inspect-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── What happened grid ── */
+  .flow-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px; margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .875rem; text-align: center;
+  }
+  .flow-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13.5px; color: var(--text-muted);
+    padding: .6rem .875rem; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px; line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px; height: 16px; border: 1.5px solid var(--border-strong);
+    border-radius: 3px; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── Next card ── */
+  .next-card {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.25rem;
+    text-decoration: none; transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); flex-shrink: 0; margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .gauge-grid { grid-template-columns: 1fr; }
+    .inspect-row { flex-wrap: wrap; gap: 6px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 33</span>
+  <span class="nav-badge">Advanced</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 33 &nbsp;·&nbsp; Advanced
+    </div>
+    <h1>Container<br><span class="hl">Resource Limits</span></h1>
+    <p class="hero-desc">Restrict how much CPU and memory a container can consume using <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--purple)">--cpus</code> and <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--purple)">--memory</code>. Learn what happens when a container exceeds its quota — and how to verify enforcement is actually working.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~15 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker installed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal / Shell
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(248,81,73,0.1)">🚨</div>
+          <div class="concept-title">Why limits matter</div>
+        </div>
+        <div class="concept-body">
+          Without limits, a single runaway container can consume all available CPU or RAM on the host — starving every other container and the host OS itself. In any multi-tenant or production environment, <strong>resource limits are not optional</strong> — they're the contract between a container and the host it shares.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">⚙️</div>
+          <div class="concept-title">cgroups — the kernel mechanism</div>
+        </div>
+        <div class="concept-body">
+          Docker enforces limits via Linux <strong>control groups (cgroups)</strong>. When you pass <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--memory</code> or <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--cpus</code>, Docker writes cgroup configuration files. The kernel then enforces the ceiling directly — Docker itself never intervenes after setup.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🖥️</div>
+          <div class="concept-title">--cpus vs --cpu-shares</div>
+        </div>
+        <div class="concept-body">
+          <strong>--cpus</strong> sets a hard ceiling — e.g. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--cpus 0.5</code> means the container can never use more than half a CPU core, even if others are idle. <strong>--cpu-shares</strong> sets a relative weight — only throttles when the host is under contention. For predictable behaviour, prefer <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--cpus</code>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">💾</div>
+          <div class="concept-title">--memory and OOM kills</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--memory</code> sets the maximum RAM a container can allocate. When the process tries to exceed it, the kernel's <strong>OOM killer</strong> terminates the container — exit code <strong>137</strong> (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">128 + SIGKILL</code>). The container is stopped, not paused.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🔄</div>
+          <div class="concept-title">--memory-swap</div>
+        </div>
+        <div class="concept-body">
+          By default Docker sets swap to <strong>2× --memory</strong>, so a container can burst beyond its RAM limit into swap. Set <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--memory-swap</code> equal to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--memory</code> to disable swap entirely, or <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-1</code> to allow unlimited swap. In production, disabling swap gives you predictable kill behaviour.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">📊</div>
+          <div class="concept-title">docker stats — live monitoring</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker stats</code> streams live CPU%, memory usage and limit, network I/O, and block I/O for running containers. It's the fastest way to confirm a limit is being enforced — watch the memory column hit its ceiling and stop climbing.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      Command anatomy
+    </div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">run</span>
+        <span class="anatomy-part a-flag">--cpus</span>
+        <span class="anatomy-part a-val">0.5</span>
+        <span class="anatomy-part a-flag">--memory</span>
+        <span class="anatomy-part a-val">128m</span>
+        <span class="anatomy-part a-flag">--memory-swap</span>
+        <span class="anatomy-part a-val">128m</span>
+        <span class="anatomy-part a-img">nginx</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker run</span>
+          <p>Create and start a new container from the specified image.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--cpus</span>
+          <p>Maximum CPU cores the container may use. <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">0.5</code> = half a core. <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">2</code> = two full cores. Fractional values are supported.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--memory</span>
+          <p>Hard RAM ceiling. Accepts <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">b</code>, <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">k</code>, <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">m</code>, <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">g</code> suffixes. Minimum is 6m. Processes that exceed this are OOM-killed.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--memory-swap</span>
+          <p>Total memory + swap combined. Setting it equal to <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">--memory</code> disables swap entirely — the container lives and dies within its RAM quota.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-img">nginx</span>
+          <p>The image to run. Any image works — the limits apply to whatever process runs inside.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: HOW LIMITS LOOK IN PRACTICE      -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📊</span>
+      What limits look like on a host
+    </div>
+
+    <p style="font-size:13.5px;margin-bottom:.75rem;">A host with 4 CPU cores and 8 GB RAM runs three containers, each with explicit limits. The host OS and other processes still need headroom — never sum limits to 100%.</p>
+
+    <div class="gauge-grid">
+      <div class="gauge-card">
+        <div class="gauge-label">🖥️ &nbsp;CPU allocation</div>
+        <div style="margin-bottom:.75rem;">
+          <div class="gauge-title" style="font-size:12.5px;color:var(--text-muted);margin-bottom:.3rem;">web (--cpus 1.0)</div>
+          <div class="gauge-bar-track"><div class="gauge-bar-fill" style="width:25%;background:var(--blue)"></div></div>
+          <div class="gauge-title" style="font-size:12.5px;color:var(--text-muted);margin-bottom:.3rem;">worker (--cpus 0.5)</div>
+          <div class="gauge-bar-track"><div class="gauge-bar-fill" style="width:12.5%;background:var(--purple)"></div></div>
+          <div class="gauge-title" style="font-size:12.5px;color:var(--text-muted);margin-bottom:.3rem;">db (--cpus 2.0)</div>
+          <div class="gauge-bar-track"><div class="gauge-bar-fill" style="width:50%;background:var(--green)"></div></div>
+          <div class="gauge-title" style="font-size:12.5px;color:var(--text-muted);margin-bottom:.3rem;">host OS + headroom</div>
+          <div class="gauge-bar-track"><div class="gauge-bar-fill" style="width:12.5%;background:var(--text-dim)"></div></div>
+        </div>
+        <div class="gauge-meta"><strong>3.5 / 4.0</strong> cores allocated</div>
+      </div>
+      <div class="gauge-card">
+        <div class="gauge-label">💾 &nbsp;Memory allocation</div>
+        <div style="margin-bottom:.75rem;">
+          <div class="gauge-title" style="font-size:12.5px;color:var(--text-muted);margin-bottom:.3rem;">web (--memory 256m)</div>
+          <div class="gauge-bar-track"><div class="gauge-bar-fill" style="width:3.1%;background:var(--blue)"></div></div>
+          <div class="gauge-title" style="font-size:12.5px;color:var(--text-muted);margin-bottom:.3rem;">worker (--memory 128m)</div>
+          <div class="gauge-bar-track"><div class="gauge-bar-fill" style="width:1.5%;background:var(--purple)"></div></div>
+          <div class="gauge-title" style="font-size:12.5px;color:var(--text-muted);margin-bottom:.3rem;">db (--memory 2g)</div>
+          <div class="gauge-bar-track"><div class="gauge-bar-fill" style="width:25%;background:var(--green)"></div></div>
+          <div class="gauge-title" style="font-size:12.5px;color:var(--text-muted);margin-bottom:.3rem;">host OS + headroom</div>
+          <div class="gauge-bar-track"><div class="gauge-bar-fill" style="width:70%;background:var(--text-dim)"></div></div>
+        </div>
+        <div class="gauge-meta"><strong>2.4 / 8.0 GB</strong> reserved</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Run a container with no limits — see the default</div>
+          <div class="step-desc">Start nginx with no constraints and inspect what Docker reports as its memory limit. Without flags, the container can access all host memory.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">--name</span> unlimited nginx
+<span class="cmd">docker</span> inspect unlimited <span class="flag">--format</span> <span class="str">'Memory: {{.HostConfig.Memory}}  NanoCpus: {{.HostConfig.NanoCpus}}'</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+              <span class="out">Memory: </span><span class="r">0</span><span class="out">  NanoCpus: </span><span class="r">0</span><span class="out">  &nbsp;&nbsp;</span><span style="color:var(--text-dim);font-style:italic;font-size:11px;">← 0 means no limit set</span>
+            </div>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><strong>Memory: 0 and NanoCpus: 0</strong> means unlimited — this container can consume every byte of RAM and every CPU cycle on the host if it chooses to.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Run a container with CPU and memory limits</div>
+          <div class="step-desc">Start a second nginx container restricted to half a CPU core and 128 MB of RAM, with swap disabled.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> \
+  <span class="flag">--name</span> limited \
+  <span class="flag">--cpus</span> <span class="str">"0.5"</span> \
+  <span class="flag">--memory</span> <span class="str">"128m"</span> \
+  <span class="flag">--memory-swap</span> <span class="str">"128m"</span> \
+  nginx</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Setting <strong>--memory-swap</strong> equal to <strong>--memory</strong> means zero swap is available. The container lives and dies within its 128 MB RAM quota — no bursting into slower swap memory.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Verify limits are set via docker inspect</div>
+          <div class="step-desc">Inspect the container's HostConfig to confirm the kernel cgroup values Docker wrote. NanoCpus is CPUs × 10⁹.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> inspect limited \
+  <span class="flag">--format</span> <span class="str">'Memory={{.HostConfig.Memory}} Swap={{.HostConfig.MemorySwap}} NanoCpus={{.HostConfig.NanoCpus}}'</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+              <span class="g">Memory=134217728 Swap=134217728 NanoCpus=500000000</span>
+            </div>
+          </div>
+
+          <div class="inspect-table">
+            <div class="inspect-row">
+              <span class="inspect-key">Memory</span>
+              <span class="inspect-val">134217728</span>
+              <span class="inspect-desc">128 × 1024 × 1024 bytes = 128 MiB. This is the raw cgroup value Docker wrote.</span>
+            </div>
+            <div class="inspect-row">
+              <span class="inspect-key">MemorySwap</span>
+              <span class="inspect-val">134217728</span>
+              <span class="inspect-desc">Equal to Memory → swap disabled. If this were 268435456 (256 MiB), swap would be 128 MiB.</span>
+            </div>
+            <div class="inspect-row">
+              <span class="inspect-key">NanoCpus</span>
+              <span class="inspect-val">500000000</span>
+              <span class="inspect-desc">0.5 CPUs × 10⁹ = 500,000,000. Docker converts your <code style="font-family:var(--mono);font-size:11px">--cpus</code> value to nanoseconds of CPU time per second.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Watch live usage against the limit with docker stats</div>
+          <div class="step-desc">Open a second terminal and stream resource stats for both containers side-by-side. The MEM LIMIT column shows the ceiling you set.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell — new terminal tab</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> stats unlimited limited</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (streaming)</div>
+            <div class="output-body">
+<span class="out">NAME        CPU %   MEM USAGE / LIMIT       MEM %   NET I/O</span><br>
+<span class="out">unlimited   0.0%    </span><span class="b">6.3MiB / </span><span class="r">15.2GiB</span><span class="out">      0.04%   ...</span><br>
+<span class="out">limited     0.0%    </span><span class="b">6.3MiB / </span><span class="g">128MiB</span><span class="out">        4.93%   ...</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Notice <strong>unlimited</strong> shows the full host RAM as its limit, while <strong>limited</strong> shows exactly <strong>128MiB</strong>. Press Ctrl+C to stop streaming. Add <code style="font-family:var(--mono);font-size:12px">--no-stream</code> for a one-shot snapshot instead.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Apply a CPU limit and stress-test it</div>
+          <div class="step-desc">Run a CPU stress container capped at half a core and confirm it can't saturate the full host CPU — even with all threads pinned.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Run stress with 4 CPU workers but cap the container at 0.5 cores</span>
+<span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">--name</span> cpu-test \
+  <span class="flag">--cpus</span> <span class="str">"0.5"</span> \
+  progrium/stress \
+  <span class="flag">--cpu</span> 4 <span class="flag">--timeout</span> 30s</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell — watch it in another tab</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> stats cpu-test <span class="flag">--no-stream</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">NAME       CPU %    MEM USAGE / LIMIT   MEM %</span><br>
+<span class="g">cpu-test   50.0%    892KiB / 15.2GiB    0.00%</span><br>
+<span class="out">           ↑ capped at exactly 50% regardless of 4 stress workers</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">Even though 4 threads are all trying to use 100% CPU, the container is hard-capped at <strong>50%</strong> by the cgroup limit. The kernel throttles the threads proportionally.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Trigger an OOM kill — observe exit code 137</div>
+          <div class="step-desc">Run a container that deliberately allocates more memory than its limit. The kernel OOM killer will terminate it with exit code 137.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Allow 64m RAM, then try to allocate 200m inside — will be OOM-killed</span>
+<span class="cmd">docker</span> run <span class="flag">--name</span> oom-demo \
+  <span class="flag">--memory</span> <span class="str">"64m"</span> \
+  <span class="flag">--memory-swap</span> <span class="str">"64m"</span> \
+  python:3.12-slim \
+  python3 <span class="flag">-c</span> <span class="str">"x = ' ' * (200 * 1024 * 1024)"</span></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Check what happened</span>
+<span class="cmd">docker</span> inspect oom-demo \
+  <span class="flag">--format</span> <span class="str">'ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}}'</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+              <span class="r">ExitCode=137 OOMKilled=true</span>
+            </div>
+          </div>
+          <div class="callout bad">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><strong>Exit code 137 = 128 + 9 (SIGKILL)</strong>. The OOMKilled flag is your definitive signal that the memory limit was breached. In production, alert on this flag rather than guessing from the exit code alone.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">7</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Reference — all resource limit flags</div>
+          <div class="step-desc">A complete reference of the flags you'll reach for most often.</div>
+
+          <div class="flag-table">
+            <div class="flag-row">
+              <span class="flag-code">--cpus "N"</span>
+              <div class="flag-desc"><strong>Hard CPU ceiling.</strong> Fractional values allowed — <code style="font-family:var(--mono);font-size:11px">0.25</code>, <code style="font-family:var(--mono);font-size:11px">1.5</code>, <code style="font-family:var(--mono);font-size:11px">4</code>. Enforced at all times, even when host cores are idle.</div>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">--cpu-shares N</span>
+              <div class="flag-desc"><strong>Relative CPU weight.</strong> Default 1024. Only matters under contention — a container with 2048 shares gets twice the CPU time of one with 1024 when the host is busy.</div>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">--cpuset-cpus "0,1"</span>
+              <div class="flag-desc"><strong>Pin to specific cores.</strong> Comma-separated or range — <code style="font-family:var(--mono);font-size:11px">"0-3"</code> pins to cores 0 through 3. Useful for NUMA-aware workloads.</div>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">--memory "Nm"</span>
+              <div class="flag-desc"><strong>Hard RAM ceiling.</strong> Accepts <code style="font-family:var(--mono);font-size:11px">b k m g</code> suffixes. Processes that exceed this are OOM-killed immediately.</div>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">--memory-swap "Nm"</span>
+              <div class="flag-desc"><strong>RAM + swap total.</strong> Set equal to <code style="font-family:var(--mono);font-size:11px">--memory</code> to disable swap. Set to <code style="font-family:var(--mono);font-size:11px">-1</code> for unlimited swap. Default is 2× memory.</div>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">--memory-reservation "Nm"</span>
+              <div class="flag-desc"><strong>Soft memory limit.</strong> Docker will try to reclaim memory down to this threshold when the host is under pressure, but won't kill the container.</div>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">--oom-kill-disable</span>
+              <div class="flag-desc"><strong>Disable the OOM killer for this container.</strong> Dangerous — the host kernel may kill other processes instead. Only use with a hard <code style="font-family:var(--mono);font-size:11px">--memory</code> limit set.</div>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">--pids-limit N</span>
+              <div class="flag-desc"><strong>Maximum number of processes</strong> the container can spawn. Prevents fork-bomb attacks. Set to <code style="font-family:var(--mono);font-size:11px">-1</code> for unlimited.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">8</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Set limits in Docker Compose</div>
+          <div class="step-desc">In Compose files, resource limits live under <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">deploy.resources</code> — the same values, declaratively.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">compose.yml</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre>services:
+  web:
+    image: nginx
+    <span class="hl">deploy</span>:
+      <span class="hl">resources</span>:
+        <span class="str">limits</span>:
+          cpus: <span class="str">"0.5"</span>       <span class="comment"># hard ceiling</span>
+          memory: <span class="str">128M</span>   <span class="comment"># hard RAM ceiling</span>
+        <span class="str">reservations</span>:
+          cpus: <span class="str">"0.1"</span>       <span class="comment"># guaranteed minimum</span>
+          memory: <span class="str">64M</span>    <span class="comment"># soft floor</span></pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">deploy.resources</code> works with <strong>docker compose up</strong> (Compose v2). In the older Compose v1 format, limits were set directly under <code style="font-family:var(--mono);font-size:12px">mem_limit</code> and <code style="font-family:var(--mono);font-size:12px">cpus</code> at the service level.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">9</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Update limits on a running container</div>
+          <div class="step-desc">You don't need to stop and recreate a container to change its resource limits — <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker update</code> writes new cgroup values live.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Raise the memory limit on a running container — no restart needed</span>
+<span class="cmd">docker</span> update <span class="flag">--memory</span> <span class="str">"256m"</span> <span class="flag">--memory-swap</span> <span class="str">"256m"</span> limited
+
+<span class="comment"># Confirm the new value</span>
+<span class="cmd">docker</span> inspect limited <span class="flag">--format</span> <span class="str">'{{.HostConfig.Memory}}'</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body"><span class="g">268435456</span><span class="out">  &nbsp;&nbsp;</span><span style="color:var(--text-dim);font-style:italic;font-size:11px;">← 256 × 1024 × 1024 = 256 MiB</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">10</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Clean up</div>
+          <div class="step-desc">Remove all containers created in this task.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> rm <span class="flag">-f</span> unlimited limited cpu-test oom-demo</pre>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: WHAT JUST HAPPENED               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">📝</div>
+        <div class="flow-label">cgroup files written</div>
+        <div class="flow-desc">Docker wrote limit values into cgroup v2 files under <code style="font-family:var(--mono);font-size:11px">/sys/fs/cgroup/</code> on the host at container start.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">⚖️</div>
+        <div class="flow-label">Kernel enforces CPU</div>
+        <div class="flow-desc">The CPU scheduler tracks nanoseconds of CPU time allocated. When the quota is exhausted, the container's threads are throttled until the next period.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">📊</div>
+        <div class="flow-label">Memory accounting</div>
+        <div class="flow-desc">Every memory allocation inside the container increments a cgroup memory counter. Docker reads this counter to show usage in <code style="font-family:var(--mono);font-size:11px">docker stats</code>.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">💥</div>
+        <div class="flow-label">OOM kill triggered</div>
+        <div class="flow-desc">When the counter would exceed the limit, the kernel's OOM killer sends SIGKILL to the offending process — Docker never intervenes.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🏷️</div>
+        <div class="flow-label">OOMKilled flag set</div>
+        <div class="flow-desc">Docker reads the cgroup's OOM event counter after the container exits and sets the OOMKilled field in the container's metadata.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🔄</div>
+        <div class="flow-label">docker update live</div>
+        <div class="flow-desc"><code style="font-family:var(--mono);font-size:11px">docker update</code> overwrites the cgroup files on the running container — the kernel picks up the new limits instantly, no restart.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>Why resource limits are essential — an unlimited container can starve every other workload on the host</li>
+      <li><span class="chk"></span>How Docker enforces limits via Linux cgroups — the kernel does the actual enforcement, not Docker</li>
+      <li><span class="chk"></span>How to set a hard CPU ceiling with <code style="font-family:var(--mono);font-size:12px">--cpus</code> and verify it holds under load</li>
+      <li><span class="chk"></span>How to set a hard RAM ceiling with <code style="font-family:var(--mono);font-size:12px">--memory</code> and disable swap with <code style="font-family:var(--mono);font-size:12px">--memory-swap</code></li>
+      <li><span class="chk"></span>What exit code 137 and <code style="font-family:var(--mono);font-size:12px">OOMKilled=true</code> mean — and how to detect them via <code style="font-family:var(--mono);font-size:12px">docker inspect</code></li>
+      <li><span class="chk"></span>How to monitor live usage against limits using <code style="font-family:var(--mono);font-size:12px">docker stats</code></li>
+      <li><span class="chk"></span>How to declare limits in Compose under <code style="font-family:var(--mono);font-size:12px">deploy.resources</code> and update them live with <code style="font-family:var(--mono);font-size:12px">docker update</code></li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

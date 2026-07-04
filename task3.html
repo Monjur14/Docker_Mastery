@@ -1,0 +1,1892 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task 3 — Detached Mode &amp; Port Mapping</title>
+    <link rel="icon" type="image/png" href="/assets/docker.png" />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0d1117;
+        --surface: #161b22;
+        --surface-2: #1c2330;
+        --border: rgba(255, 255, 255, 0.07);
+        --border-strong: rgba(255, 255, 255, 0.14);
+        --text: #e6edf3;
+        --text-muted: #7d8590;
+        --text-dim: #4d5562;
+        --green: #3fb950;
+        --green-bg: rgba(63, 185, 80, 0.1);
+        --green-border: rgba(63, 185, 80, 0.2);
+        --blue: #58a6ff;
+        --blue-bg: rgba(88, 166, 255, 0.08);
+        --yellow: #e3b341;
+        --yellow-bg: rgba(227, 179, 65, 0.1);
+        --yellow-border: rgba(227, 179, 65, 0.25);
+        --purple: #bc8cff;
+        --purple-bg: rgba(188, 140, 255, 0.08);
+        --font:
+          "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --mono:
+          "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace,
+          monospace;
+        --max: 780px;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font);
+        font-size: 15px;
+        line-height: 1.7;
+        min-height: 100vh;
+      }
+
+      /* ── Nav ── */
+      .nav {
+        border-bottom: 1px solid var(--border);
+        padding: 0.875rem 2rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        position: sticky;
+        top: 0;
+        background: rgba(13, 17, 23, 0.92);
+        backdrop-filter: blur(8px);
+        z-index: 100;
+      }
+      .nav-back {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--text-muted);
+        text-decoration: none;
+        transition: color 0.15s;
+      }
+      .nav-back:hover {
+        color: var(--text);
+      }
+      .nav-back svg {
+        flex-shrink: 0;
+      }
+      .nav-sep {
+        color: var(--text-dim);
+        font-size: 13px;
+      }
+      .nav-title {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+      .nav-badge {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 10px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: var(--green-bg);
+        color: var(--green);
+        border: 1px solid var(--green-border);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      /* ── Layout ── */
+      .page {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 0 2rem 6rem;
+      }
+
+      /* ── Hero ── */
+      .hero {
+        padding: 3.5rem 0 3rem;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 3rem;
+      }
+      .hero-eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--text-dim);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 1.25rem;
+      }
+      .hero-eyebrow .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+      }
+      .hero h1 {
+        font-size: clamp(1.75rem, 4vw, 2.5rem);
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        line-height: 1.15;
+        margin-bottom: 1rem;
+      }
+      .hero h1 .hl {
+        color: var(--green);
+      }
+      .hero-desc {
+        font-size: 16px;
+        color: var(--text-muted);
+        line-height: 1.65;
+        max-width: 560px;
+        margin-bottom: 1.75rem;
+      }
+      .hero-meta {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+      }
+      .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .meta-item svg {
+        color: var(--text-dim);
+      }
+
+      /* ── Section headings ── */
+      .section {
+        margin-bottom: 3rem;
+      }
+      .section-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 1.5rem;
+      }
+      .section-label::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+      .section-label .icon {
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+      }
+      h2 {
+        font-size: 1.2rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin-bottom: 0.5rem;
+        color: var(--text);
+      }
+      h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 0.4rem;
+      }
+      p {
+        color: var(--text-muted);
+        margin-bottom: 0.85rem;
+      }
+      p:last-child {
+        margin-bottom: 0;
+      }
+
+      /* ── Concept cards ── */
+      .concept-grid {
+        display: grid;
+        gap: 10px;
+      }
+      .concept-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.1rem 1.25rem;
+      }
+      .concept-card-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 0.6rem;
+      }
+      .concept-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+      .concept-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        line-height: 1.3;
+        padding-top: 4px;
+      }
+      .concept-body {
+        font-size: 13.5px;
+        color: var(--text-muted);
+        line-height: 1.65;
+      }
+      .concept-body strong {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      /* ── Steps ── */
+      .steps {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+      .step {
+        display: flex;
+        gap: 0;
+        position: relative;
+      }
+      .step-left {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 40px;
+        flex-shrink: 0;
+      }
+      .step-num {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 1.5px solid var(--border-strong);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--green);
+        background: var(--bg);
+        flex-shrink: 0;
+        z-index: 1;
+      }
+      .step-line {
+        width: 1px;
+        flex: 1;
+        background: var(--border);
+        margin: 4px 0;
+        min-height: 16px;
+      }
+      .step:last-child .step-line {
+        display: none;
+      }
+      .step-content {
+        padding: 0 0 2rem 1rem;
+        flex: 1;
+        min-width: 0;
+      }
+      .step-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 0.35rem;
+        padding-top: 3px;
+      }
+      .step-desc {
+        font-size: 13.5px;
+        color: var(--text-muted);
+        margin-bottom: 0.75rem;
+        line-height: 1.6;
+      }
+
+      /* ── Code blocks ── */
+      .code-block {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 0.6rem 0;
+      }
+      .code-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.45rem 0.875rem;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .code-lang {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--text-dim);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .copy-btn {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--text-dim);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        transition:
+          color 0.15s,
+          background 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        letter-spacing: 0.04em;
+      }
+      .copy-btn:hover {
+        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .copy-btn.copied {
+        color: var(--green);
+      }
+      pre {
+        padding: 0.875rem 1rem;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.65;
+        color: var(--text);
+      }
+      pre .cmd {
+        color: var(--blue);
+      }
+      pre .flag {
+        color: var(--yellow);
+      }
+      pre .str {
+        color: var(--green);
+      }
+      pre .comment {
+        color: var(--text-dim);
+        font-style: italic;
+      }
+      pre .out {
+        color: var(--text-muted);
+      }
+      pre .hl {
+        color: var(--purple);
+      }
+
+      /* ── Callouts ── */
+      .callout {
+        border-radius: 8px;
+        padding: 0.875rem 1rem;
+        margin: 0.75rem 0;
+        font-size: 13.5px;
+        line-height: 1.6;
+        border: 1px solid;
+        display: flex;
+        gap: 10px;
+      }
+      .callout-icon {
+        flex-shrink: 0;
+        font-size: 15px;
+        margin-top: 1px;
+      }
+      .callout-body {
+        color: var(--text-muted);
+        flex: 1;
+      }
+      .callout-body strong {
+        color: var(--text);
+        font-weight: 500;
+      }
+      .callout.info {
+        background: var(--blue-bg);
+        border-color: rgba(88, 166, 255, 0.2);
+      }
+      .callout.tip {
+        background: var(--green-bg);
+        border-color: var(--green-border);
+      }
+      .callout.warn {
+        background: var(--yellow-bg);
+        border-color: var(--yellow-border);
+      }
+
+      /* ── Anatomy diagram ── */
+      .anatomy {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        font-family: var(--mono);
+      }
+      .anatomy-cmd {
+        font-size: 14px;
+        display: flex;
+        align-items: baseline;
+        gap: 0;
+        flex-wrap: wrap;
+        margin-bottom: 1.25rem;
+        line-height: 2;
+      }
+      .anatomy-part {
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 13px;
+        margin: 2px 2px;
+      }
+      .a-bin {
+        background: rgba(88, 166, 255, 0.15);
+        color: var(--blue);
+      }
+      .a-sub {
+        background: rgba(227, 179, 65, 0.12);
+        color: var(--yellow);
+      }
+      .a-img {
+        background: rgba(63, 185, 80, 0.12);
+        color: var(--green);
+      }
+      .a-flag {
+        background: rgba(188, 140, 255, 0.12);
+        color: var(--purple);
+      }
+      .anatomy-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .anatomy-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 12px;
+      }
+      .anatomy-tag {
+        padding: 1px 8px;
+        border-radius: 3px;
+        font-size: 11px;
+        flex-shrink: 0;
+        min-width: 52px;
+        text-align: center;
+      }
+      .anatomy-row .anatomy-tag.a-bin {
+        color: var(--blue);
+        background: rgba(88, 166, 255, 0.12);
+      }
+      .anatomy-row .anatomy-tag.a-sub {
+        color: var(--yellow);
+        background: rgba(227, 179, 65, 0.1);
+      }
+      .anatomy-row .anatomy-tag.a-img {
+        color: var(--green);
+        background: rgba(63, 185, 80, 0.1);
+      }
+      .anatomy-row .anatomy-tag.a-flag {
+        color: var(--purple);
+        background: rgba(188, 140, 255, 0.1);
+      }
+      .anatomy-row p {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin: 0;
+        line-height: 1.5;
+      }
+
+      /* ── Output preview ── */
+      .output-preview {
+        background: #010409;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .output-header {
+        background: var(--surface);
+        padding: 0.4rem 0.875rem;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--text-dim);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--border);
+      }
+      .output-body {
+        padding: 0.875rem 1rem;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        line-height: 1.7;
+        color: #8b949e;
+      }
+      .output-body .g {
+        color: var(--green);
+      }
+      .output-body .b {
+        color: var(--blue);
+      }
+      .output-body .w {
+        color: var(--text);
+      }
+
+      /* ── What happened grid ── */
+      .flow-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 8px;
+        margin: 1rem 0;
+      }
+      .flow-item {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.875rem;
+        text-align: center;
+      }
+      .flow-num {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--text-dim);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 0.35rem;
+      }
+      .flow-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.4rem;
+      }
+      .flow-label {
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--text);
+        margin-bottom: 0.25rem;
+      }
+      .flow-desc {
+        font-size: 11.5px;
+        color: var(--text-muted);
+        line-height: 1.5;
+      }
+
+      /* ── Diagram (port mapping) ── */
+      .portmap {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.5rem 1.25rem;
+        margin: 1rem 0;
+      }
+      .portmap-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .portmap-box {
+        border: 1.5px solid var(--border-strong);
+        border-radius: 8px;
+        padding: 0.75rem 1.25rem;
+        text-align: center;
+        font-family: var(--mono);
+        min-width: 130px;
+      }
+      .portmap-box .pb-label {
+        font-size: 10px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 4px;
+      }
+      .portmap-box .pb-value {
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .portmap-box.host {
+        background: rgba(88, 166, 255, 0.08);
+        border-color: rgba(88, 166, 255, 0.25);
+      }
+      .portmap-box.host .pb-value {
+        color: var(--blue);
+      }
+      .portmap-box.container {
+        background: rgba(63, 185, 80, 0.08);
+        border-color: var(--green-border);
+      }
+      .portmap-box.container .pb-value {
+        color: var(--green);
+      }
+      .portmap-arrow {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: var(--text-dim);
+        font-family: var(--mono);
+        font-size: 10px;
+        gap: 2px;
+      }
+      .portmap-caption {
+        text-align: center;
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 1rem;
+      }
+
+      /* ── Checklist ── */
+      .checklist {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .checklist li {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 13.5px;
+        color: var(--text-muted);
+        padding: 0.6rem 0.875rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        line-height: 1.5;
+      }
+      .checklist li .chk {
+        width: 16px;
+        height: 16px;
+        border: 1.5px solid var(--border-strong);
+        border-radius: 3px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      /* ── Next steps ── */
+      .next-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        text-decoration: none;
+        transition: border-color 0.15s;
+      }
+      .next-card:hover {
+        border-color: var(--border-strong);
+      }
+      .next-arrow {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border-strong);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        flex-shrink: 0;
+        margin-left: auto;
+      }
+      .next-label {
+        font-size: 11px;
+        color: var(--text-dim);
+        font-family: var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 3px;
+      }
+      .next-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text);
+      }
+
+      @media (max-width: 600px) {
+        .page {
+          padding: 0 1rem 4rem;
+        }
+        .nav {
+          padding: 0.875rem 1rem;
+        }
+        .hero {
+          padding: 2rem 0 2rem;
+        }
+        .flow-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .portmap-row {
+          flex-direction: column;
+        }
+        .portmap-arrow {
+          transform: rotate(90deg);
+        }
+      }
+
+      /* ── Next / Prev cards ── */
+      .nav-cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .nav-card {
+        display: flex;
+        align-items: center;
+        gap: 0.875rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        text-decoration: none;
+        transition: border-color 0.15s;
+      }
+      .nav-card:hover {
+        border-color: var(--border-strong);
+      }
+      .nav-card.prev {
+        flex-direction: row-reverse;
+        text-align: right;
+      }
+      .nav-card-arrow {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border-strong);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+      .nav-card-label {
+        font-size: 11px;
+        color: var(--text-dim);
+        font-family: var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 3px;
+      }
+      .nav-card-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text);
+        line-height: 1.3;
+      }
+
+      @media (max-width: 600px) {
+        .nav-cards {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Nav -->
+    <nav class="nav">
+      <a href="index.html" class="nav-back">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <polyline
+            points="9,2 4,7 9,12"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        Roadmap
+      </a>
+      <span class="nav-sep">/</span>
+      <span class="nav-title">Task 3</span>
+      <span class="nav-badge">Beginner</span>
+    </nav>
+
+    <div class="page">
+      <!-- Hero -->
+      <header class="hero">
+        <div class="hero-eyebrow">
+          <div class="dot"></div>
+          Task 03 &nbsp;·&nbsp; Beginner
+        </div>
+        <h1>Detached Mode<br /><span class="hl">&amp; Port Mapping</span></h1>
+        <p class="hero-desc">
+          Run Nginx in the background with
+          <code
+            style="
+              font-family: var(--mono);
+              font-size: 13px;
+              background: var(--surface-2);
+              padding: 1px 6px;
+              border-radius: 4px;
+              color: var(--green);
+            "
+            >-d</code
+          >, map container port 80 to host port 8080 with
+          <code
+            style="
+              font-family: var(--mono);
+              font-size: 13px;
+              background: var(--surface-2);
+              padding: 1px 6px;
+              border-radius: 4px;
+              color: var(--green);
+            "
+            >-p</code
+          >, and open it in your browser without blocking your terminal.
+        </p>
+        <div class="hero-meta">
+          <span class="meta-item">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <circle
+                cx="6.5"
+                cy="6.5"
+                r="5.5"
+                stroke="currentColor"
+                stroke-width="1.3"
+              />
+              <polyline
+                points="6.5,3.5 6.5,6.5 8.5,8"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linecap="round"
+              />
+            </svg>
+            ~7 minutes
+          </span>
+          <span class="meta-item">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <rect
+                x="1.5"
+                y="2.5"
+                width="10"
+                height="8"
+                rx="1.5"
+                stroke="currentColor"
+                stroke-width="1.3"
+              />
+              <polyline
+                points="4,6 5.5,7.5 9,4.5"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            Docker installed
+          </span>
+          <span class="meta-item">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <rect
+                x="1"
+                y="3"
+                width="11"
+                height="7"
+                rx="1"
+                stroke="currentColor"
+                stroke-width="1.3"
+              />
+              <line
+                x1="4"
+                y1="11"
+                x2="9"
+                y2="11"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linecap="round"
+              />
+            </svg>
+            Terminal + Browser
+          </span>
+        </div>
+      </header>
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- SECTION 1: CONCEPTS                         -->
+      <!-- ═══════════════════════════════════════════ -->
+      <section class="section">
+        <div class="section-label">
+          <span class="icon">📖</span>
+          Required concepts
+        </div>
+
+        <div class="concept-grid">
+          <div class="concept-card">
+            <div class="concept-card-header">
+              <div
+                class="concept-icon"
+                style="background: rgba(88, 166, 255, 0.1)"
+              >
+                🖥️
+              </div>
+              <div class="concept-title">Foreground vs. detached mode</div>
+            </div>
+            <div class="concept-body">
+              By default,
+              <code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >docker run</code
+              >
+              runs in the <strong>foreground</strong> — it attaches to your
+              terminal and blocks it until the container stops.
+              <strong>Detached mode</strong> (<code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >-d</code
+              >) starts the container in the background and immediately returns
+              control of your terminal, printing only the container ID.
+            </div>
+          </div>
+
+          <div class="concept-card">
+            <div class="concept-card-header">
+              <div
+                class="concept-icon"
+                style="background: rgba(63, 185, 80, 0.1)"
+              >
+                🔌
+              </div>
+              <div class="concept-title">
+                Why containers are isolated by default
+              </div>
+            </div>
+            <div class="concept-body">
+              A container has its own private network namespace. Even though
+              Nginx inside the container listens on port 80, that port is
+              <strong>not reachable</strong> from your host machine unless you
+              explicitly publish it — this isolation is a security feature, not
+              a bug.
+            </div>
+          </div>
+
+          <div class="concept-card">
+            <div class="concept-card-header">
+              <div
+                class="concept-icon"
+                style="background: rgba(227, 179, 65, 0.1)"
+              >
+                🔀
+              </div>
+              <div class="concept-title">Port mapping (publishing)</div>
+            </div>
+            <div class="concept-body">
+              The
+              <code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >-p HOST:CONTAINER</code
+              >
+              flag forwards traffic from a port on your
+              <strong>host</strong> machine to a port inside the
+              <strong>container</strong>.
+              <code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >-p 8080:80</code
+              >
+              means "anything hitting host port 8080 gets forwarded to port 80
+              inside the container."
+            </div>
+          </div>
+
+          <div class="concept-card">
+            <div class="concept-card-header">
+              <div
+                class="concept-icon"
+                style="background: rgba(188, 140, 255, 0.1)"
+              >
+                🏷️
+              </div>
+              <div class="concept-title">Naming containers</div>
+            </div>
+            <div class="concept-body">
+              Without
+              <code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >--name</code
+              >, Docker auto-generates a random name like <em>brave_curie</em>.
+              Giving your container an explicit name makes it much easier to
+              reference in later commands like
+              <code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >docker logs</code
+              >
+              or
+              <code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >docker stop</code
+              >.
+            </div>
+          </div>
+
+          <div class="concept-card">
+            <div class="concept-card-header">
+              <div
+                class="concept-icon"
+                style="background: rgba(63, 185, 80, 0.1)"
+              >
+                📜
+              </div>
+              <div class="concept-title">Reattaching to logs</div>
+            </div>
+            <div class="concept-body">
+              Since detached containers don't print to your terminal live,
+              <code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >docker logs</code
+              >
+              lets you view everything the container has written to
+              stdout/stderr since it started — add
+              <code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >-f</code
+              >
+              to follow it live.
+            </div>
+          </div>
+
+          <div class="concept-card">
+            <div class="concept-card-header">
+              <div
+                class="concept-icon"
+                style="background: rgba(88, 166, 255, 0.1)"
+              >
+                🛑
+              </div>
+              <div class="concept-title">Stop vs. kill vs. remove</div>
+            </div>
+            <div class="concept-body">
+              <code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >docker stop</code
+              >
+              sends a graceful shutdown signal (SIGTERM, then SIGKILL after a
+              timeout).
+              <code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >docker kill</code
+              >
+              terminates immediately. Neither deletes the container — that's
+              what
+              <code
+                style="
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: rgba(255, 255, 255, 0.05);
+                  padding: 1px 5px;
+                  border-radius: 3px;
+                "
+                >docker rm</code
+              >
+              is for.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- SECTION 2: COMMAND ANATOMY                  -->
+      <!-- ═══════════════════════════════════════════ -->
+      <section class="section">
+        <div class="section-label">
+          <span class="icon">🔬</span>
+          Command anatomy
+        </div>
+
+        <div class="anatomy">
+          <div class="anatomy-cmd">
+            <span class="anatomy-part a-bin">docker</span>
+            <span class="anatomy-part a-sub">run</span>
+            <span class="anatomy-part a-flag">-d</span>
+            <span class="anatomy-part a-flag">-p 8080:80</span>
+            <span class="anatomy-part a-flag">--name web</span>
+            <span class="anatomy-part a-img">nginx</span>
+          </div>
+          <div class="anatomy-rows">
+            <div class="anatomy-row">
+              <span class="anatomy-tag a-bin">docker</span>
+              <p>
+                The CLI binary — how you talk to the Docker daemon from your
+                terminal.
+              </p>
+            </div>
+            <div class="anatomy-row">
+              <span class="anatomy-tag a-sub">run</span>
+              <p>Creates a new container from an image and starts it.</p>
+            </div>
+            <div class="anatomy-row">
+              <span class="anatomy-tag a-flag">-d</span>
+              <p>
+                Short for
+                <code
+                  style="
+                    font-size: 11px;
+                    font-family: var(--mono);
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 1px 4px;
+                    border-radius: 3px;
+                  "
+                  >--detach</code
+                >. Runs the container in the background and returns the terminal
+                prompt immediately.
+              </p>
+            </div>
+            <div class="anatomy-row">
+              <span class="anatomy-tag a-flag">-p</span>
+              <p>
+                Short for
+                <code
+                  style="
+                    font-size: 11px;
+                    font-family: var(--mono);
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 1px 4px;
+                    border-radius: 3px;
+                  "
+                  >--publish</code
+                >. Format is
+                <code
+                  style="
+                    font-size: 11px;
+                    font-family: var(--mono);
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 1px 4px;
+                    border-radius: 3px;
+                  "
+                  >HOST_PORT:CONTAINER_PORT</code
+                >
+                — here, host 8080 maps to container 80.
+              </p>
+            </div>
+            <div class="anatomy-row">
+              <span class="anatomy-tag a-flag">--name</span>
+              <p>
+                Assigns a human-readable name (<code
+                  style="
+                    font-size: 11px;
+                    font-family: var(--mono);
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 1px 4px;
+                    border-radius: 3px;
+                  "
+                  >web</code
+                >) instead of a random one.
+              </p>
+            </div>
+            <div class="anatomy-row">
+              <span class="anatomy-tag a-img">nginx</span>
+              <p>
+                The image to run — Docker pulls the official
+                <code
+                  style="
+                    font-size: 11px;
+                    font-family: var(--mono);
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 1px 4px;
+                    border-radius: 3px;
+                  "
+                  >nginx:latest</code
+                >
+                image from Docker Hub if it's not already cached.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="portmap">
+          <div class="portmap-row">
+            <div class="portmap-box host">
+              <div class="pb-label">Your browser</div>
+              <div class="pb-value">localhost:8080</div>
+            </div>
+            <div class="portmap-arrow">
+              <span>forwards to</span>
+              <svg width="28" height="14" viewBox="0 0 28 14" fill="none">
+                <line
+                  x1="1"
+                  y1="7"
+                  x2="24"
+                  y2="7"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                />
+                <polyline
+                  points="19,2 24,7 19,12"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <div class="portmap-box container">
+              <div class="pb-label">Nginx in container</div>
+              <div class="pb-value">0.0.0.0:80</div>
+            </div>
+          </div>
+          <div class="portmap-caption">
+            The
+            <code style="font-family: var(--mono); font-size: 11px"
+              >-p 8080:80</code
+            >
+            flag creates this bridge. Nginx itself never knows its traffic
+            arrived via port 8080.
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- SECTION 3: STEP-BY-STEP GUIDE               -->
+      <!-- ═══════════════════════════════════════════ -->
+      <section class="section">
+        <div class="section-label">
+          <span class="icon">🪜</span>
+          Step-by-step guide
+        </div>
+
+        <div class="steps">
+          <!-- Step 1 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">1</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Check port 8080 is free</div>
+              <div class="step-desc">
+                Make sure nothing else on your host is already using port 8080
+                before you map it.
+              </div>
+              <div class="code-block">
+                <div class="code-header">
+                  <span class="code-lang">shell</span>
+                  <button class="copy-btn" onclick="copyCode(this)">
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                      <rect
+                        x="3.5"
+                        y="3.5"
+                        width="6"
+                        height="6"
+                        rx="1"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                      />
+                      <path
+                        d="M1.5 7.5V1.5h6"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                    copy
+                  </button>
+                </div>
+                <pre><span class="comment"># macOS / Linux</span>
+<span class="cmd">lsof</span> <span class="flag">-i</span> :8080
+
+<span class="comment"># Windows (PowerShell)</span>
+<span class="cmd">netstat</span> <span class="flag">-ano</span> | findstr :8080</pre>
+              </div>
+              <div class="callout info">
+                <span class="callout-icon">ℹ️</span>
+                <div class="callout-body">
+                  No output means the port is free — good to go. If something is
+                  using it, pick a different host port (e.g.
+                  <code style="font-family: var(--mono); font-size: 12px"
+                    >8081</code
+                  >) in the next step.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">2</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="step-content">
+              <div class="step-title">
+                Run Nginx in detached mode with port mapping
+              </div>
+              <div class="step-desc">
+                This starts Nginx in the background, maps host port 8080 to
+                container port 80, and gives it a memorable name.
+              </div>
+              <div class="code-block">
+                <div class="code-header">
+                  <span class="code-lang">shell</span>
+                  <button class="copy-btn" onclick="copyCode(this)">
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                      <rect
+                        x="3.5"
+                        y="3.5"
+                        width="6"
+                        height="6"
+                        rx="1"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                      />
+                      <path
+                        d="M1.5 7.5V1.5h6"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                    copy
+                  </button>
+                </div>
+                <pre><span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">-p</span> <span class="str">8080:80</span> <span class="flag">--name</span> <span class="str">web</span> nginx</pre>
+              </div>
+              <div class="output-preview">
+                <div class="output-header">expected output</div>
+                <div class="output-body">
+                  <span class="g"
+                    >a7f3c9d21e4b8f0c6a1d5e9f2b7c4a8d3e6f1b0c9d2a7e4f8b1c3d6e9a0f2b7c</span
+                  >
+                </div>
+              </div>
+              <div class="callout tip">
+                <span class="callout-icon">💡</span>
+                <div class="callout-body">
+                  In detached mode, Docker prints only the
+                  <strong>full container ID</strong> and returns your prompt
+                  immediately — no logs, no "Hello from Docker" banner.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">3</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Confirm it's running</div>
+              <div class="step-desc">
+                <code
+                  style="
+                    font-family: var(--mono);
+                    font-size: 12px;
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 1px 5px;
+                    border-radius: 3px;
+                  "
+                  >docker ps</code
+                >
+                (without
+                <code
+                  style="
+                    font-family: var(--mono);
+                    font-size: 12px;
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 1px 5px;
+                    border-radius: 3px;
+                  "
+                  >-a</code
+                >) lists only <strong>currently running</strong> containers.
+              </div>
+              <div class="code-block">
+                <div class="code-header">
+                  <span class="code-lang">shell</span>
+                  <button class="copy-btn" onclick="copyCode(this)">
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                      <rect
+                        x="3.5"
+                        y="3.5"
+                        width="6"
+                        height="6"
+                        rx="1"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                      />
+                      <path
+                        d="M1.5 7.5V1.5h6"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                    copy
+                  </button>
+                </div>
+                <pre><span class="cmd">docker</span> ps</pre>
+              </div>
+              <div class="output-preview">
+                <div class="output-header">expected output</div>
+                <div class="output-body">
+                  <span class="w"
+                    >CONTAINER ID IMAGE COMMAND STATUS PORTS NAMES</span
+                  ><br />
+                  <span class="g"
+                    >a7f3c9d21e4b nginx "/docker-entrypoint.…" Up 8 seconds
+                    0.0.0.0:8080-&gt;80/tcp web</span
+                  >
+                </div>
+              </div>
+              <div class="callout info">
+                <span class="callout-icon">ℹ️</span>
+                <div class="callout-body">
+                  The <strong>PORTS</strong> column confirms the mapping:
+                  <code style="font-family: var(--mono); font-size: 12px"
+                    >0.0.0.0:8080-&gt;80/tcp</code
+                  >
+                  means host port 8080 (all interfaces) forwards to container
+                  port 80.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">4</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Open it in your browser</div>
+              <div class="step-desc">
+                Navigate to the mapped host port. You should see the default
+                Nginx welcome page.
+              </div>
+              <div class="code-block">
+                <div class="code-header">
+                  <span class="code-lang">url</span>
+                  <button class="copy-btn" onclick="copyCode(this)">
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                      <rect
+                        x="3.5"
+                        y="3.5"
+                        width="6"
+                        height="6"
+                        rx="1"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                      />
+                      <path
+                        d="M1.5 7.5V1.5h6"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                    copy
+                  </button>
+                </div>
+                <pre>http://localhost:8080</pre>
+              </div>
+              <div class="callout tip">
+                <span class="callout-icon">✅</span>
+                <div class="callout-body">
+                  You'll see <strong>"Welcome to nginx!"</strong> in the
+                  browser. That request left your browser, hit the host's
+                  network stack on 8080, and was forwarded by Docker into port
+                  80 inside the container.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 5 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">5</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Test from the terminal too</div>
+              <div class="step-desc">
+                You don't need a browser to verify it — curl works just as well
+                and is handy for scripting.
+              </div>
+              <div class="code-block">
+                <div class="code-header">
+                  <span class="code-lang">shell</span>
+                  <button class="copy-btn" onclick="copyCode(this)">
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                      <rect
+                        x="3.5"
+                        y="3.5"
+                        width="6"
+                        height="6"
+                        rx="1"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                      />
+                      <path
+                        d="M1.5 7.5V1.5h6"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                    copy
+                  </button>
+                </div>
+                <pre><span class="cmd">curl</span> <span class="flag">-I</span> http://localhost:8080</pre>
+              </div>
+              <div class="output-preview">
+                <div class="output-header">expected output</div>
+                <div class="output-body">
+                  <span class="w">HTTP/1.1 200 OK</span><br />
+                  <span class="w">Server: nginx/1.27.0</span><br />
+                  <span class="w">Content-Type: text/html</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 6 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">6</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="step-content">
+              <div class="step-title">View the container's logs</div>
+              <div class="step-desc">
+                Every request you just made was logged by Nginx inside the
+                container. Pull those logs into your terminal.
+              </div>
+              <div class="code-block">
+                <div class="code-header">
+                  <span class="code-lang">shell</span>
+                  <button class="copy-btn" onclick="copyCode(this)">
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                      <rect
+                        x="3.5"
+                        y="3.5"
+                        width="6"
+                        height="6"
+                        rx="1"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                      />
+                      <path
+                        d="M1.5 7.5V1.5h6"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                    copy
+                  </button>
+                </div>
+                <pre><span class="comment"># One-time dump</span>
+<span class="cmd">docker</span> logs web
+
+<span class="comment"># Live follow (Ctrl+C to stop watching)</span>
+<span class="cmd">docker</span> logs <span class="flag">-f</span> web</pre>
+              </div>
+              <div class="callout info">
+                <span class="callout-icon">ℹ️</span>
+                <div class="callout-body">
+                  <code style="font-family: var(--mono); font-size: 12px"
+                    >docker logs -f</code
+                  >
+                  only stops <strong>watching</strong> — it never stops the
+                  container itself. Press
+                  <code style="font-family: var(--mono); font-size: 12px"
+                    >Ctrl+C</code
+                  >
+                  any time.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 7 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">7</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Stop and remove the container</div>
+              <div class="step-desc">
+                Gracefully stop the running container, then delete it. Both
+                steps are needed since
+                <code
+                  style="
+                    font-family: var(--mono);
+                    font-size: 12px;
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 1px 5px;
+                    border-radius: 3px;
+                  "
+                  >stop</code
+                >
+                alone doesn't free the name.
+              </div>
+              <div class="code-block">
+                <div class="code-header">
+                  <span class="code-lang">shell</span>
+                  <button class="copy-btn" onclick="copyCode(this)">
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                      <rect
+                        x="3.5"
+                        y="3.5"
+                        width="6"
+                        height="6"
+                        rx="1"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                      />
+                      <path
+                        d="M1.5 7.5V1.5h6"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                    copy
+                  </button>
+                </div>
+                <pre><span class="cmd">docker</span> stop web
+<span class="cmd">docker</span> rm web</pre>
+              </div>
+              <div class="callout tip">
+                <span class="callout-icon">💡</span>
+                <div class="callout-body">
+                  Shortcut:
+                  <code style="font-family: var(--mono); font-size: 12px"
+                    >docker rm -f web</code
+                  >
+                  force-stops and removes in one command — handy for quick
+                  cleanup during practice.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- /steps -->
+      </section>
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- SECTION 4: WHAT JUST HAPPENED               -->
+      <!-- ═══════════════════════════════════════════ -->
+      <section class="section">
+        <div class="section-label">
+          <span class="icon">🔍</span>
+          What happened under the hood
+        </div>
+
+        <div class="flow-grid">
+          <div class="flow-item">
+            <div class="flow-num">Step 01</div>
+            <div class="flow-icon">📦</div>
+            <div class="flow-label">Container created</div>
+            <div class="flow-desc">
+              Daemon created a container from the nginx image with its own
+              network namespace.
+            </div>
+          </div>
+          <div class="flow-item">
+            <div class="flow-num">Step 02</div>
+            <div class="flow-icon">🔀</div>
+            <div class="flow-label">iptables/NAT rule added</div>
+            <div class="flow-desc">
+              Docker configured a NAT rule forwarding host:8080 traffic into the
+              container's network namespace on port 80.
+            </div>
+          </div>
+          <div class="flow-item">
+            <div class="flow-num">Step 03</div>
+            <div class="flow-icon">🚀</div>
+            <div class="flow-label">Detached from terminal</div>
+            <div class="flow-desc">
+              The daemon kept the container running in the background and
+              returned your shell prompt.
+            </div>
+          </div>
+          <div class="flow-item">
+            <div class="flow-num">Step 04</div>
+            <div class="flow-icon">📡</div>
+            <div class="flow-label">Nginx listens on :80</div>
+            <div class="flow-desc">
+              Inside its isolated namespace, Nginx has no idea a mapping even
+              exists — it just binds port 80 as usual.
+            </div>
+          </div>
+          <div class="flow-item">
+            <div class="flow-num">Step 05</div>
+            <div class="flow-icon">🌐</div>
+            <div class="flow-label">Browser request forwarded</div>
+            <div class="flow-desc">
+              Your request to localhost:8080 was rewritten by the NAT rule and
+              delivered to the container.
+            </div>
+          </div>
+          <div class="flow-item">
+            <div class="flow-num">Step 06</div>
+            <div class="flow-icon">📝</div>
+            <div class="flow-label">Access logged</div>
+            <div class="flow-desc">
+              Nginx wrote the request to stdout, which Docker captured for
+              docker logs to display.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- SECTION 5: WHAT YOU LEARNED                 -->
+      <!-- ═══════════════════════════════════════════ -->
+      <section class="section">
+        <div class="section-label">
+          <span class="icon">🎯</span>
+          What you learned
+        </div>
+        <ul class="checklist">
+          <li>
+            <span class="chk"></span>Detached mode (<code
+              style="font-family: var(--mono); font-size: 12px"
+              >-d</code
+            >) runs containers in the background and frees your terminal
+          </li>
+          <li>
+            <span class="chk"></span>Container ports are isolated by default —
+            <code style="font-family: var(--mono); font-size: 12px"
+              >-p HOST:CONTAINER</code
+            >
+            is required to expose them
+          </li>
+          <li>
+            <span class="chk"></span>How to name containers with
+            <code style="font-family: var(--mono); font-size: 12px"
+              >--name</code
+            >
+            for easier reference
+          </li>
+          <li>
+            <span class="chk"></span>How to read the
+            <strong>PORTS</strong> column in
+            <code style="font-family: var(--mono); font-size: 12px"
+              >docker ps</code
+            >
+          </li>
+          <li>
+            <span class="chk"></span>How to inspect a detached container's
+            output with
+            <code style="font-family: var(--mono); font-size: 12px"
+              >docker logs</code
+            >
+            and
+            <code style="font-family: var(--mono); font-size: 12px"
+              >docker logs -f</code
+            >
+          </li>
+          <li>
+            <span class="chk"></span>The difference between
+            <code style="font-family: var(--mono); font-size: 12px">stop</code>,
+            <code style="font-family: var(--mono); font-size: 12px">kill</code>,
+            and
+            <code style="font-family: var(--mono); font-size: 12px">rm</code>
+          </li>
+        </ul>
+      </section>
+    </div>
+    <!-- /page -->
+
+    <script>
+      function copyCode(btn) {
+        const pre = btn.closest(".code-block").querySelector("pre");
+        const text = pre.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+          btn.classList.add("copied");
+          btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+          setTimeout(() => {
+            btn.classList.remove("copied");
+            btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+          }, 2000);
+        });
+      }
+    </script>
+  </body>
+</html>

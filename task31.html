@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 31 — Multistage Docker Builds (Node.js)</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --orange: #f78166;
+    --orange-bg: rgba(247,129,102,0.08);
+    --orange-border: rgba(247,129,102,0.25);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  /* ── Nav ── */
+  .nav { border-bottom: 1px solid var(--border); padding: .875rem 2rem; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; background: rgba(13,17,23,0.92); backdrop-filter: blur(8px); z-index: 100; }
+  .nav-back { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); text-decoration: none; transition: color .15s; }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge { margin-left: auto; font-family: var(--mono); font-size: 10px; padding: 3px 10px; border-radius: 999px; background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-border); letter-spacing: .04em; text-transform: uppercase; }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero { padding: 3.5rem 0 3rem; border-bottom: 1px solid var(--border); margin-bottom: 3rem; }
+  .hero-eyebrow { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+  .hero h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem; }
+  .hero h1 .hl { color: var(--orange); }
+  .hero-desc { font-size: 16px; color: var(--text-muted); line-height: 1.65; max-width: 560px; margin-bottom: 1.75rem; }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 3rem; }
+  .section-label { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem; }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--orange); background: var(--bg); flex-shrink: 0; z-index: 1; }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .code-header { display: flex; align-items: center; justify-content: space-between; padding: .45rem .875rem; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn { font-family: var(--mono); font-size: 10px; color: var(--text-dim); background: transparent; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s; display: flex; align-items: center; gap: 4px; letter-spacing: .04em; }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre { padding: .875rem 1rem; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text); }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .kw      { color: var(--orange); }
+  pre .stage   { color: var(--purple); }
+  pre .val     { color: var(--green); }
+  pre .hl      { color: var(--yellow); }
+  pre .prop    { color: var(--blue); }
+
+  /* ── Callouts ── */
+  .callout { border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0; font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px; }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info  { background: var(--blue-bg);   border-color: rgba(88,166,255,0.2); }
+  .callout.tip   { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn  { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.adv   { background: var(--orange-bg); border-color: var(--orange-border); }
+
+  /* ── Anatomy ── */
+  .anatomy { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono); }
+  .anatomy-cmd { font-size: 14px; display: flex; align-items: baseline; gap: 0; flex-wrap: wrap; margin-bottom: 1.25rem; line-height: 2; }
+  .anatomy-part { padding: 2px 6px; border-radius: 4px; font-size: 13px; margin: 2px 2px; }
+  .a-kw    { background: rgba(247,129,102,0.15); color: var(--orange); }
+  .a-stage { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .a-img   { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-flag  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag { padding: 1px 8px; border-radius: 3px; font-size: 11px; flex-shrink: 0; min-width: 68px; text-align: center; }
+  .anatomy-row .anatomy-tag.a-kw    { color: var(--orange); background: rgba(247,129,102,0.12); }
+  .anatomy-row .anatomy-tag.a-stage { color: var(--purple); background: rgba(188,140,255,0.1); }
+  .anatomy-row .anatomy-tag.a-img   { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .anatomy-tag.a-flag  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .output-header { background: var(--surface); padding: .4rem .875rem; font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .output-body { padding: .875rem 1rem; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: #8b949e; }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .o { color: var(--orange); }
+  .output-body .p { color: var(--purple); }
+  .output-body .w { color: var(--text); }
+  .output-body .d { color: var(--text-dim); }
+
+  /* ── Stage pipeline ── */
+  .pipeline { display: flex; align-items: stretch; gap: 0; margin: 1rem 0; overflow-x: auto; padding-bottom: 4px; }
+  .pipeline-stage { flex: 1; min-width: 155px; background: var(--surface); border: 1px solid var(--border); padding: 1rem 1rem .875rem; }
+  .pipeline-stage:first-child { border-radius: 10px 0 0 10px; }
+  .pipeline-stage:last-child  { border-radius: 0 10px 10px 0; border-left: none; }
+  .pipeline-arrow { display: flex; align-items: center; color: var(--text-dim); padding: 0 2px; flex-shrink: 0; font-size: 18px; }
+  .stage-label { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: .5rem; font-weight: 600; }
+  .stage-label.deps-lbl  { color: var(--blue); }
+  .stage-label.build-lbl { color: var(--purple); }
+  .stage-label.run-lbl   { color: var(--green); }
+  .stage-items { display: flex; flex-direction: column; gap: 5px; }
+  .stage-item { font-family: var(--mono); font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .stage-item .dot-sm { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .stage-item.included .dot-sm { background: var(--green); }
+  .stage-item.excluded .dot-sm { background: rgba(255,80,80,0.5); }
+  .stage-item.excluded { color: var(--text-dim); text-decoration: line-through; text-decoration-color: rgba(255,80,80,0.4); }
+  .stage-size { margin-top: .75rem; padding-top: .625rem; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 11px; }
+  .stage-size .sz-label { color: var(--text-dim); }
+  .stage-size .sz-val { font-weight: 600; }
+  .stage-size .sz-val.big   { color: var(--orange); }
+  .stage-size .sz-val.small { color: var(--green); }
+
+  /* ── File tree ── */
+  .file-tree { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: .875rem 1rem; font-family: var(--mono); font-size: 13px; line-height: 1.9; color: var(--text-muted); margin: .6rem 0; }
+  .file-tree .dir  { color: var(--blue); }
+  .file-tree .file { color: var(--text-muted); }
+  .file-tree .new  { color: var(--green); }
+  .file-tree .imp  { color: var(--orange); }
+
+  /* ── Size comparison ── */
+  .size-compare { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; margin: 1rem 0; }
+  .size-row { margin-bottom: 1rem; }
+  .size-row:last-child { margin-bottom: 0; }
+  .size-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: .4rem; font-family: var(--mono); font-size: 12px; }
+  .size-name { color: var(--text-muted); }
+  .size-num.big   { color: var(--orange); font-weight: 600; }
+  .size-num.small { color: var(--green);  font-weight: 600; }
+  .size-bar-bg { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; border: 1px solid var(--border); }
+  .size-bar-fill { height: 100%; border-radius: 99px; }
+  .size-bar-fill.big   { background: var(--orange); width: 100%; }
+  .size-bar-fill.small { background: var(--green); }
+
+  /* ── Flow grid ── */
+  .flow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 1rem 0; }
+  .flow-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .875rem; text-align: center; }
+  .flow-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--text-muted); padding: .6rem .875rem; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; line-height: 1.5; }
+  .checklist li .chk { width: 16px; height: 16px; border: 1.5px solid var(--border-strong); border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Next steps ── */
+  .next-card { display: flex; align-items: center; gap: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; text-decoration: none; transition: border-color .15s; }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center; color: var(--text-muted); flex-shrink: 0; margin-left: auto; }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .pipeline { flex-direction: column; }
+    .pipeline-stage { border-radius: 8px !important; border: 1px solid var(--border) !important; margin-bottom: 4px; }
+    .pipeline-arrow { transform: rotate(90deg); align-self: center; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 31 · Node.js</span>
+  <span class="nav-badge">Advanced</span>
+</nav>
+
+<div class="page">
+
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 31 &nbsp;·&nbsp; Advanced &nbsp;·&nbsp; Node.js variant
+    </div>
+    <h1>Multistage Builds<br><span class="hl">with Node.js</span></h1>
+    <p class="hero-desc">Build a Node.js Express app using all dev dependencies, run tests, then copy only production <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--orange)">node_modules</code> into a lean runtime image — dropping from ~600 MB to ~130 MB.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~25 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Task 18 completed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Node.js + npm
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">📖</span>Required concepts</div>
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(247,129,102,0.1)">📦</div>
+          <div class="concept-title">dependencies vs devDependencies</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">devDependencies</code> — test frameworks, TypeScript, linters, bundlers — are needed only at build time. <strong>Production only needs <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">dependencies</code></strong>. In Node.js, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">npm ci --omit=dev</code> installs only production deps.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🔀</div>
+          <div class="concept-title">Three-stage Node.js pattern</div>
+        </div>
+        <div class="concept-body">
+          Node.js apps benefit from <strong>three stages</strong>: a <strong>deps</strong> stage that installs all packages (including dev), a <strong>build</strong> stage that runs tests and compiles TypeScript, and a lean <strong>runtime</strong> stage that gets only prod <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node_modules</code> + compiled output.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">📋</div>
+          <div class="concept-title">COPY --from transfers files, not layers</div>
+        </div>
+        <div class="concept-body">
+          When you <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">COPY --from=deps /app/node_modules ./node_modules</code>, only those files move to the runtime stage — none of the npm cache, intermediate layers, or <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.npm</code> metadata from the deps stage comes along.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🪶</div>
+          <div class="concept-title">node:alpine vs node:slim</div>
+        </div>
+        <div class="concept-body">
+          <strong>alpine</strong> variants use musl libc and are ~5 MB base. <strong>slim</strong> variants use glibc and are ~70 MB base but have better compatibility with native npm modules. Use alpine unless a native module fails — then switch to slim.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">👤</div>
+          <div class="concept-title">Non-root USER in production</div>
+        </div>
+        <div class="concept-body">
+          Node images ship with a built-in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node</code> user (UID 1000). Running as <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">USER node</code> in your runtime stage means that if an attacker exploits your app, they get a limited user — not root — on the container filesystem.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🧪</div>
+          <div class="concept-title">Running tests in a build stage</div>
+        </div>
+        <div class="concept-body">
+          Because the <strong>build</strong> stage has all devDependencies available, it's the right place to run your test suite. If tests fail, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker build</code> exits with a non-zero code — blocking the bad image from being produced at all.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- STAGE PIPELINE DIAGRAM                      -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔀</span>What each stage contains</div>
+
+    <div class="pipeline">
+      <div class="pipeline-stage">
+        <div class="stage-label deps-lbl">Stage 1 · deps</div>
+        <div class="stage-items">
+          <div class="stage-item included"><span class="dot-sm"></span>node_modules (all)</div>
+          <div class="stage-item included"><span class="dot-sm"></span>jest, typescript, eslint</div>
+          <div class="stage-item included"><span class="dot-sm"></span>npm cache</div>
+        </div>
+        <div class="stage-size"><span class="sz-label">~</span><span class="sz-val big">600 MB</span></div>
+      </div>
+      <div class="pipeline-arrow">›</div>
+      <div class="pipeline-stage">
+        <div class="stage-label build-lbl">Stage 2 · build</div>
+        <div class="stage-items">
+          <div class="stage-item included"><span class="dot-sm"></span>copies from deps</div>
+          <div class="stage-item included"><span class="dot-sm"></span>runs tests ✓</div>
+          <div class="stage-item included"><span class="dot-sm"></span>compiles TS → dist/</div>
+        </div>
+        <div class="stage-size"><span class="sz-label">~</span><span class="sz-val big">600 MB</span></div>
+      </div>
+      <div class="pipeline-arrow">›</div>
+      <div class="pipeline-stage">
+        <div class="stage-label run-lbl">Stage 3 · runtime</div>
+        <div class="stage-items">
+          <div class="stage-item excluded"><span class="dot-sm"></span>devDependencies</div>
+          <div class="stage-item excluded"><span class="dot-sm"></span>TypeScript source</div>
+          <div class="stage-item excluded"><span class="dot-sm"></span>test files</div>
+          <div class="stage-item included"><span class="dot-sm"></span>prod node_modules ✓</div>
+          <div class="stage-item included"><span class="dot-sm"></span>dist/ only ✓</div>
+        </div>
+        <div class="stage-size"><span class="sz-label">~</span><span class="sz-val small">130 MB</span></div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--text-dim);margin-top:.5rem;">Struck-through items never enter the runtime stage. Only prod <code style="font-family:var(--mono);font-size:11px;background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">node_modules</code> and compiled output cross the boundary via <code style="font-family:var(--mono);font-size:11px;background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">COPY --from</code>.</p>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- ANATOMY                                     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔬</span>Command anatomy</div>
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-kw">COPY</span>
+        <span class="anatomy-part a-flag">--from=deps</span>
+        <span class="anatomy-part a-img">/app/node_modules</span>
+        <span class="anatomy-part a-img">./node_modules</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-kw">COPY</span>
+          <p>Standard Dockerfile instruction, extended with a cross-stage source flag.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--from</span>
+          <p>Reads from a <strong>previous stage's filesystem</strong> — not the build context on your host. Value is the stage name defined with <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">AS deps</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-img">src</span>
+          <p>Absolute path inside the <em>deps</em> stage where <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">npm ci --omit=dev</code> installed production packages.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-img">dest</span>
+          <p>Where to place it in the <em>current</em> (runtime) stage — relative to <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">WORKDIR</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: STEP-BY-STEP                     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🪜</span>Step-by-step guide</div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Set up the project structure</div>
+          <div class="step-desc">Create a minimal Express + TypeScript app with a test file. This gives us all three concerns: devDependencies (TypeScript, Jest), production dependencies (Express), and compiled output.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">mkdir</span> node-multistage && <span class="cmd">cd</span> node-multistage</pre>
+          </div>
+          <div class="file-tree">
+<span class="dir">node-multistage/</span>
+├── <span class="imp">Dockerfile</span>
+├── <span class="file">.dockerignore</span>
+├── <span class="imp">package.json</span>
+├── <span class="file">tsconfig.json</span>
+└── <span class="dir">src/</span>
+    ├── <span class="new">app.ts</span>
+    └── <span class="new">app.test.ts</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Create package.json</div>
+          <div class="step-desc">Notice the separation: <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">express</code> is a production dependency; <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">typescript</code> and <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">jest</code> are dev-only. This separation is what makes multistage shrinkage possible.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">package.json</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>{
+  <span class="prop">"name"</span>: <span class="str">"node-multistage"</span>,
+  <span class="prop">"version"</span>: <span class="str">"1.0.0"</span>,
+  <span class="prop">"scripts"</span>: {
+    <span class="prop">"build"</span>: <span class="str">"tsc"</span>,
+    <span class="prop">"start"</span>: <span class="str">"node dist/app.js"</span>,
+    <span class="prop">"test"</span>:  <span class="str">"jest"</span>
+  },
+  <span class="comment">// Ships to production — kept in the runtime image</span>
+  <span class="prop">"dependencies"</span>: {
+    <span class="prop">"express"</span>: <span class="str">"^4.19.2"</span>
+  },
+  <span class="comment">// Build-time only — stripped from the runtime image</span>
+  <span class="prop">"devDependencies"</span>: {
+    <span class="prop">"@types/express"</span>: <span class="str">"^4.17.21"</span>,
+    <span class="prop">"@types/jest"</span>:    <span class="str">"^29.5.12"</span>,
+    <span class="prop">"@types/node"</span>:    <span class="str">"^20.12.7"</span>,
+    <span class="prop">"jest"</span>:           <span class="str">"^29.7.0"</span>,
+    <span class="prop">"ts-jest"</span>:        <span class="str">"^29.1.2"</span>,
+    <span class="prop">"typescript"</span>:     <span class="str">"^5.4.5"</span>
+  },
+  <span class="prop">"jest"</span>: {
+    <span class="prop">"preset"</span>: <span class="str">"ts-jest"</span>,
+    <span class="prop">"testEnvironment"</span>: <span class="str">"node"</span>
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Create the app source and a test</div>
+          <div class="step-desc">A simple Express server in TypeScript, plus a Jest test. Having a real test lets us prove the build stage runs tests before producing the final image.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">src/app.ts</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>import express, { Request, Response } from 'express';
+
+export const app = express();
+
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    message: 'Hello from a multistage Node.js build!',
+    version: process.env.APP_VERSION ?? '1.0.0',
+  });
+});
+
+<span class="comment">// Only start the server when run directly</span>
+if (require.main === module) {
+  const PORT = process.env.PORT ?? 3000;
+  app.listen(PORT, () =>
+    console.log(`Server running on port ${PORT}`)
+  );
+}</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">src/app.test.ts</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>import request from 'supertest';
+import { app } from './app';
+
+describe('GET /', () => {
+  it('returns a JSON message', async () => {
+    const res = await request(app).get('/');
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/multistage/i);
+  });
+});</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">tsconfig.json</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>{
+  <span class="prop">"compilerOptions"</span>: {
+    <span class="prop">"target"</span>:     <span class="str">"ES2020"</span>,
+    <span class="prop">"module"</span>:     <span class="str">"commonjs"</span>,
+    <span class="prop">"outDir"</span>:     <span class="str">"./dist"</span>,
+    <span class="prop">"rootDir"</span>:    <span class="str">"./src"</span>,
+    <span class="prop">"strict"</span>:     <span class="val">true</span>,
+    <span class="prop">"skipLibCheck"</span>: <span class="val">true</span>
+  },
+  <span class="prop">"include"</span>: [<span class="str">"src"</span>],
+  <span class="prop">"exclude"</span>: [<span class="str">"node_modules"</span>, <span class="str">"dist"</span>]
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Write the .dockerignore</div>
+          <div class="step-desc">Keep the build context clean — never send <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node_modules</code> or <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">dist</code> from your host into the Docker daemon. The build installs them fresh inside the container.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">.dockerignore</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>node_modules
+dist
+.git
+*.log
+.env*</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 — THE MAIN EVENT -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Write the three-stage Dockerfile</div>
+          <div class="step-desc">This is the core of the task. Read through each stage and the comments — every decision has a reason.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">dockerfile</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># ── Stage 1: deps ─────────────────────────────────</span>
+<span class="comment"># Install ONLY production dependencies here.</span>
+<span class="comment"># We copy this node_modules into the runtime image.</span>
+<span class="kw">FROM</span> <span class="val">node:20-alpine</span> <span class="kw">AS</span> <span class="stage">deps</span>
+
+<span class="kw">WORKDIR</span> <span class="val">/app</span>
+
+<span class="comment"># Copy manifests first — layer is cached until they change</span>
+<span class="kw">COPY</span> <span class="val">package.json package-lock.json ./</span>
+
+<span class="comment"># --omit=dev skips devDependencies — lean prod modules only</span>
+<span class="kw">RUN</span> <span class="val">npm ci --omit=dev</span>
+
+
+<span class="comment"># ── Stage 2: build ────────────────────────────────</span>
+<span class="comment"># Install ALL deps (including dev), run tests, compile TS.</span>
+<span class="comment"># This stage is large but is never shipped to production.</span>
+<span class="kw">FROM</span> <span class="val">node:20-alpine</span> <span class="kw">AS</span> <span class="stage">build</span>
+
+<span class="kw">WORKDIR</span> <span class="val">/app</span>
+
+<span class="kw">COPY</span> <span class="val">package.json package-lock.json ./</span>
+
+<span class="comment"># Full install — includes jest, typescript, type defs, etc.</span>
+<span class="kw">RUN</span> <span class="val">npm ci</span>
+
+<span class="comment"># Copy source code and config</span>
+<span class="kw">COPY</span> <span class="val">tsconfig.json ./</span>
+<span class="kw">COPY</span> <span class="val">src ./src</span>
+
+<span class="comment"># Run tests — if any fail, docker build exits here</span>
+<span class="comment"># and the runtime image is never produced</span>
+<span class="kw">RUN</span> <span class="val">npm test</span>
+
+<span class="comment"># Compile TypeScript → dist/</span>
+<span class="kw">RUN</span> <span class="val">npm run build</span>
+
+
+<span class="comment"># ── Stage 3: runtime ──────────────────────────────</span>
+<span class="comment"># Minimal image: prod node_modules + compiled JS only.</span>
+<span class="comment"># No TypeScript, no jest, no source .ts files.</span>
+<span class="kw">FROM</span> <span class="val">node:20-alpine</span> <span class="kw">AS</span> <span class="stage">runtime</span>
+
+<span class="kw">WORKDIR</span> <span class="val">/app</span>
+
+<span class="comment"># Grab prod node_modules from the deps stage</span>
+<span class="kw">COPY</span> <span class="flag">--from=</span><span class="stage">deps</span>  <span class="val">/app/node_modules ./node_modules</span>
+
+<span class="comment"># Grab compiled JS from the build stage</span>
+<span class="kw">COPY</span> <span class="flag">--from=</span><span class="stage">build</span> <span class="val">/app/dist        ./dist</span>
+
+<span class="comment"># Copy package.json so Node can resolve the app name</span>
+<span class="kw">COPY</span> <span class="val">package.json ./</span>
+
+<span class="kw">ENV</span>  <span class="val">NODE_ENV=production</span>
+<span class="kw">ENV</span>  <span class="val">APP_VERSION=1.0.0</span>
+
+<span class="comment"># Use the built-in non-root node user</span>
+<span class="kw">USER</span>   <span class="val">node</span>
+<span class="kw">EXPOSE</span> <span class="val">3000</span>
+<span class="kw">CMD</span>    <span class="val">["node", "dist/app.js"]</span></pre>
+          </div>
+          <div class="callout adv">
+            <span class="callout-icon">🔑</span>
+            <div class="callout-body">Two <code style="font-family:var(--mono);font-size:12px">COPY --from</code> lines do all the work: one pulls prod <code style="font-family:var(--mono);font-size:12px">node_modules</code> from <strong>deps</strong>, the other pulls compiled <code style="font-family:var(--mono);font-size:12px">dist/</code> from <strong>build</strong>. The TypeScript source, test files, and devDependencies never enter the runtime stage.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Build the naive single-stage image first (baseline)</div>
+          <div class="step-desc">Before building the multistage version, create a naive single-stage image to get a size baseline to compare against.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">dockerfile.naive</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Everything in one stage — devDeps stay in final image</span>
+<span class="kw">FROM</span>    <span class="val">node:20-alpine</span>
+<span class="kw">WORKDIR</span> <span class="val">/app</span>
+<span class="kw">COPY</span>    <span class="val">package.json package-lock.json ./</span>
+<span class="kw">RUN</span>     <span class="val">npm ci</span>
+<span class="kw">COPY</span>    <span class="val">. .</span>
+<span class="kw">RUN</span>     <span class="val">npm run build</span>
+<span class="kw">EXPOSE</span>  <span class="val">3000</span>
+<span class="kw">CMD</span>     <span class="val">["node", "dist/app.js"]</span></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> build <span class="flag">-f</span> Dockerfile.naive <span class="flag">-t</span> <span class="str">nodeapp:naive</span> .</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">image size</div>
+            <div class="output-body"><span class="o">nodeapp   naive   ~620 MB</span><span class="d">  (node_modules full + devDeps inside)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Build the multistage image and watch tests run</div>
+          <div class="step-desc">Run the multistage build. In the output you'll see Jest execute inside the build stage — and if all tests pass, the build continues to produce the slim runtime image.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> build <span class="flag">-t</span> <span class="str">nodeapp:multistage</span> .</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected build output (abridged)</div>
+            <div class="output-body">
+<span class="d">[+] Building 42.1s (16/16) FINISHED</span><br>
+<span class="d"> => [deps  1/3] FROM docker.io/library/node:20-alpine</span><br>
+<span class="d"> => [deps  2/3] COPY package.json package-lock.json ./</span><br>
+<span class="d"> => [deps  3/3] RUN npm ci --omit=dev</span><br>
+<span class="d"> => [build 1/6] COPY package.json package-lock.json ./</span><br>
+<span class="d"> => [build 2/6] RUN npm ci</span><br>
+<span class="d"> => [build 3/6] COPY tsconfig.json ./</span><br>
+<span class="d"> => [build 4/6] COPY src ./src</span><br>
+<span class="p"> => [build 5/6] RUN npm test</span><br>
+<span class="g">  PASS  src/app.test.ts</span><br>
+<span class="g">  ✓ GET / returns a JSON message (38 ms)</span><br>
+<span class="g">  Tests: 1 passed, 1 total</span><br>
+<span class="d"> => [build 6/6] RUN npm run build</span><br>
+<span class="d"> => [runtime 1/4] COPY --from=deps  /app/node_modules</span><br>
+<span class="d"> => [runtime 2/4] COPY --from=build /app/dist</span><br>
+<span class="g"> => exporting to image</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">Tests ran <strong>inside Docker</strong> during the build — not on your host. If a test fails here, the runtime stage never executes and no broken image is tagged.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Compare the sizes</div>
+          <div class="step-desc">List both images side by side.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> images nodeapp</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">REPOSITORY   TAG          SIZE</span><br>
+<span class="g">nodeapp      multistage   <strong>~130 MB</strong></span><br>
+<span class="o">nodeapp      naive        <strong>~620 MB</strong></span>
+            </div>
+          </div>
+
+          <div class="size-compare" style="margin-top:.75rem;">
+            <div class="size-row">
+              <div class="size-meta"><span class="size-name">nodeapp:naive (single stage, all devDeps)</span><span class="size-num big">620 MB</span></div>
+              <div class="size-bar-bg"><div class="size-bar-fill big"></div></div>
+            </div>
+            <div class="size-row">
+              <div class="size-meta"><span class="size-name">nodeapp:multistage (prod deps + dist only)</span><span class="size-num small">130 MB</span></div>
+              <div class="size-bar-bg"><div class="size-bar-fill small" style="width:21%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Run and verify</div>
+          <div class="step-desc">Start a container from the multistage image and confirm the API responds correctly.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">-p</span> <span class="str">3000:3000</span> <span class="flag">--name</span> <span class="str">nodeapp-ms</span> nodeapp:multistage
+<span class="cmd">curl</span> http://localhost:3000</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body"><span class="g">{"message":"Hello from a multistage Node.js build!","version":"1.0.0"}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">10</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Prove TypeScript is absent from the runtime image</div>
+          <div class="step-desc">Try to run <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">tsc</code> inside the running container — it should not exist.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> exec nodeapp-ms <span class="str">./node_modules/.bin/tsc --version</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="o">OCI runtime exec failed: exec: "./node_modules/.bin/tsc":</span><br>
+<span class="o">  stat ./node_modules/.bin/tsc: no such file or directory</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">TypeScript doesn't exist in the runtime image — it never entered it. <code style="font-family:var(--mono);font-size:12px">node_modules</code> came from the <strong>deps</strong> stage which only ran <code style="font-family:var(--mono);font-size:12px">npm ci --omit=dev</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">11</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Use --target to run only the build stage in CI</div>
+          <div class="step-desc">In a CI pipeline you can build just the test stage to validate code without producing the final image.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># CI: build only up to the build stage (runs tests)</span>
+<span class="comment"># If tests fail, exit non-zero → CI pipeline blocked</span>
+<span class="cmd">docker</span> build <span class="flag">--target</span> <span class="stage">build</span> <span class="flag">-t</span> <span class="str">nodeapp:ci</span> .
+
+<span class="comment"># CD: build the full image only after CI passes</span>
+<span class="cmd">docker</span> build <span class="flag">-t</span> <span class="str">nodeapp:multistage</span> .</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Because Docker caches layers, the second <code style="font-family:var(--mono);font-size:12px">docker build</code> reuses everything from the first — the tests don't re-run, and only the runtime stage executes fresh.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 12 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">12</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Clean up</div>
+          <div class="step-desc">Stop and remove everything created during this task.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> stop nodeapp-ms
+<span class="cmd">docker</span> rm nodeapp-ms
+<span class="cmd">docker</span> rmi nodeapp:multistage nodeapp:naive nodeapp:ci</pre>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- WHAT HAPPENED UNDER THE HOOD                -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔍</span>What happened under the hood</div>
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Stage 01</div>
+        <div class="flow-icon">📦</div>
+        <div class="flow-label">deps: prod install</div>
+        <div class="flow-desc"><code style="font-family:var(--mono);font-size:11px">npm ci --omit=dev</code> produced a lean <code style="font-family:var(--mono);font-size:11px">node_modules</code> with only Express and its dependencies.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Stage 02</div>
+        <div class="flow-icon">🧪</div>
+        <div class="flow-label">build: test + compile</div>
+        <div class="flow-desc">Full <code style="font-family:var(--mono);font-size:11px">npm ci</code> brought in Jest and TypeScript. Tests ran, TS compiled to <code style="font-family:var(--mono);font-size:11px">dist/</code>.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Stage 03</div>
+        <div class="flow-icon">🗑️</div>
+        <div class="flow-label">build discarded</div>
+        <div class="flow-desc">Stages 1 and 2 filesystems are thrown away — only their artifacts are referenced via <code style="font-family:var(--mono);font-size:11px">COPY --from</code>.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Stage 04</div>
+        <div class="flow-icon">📋</div>
+        <div class="flow-label">runtime assembled</div>
+        <div class="flow-desc">Two cross-stage copies pulled prod <code style="font-family:var(--mono);font-size:11px">node_modules</code> and <code style="font-family:var(--mono);font-size:11px">dist/</code> into a fresh Alpine base.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Stage 05</div>
+        <div class="flow-icon">👤</div>
+        <div class="flow-label">non-root user set</div>
+        <div class="flow-desc"><code style="font-family:var(--mono);font-size:11px">USER node</code> locked down the runtime — the app runs without root privileges.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Stage 06</div>
+        <div class="flow-icon">✅</div>
+        <div class="flow-label">79% smaller</div>
+        <div class="flow-desc">620 MB → 130 MB. No TypeScript, no Jest, no source <code style="font-family:var(--mono);font-size:11px">.ts</code> files in production.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- WHAT YOU LEARNED                            -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🎯</span>What you learned</div>
+    <ul class="checklist">
+      <li><span class="chk"></span>Why separating <code style="font-family:var(--mono);font-size:12px">dependencies</code> from <code style="font-family:var(--mono);font-size:12px">devDependencies</code> in <code style="font-family:var(--mono);font-size:12px">package.json</code> is essential for multistage efficiency</li>
+      <li><span class="chk"></span>The three-stage Node.js pattern: <strong>deps</strong> (prod install) → <strong>build</strong> (test + compile) → <strong>runtime</strong> (lean image)</li>
+      <li><span class="chk"></span>How <code style="font-family:var(--mono);font-size:12px">npm ci --omit=dev</code> produces a production-only <code style="font-family:var(--mono);font-size:12px">node_modules</code> for the runtime stage</li>
+      <li><span class="chk"></span>How running <code style="font-family:var(--mono);font-size:12px">npm test</code> inside the build stage gates the final image on passing tests</li>
+      <li><span class="chk"></span>How two <code style="font-family:var(--mono);font-size:12px">COPY --from</code> instructions assemble the runtime from two different upstream stages</li>
+      <li><span class="chk"></span>How <code style="font-family:var(--mono);font-size:12px">USER node</code> in the runtime stage hardens the container against privilege escalation</li>
+      <li><span class="chk"></span>How <code style="font-family:var(--mono);font-size:12px">--target build</code> lets CI validate code without building the final image</li>
+    </ul>
+  </section>
+
+</div>
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

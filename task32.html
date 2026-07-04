@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 32 — Build Cache Optimization</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.08);
+    --red-border: rgba(248,81,73,0.2);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px;
+    color: var(--text-muted); text-decoration: none; transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 10px; padding: 3px 10px;
+    border-radius: 999px; background: var(--purple-bg); color: var(--purple);
+    border: 1px solid rgba(188,140,255,0.25); letter-spacing: .04em; text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700;
+    letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--purple); }
+  .hero-desc {
+    font-size: 16px; color: var(--text-muted); line-height: 1.65;
+    max-width: 560px; margin-bottom: 1.75rem;
+  }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px; color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon {
+    width: 22px; height: 22px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--purple); background: var(--bg); flex-shrink: 0; z-index: 1;
+  }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin: .6rem 0;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .45rem .875rem; border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    background: transparent; border: none; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s;
+    display: flex; align-items: center; gap: 4px; letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text);
+  }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .hl      { color: var(--purple); }
+  pre .kw      { color: var(--blue); }
+  pre .bad     { color: var(--red); }
+  pre .good    { color: var(--green); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0;
+    font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info  { background: var(--blue-bg);   border-color: rgba(88,166,255,0.2); }
+  .callout.tip   { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn  { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.bad   { background: var(--red-bg);    border-color: var(--red-border); }
+
+  /* ── Before / After diff ── */
+  .diff-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: .75rem 0;
+  }
+  .diff-pane { border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .diff-header {
+    padding: .4rem .875rem; font-family: var(--mono); font-size: 10px;
+    letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .diff-header.bad  { background: var(--red-bg);   color: var(--red); border-color: var(--red-border); }
+  .diff-header.good { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+  .diff-header .diff-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .diff-body {
+    background: var(--surface-2); padding: .75rem .875rem;
+    font-family: var(--mono); font-size: 12px; line-height: 1.9; color: var(--text-muted);
+  }
+  .diff-body .kw   { color: var(--blue); }
+  .diff-body .hot  { color: var(--red);    background: rgba(248,81,73,0.08);  border-radius: 3px; padding: 0 3px; }
+  .diff-body .cold { color: var(--green);  background: rgba(63,185,80,0.08);  border-radius: 3px; padding: 0 3px; }
+  .diff-body .dim  { color: var(--text-dim); }
+
+  /* ── Layer stack diagram ── */
+  .layer-stack { display: flex; flex-direction: column; gap: 4px; margin: .75rem 0; }
+  .layer {
+    display: flex; align-items: center; gap: 12px;
+    padding: .6rem .875rem; border-radius: 7px; border: 1px solid var(--border);
+    font-family: var(--mono); font-size: 12.5px;
+  }
+  .layer-num {
+    width: 20px; height: 20px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; flex-shrink: 0;
+  }
+  .layer-instruction { flex: 1; color: var(--text-muted); }
+  .layer-instruction .kw { color: var(--blue); }
+  .layer-badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 999px;
+    letter-spacing: .04em; text-transform: uppercase; flex-shrink: 0;
+  }
+  .layer.frozen  { background: rgba(63,185,80,0.05);  border-color: var(--green-border); }
+  .layer.frozen  .layer-num { background: var(--green-bg); color: var(--green); }
+  .layer.frozen  .layer-badge { background: var(--green-bg); color: var(--green); }
+  .layer.hot     { background: rgba(248,81,73,0.05);  border-color: var(--red-border); }
+  .layer.hot     .layer-num { background: var(--red-bg); color: var(--red); }
+  .layer.hot     .layer-badge { background: var(--red-bg); color: var(--red); }
+  .layer.warm    { background: rgba(227,179,65,0.05); border-color: var(--yellow-border); }
+  .layer.warm    .layer-num { background: var(--yellow-bg); color: var(--yellow); }
+  .layer.warm    .layer-badge { background: var(--yellow-bg); color: var(--yellow); }
+  .layer-arrow { text-align: center; color: var(--text-dim); font-size: 12px; letter-spacing: .05em; font-family: var(--mono); padding: 0 .875rem; }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header {
+    background: var(--surface); padding: .4rem .875rem;
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem; font-family: var(--mono);
+    font-size: 12.5px; line-height: 1.7; color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .p { color: var(--purple); }
+  .output-body .r { color: var(--red); }
+  .output-body .c { color: var(--green); font-weight: 600; }
+
+  /* ── Cache result table ── */
+  .cache-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: .75rem 0; }
+  .cache-row { display: flex; align-items: center; gap: 12px; padding: .65rem 1rem; border-bottom: 1px solid var(--border); }
+  .cache-row:last-child { border-bottom: none; }
+  .cache-step { font-family: var(--mono); font-size: 11px; color: var(--text-dim); flex-shrink: 0; min-width: 60px; }
+  .cache-instr { font-family: var(--mono); font-size: 12.5px; color: var(--text-muted); flex: 1; }
+  .cache-instr .kw { color: var(--blue); }
+  .cache-badge {
+    font-family: var(--mono); font-size: 10px; padding: 2px 8px;
+    border-radius: 999px; letter-spacing: .04em; text-transform: uppercase; flex-shrink: 0;
+  }
+  .cache-badge.hit   { background: var(--green-bg); color: var(--green); }
+  .cache-badge.miss  { background: var(--red-bg);   color: var(--red); }
+  .cache-badge.skip  { background: var(--yellow-bg); color: var(--yellow); }
+
+  /* ── What happened grid ── */
+  .flow-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px; margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .875rem; text-align: center;
+  }
+  .flow-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13.5px; color: var(--text-muted);
+    padding: .6rem .875rem; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px; line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px; height: 16px; border: 1.5px solid var(--border-strong);
+    border-radius: 3px; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── Next card ── */
+  .next-card {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.25rem;
+    text-decoration: none; transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); flex-shrink: 0; margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .diff-grid { grid-template-columns: 1fr; }
+    .cache-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 32</span>
+  <span class="nav-badge">Advanced</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 32 &nbsp;·&nbsp; Advanced
+    </div>
+    <h1>Build Cache<br><span class="hl">Optimization</span></h1>
+    <p class="hero-desc">Reorder Dockerfile instructions strategically so frequently-changing layers — app code — come last. Turn multi-minute rebuilds into sub-second cache hits by understanding exactly how Docker invalidates layers.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~20 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker installed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal / Shell
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">📦</div>
+          <div class="concept-title">Every instruction is a layer</div>
+        </div>
+        <div class="concept-body">
+          Each <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">RUN</code>, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">COPY</code>, and <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">ADD</code> instruction produces an <strong>immutable layer</strong> identified by a hash of its inputs. Docker caches each layer on disk so it can be reused across builds without re-executing the instruction.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(248,81,73,0.1)">🌊</div>
+          <div class="concept-title">Cache invalidation cascades downward</div>
+        </div>
+        <div class="concept-body">
+          When a layer's cache is invalidated — because its instruction changed, or a file it COPYs was modified — <strong>every layer below it</strong> is also invalidated, even if those layers didn't change. This is the single most important rule: a miss at layer 3 forces a re-run of layers 4, 5, 6 … all the way to the end.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🧊</div>
+          <div class="concept-title">Change frequency determines layer order</div>
+        </div>
+        <div class="concept-body">
+          The rule for ordering is simple: <strong>what changes least goes first, what changes most goes last</strong>. Base image and system packages almost never change. Dependency manifests (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">package.json</code>) change occasionally. App source code changes on every save. Order them in that sequence.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">🔍</div>
+          <div class="concept-title">How COPY cache works</div>
+        </div>
+        <div class="concept-body">
+          For <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">COPY</code> instructions, Docker computes a checksum of the source files and compares it to the cached layer. If any file's checksum changes — even one byte — the cache for that layer misses, and all layers below it are invalidated.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">📋</div>
+          <div class="concept-title">Dependency install split</div>
+        </div>
+        <div class="concept-body">
+          The most impactful optimisation in most projects: <strong>COPY only the manifest first</strong> (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">package.json</code>, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">requirements.txt</code>, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">go.mod</code>), run the install, <em>then</em> copy your source code. This way <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">npm install</code> is only re-run when dependencies actually change.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🚀</div>
+          <div class="concept-title">BuildKit and --no-cache</div>
+        </div>
+        <div class="concept-body">
+          Modern Docker uses <strong>BuildKit</strong> by default, which adds parallel layer execution and smarter cache backends. Pass <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--no-cache</code> to force a full rebuild from scratch — useful when verifying the cold-build time or flushing a stale cache. Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--progress=plain</code> to see every layer's cache status.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: THE CORE RULE, VISUALISED        -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      The cascade rule — visualised
+    </div>
+
+    <p style="font-size:13.5px;margin-bottom:.75rem;">You edit one source file. Here's what happens to each layer depending on where <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">COPY . .</code> sits in the Dockerfile.</p>
+
+    <div class="layer-stack">
+      <div class="layer frozen">
+        <div class="layer-num">1</div>
+        <div class="layer-instruction"><span class="kw">FROM</span> node:20-alpine</div>
+        <div class="layer-badge">✓ cached</div>
+      </div>
+      <div class="layer frozen">
+        <div class="layer-num">2</div>
+        <div class="layer-instruction"><span class="kw">RUN</span> apk add --no-cache curl</div>
+        <div class="layer-badge">✓ cached</div>
+      </div>
+      <div class="layer frozen">
+        <div class="layer-num">3</div>
+        <div class="layer-instruction"><span class="kw">COPY</span> package*.json ./</div>
+        <div class="layer-badge">✓ cached</div>
+      </div>
+      <div class="layer frozen">
+        <div class="layer-num">4</div>
+        <div class="layer-instruction"><span class="kw">RUN</span> npm ci</div>
+        <div class="layer-badge">✓ cached</div>
+      </div>
+      <div class="layer hot">
+        <div class="layer-num">5</div>
+        <div class="layer-instruction"><span class="kw">COPY</span> . .&nbsp;&nbsp;<span style="color:var(--text-dim);font-size:11px;">← file changed here</span></div>
+        <div class="layer-badge">✗ miss</div>
+      </div>
+      <div class="layer hot">
+        <div class="layer-num">6</div>
+        <div class="layer-instruction"><span class="kw">RUN</span> npm run build</div>
+        <div class="layer-badge">✗ re-run</div>
+      </div>
+      <div class="layer hot">
+        <div class="layer-num">7</div>
+        <div class="layer-instruction"><span class="kw">CMD</span> ["node", "dist/index.js"]</div>
+        <div class="layer-badge">✗ re-run</div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="callout-icon">✅</span>
+      <div class="callout-body">Only layers 5–7 re-execute. Layers 1–4 — including the slow <strong>npm ci</strong> — are served instantly from cache. This is the correct order.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Create a minimal Node.js app to build</div>
+          <div class="step-desc">Set up a small project with a package.json and one source file — enough to demonstrate cache behaviour clearly.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">mkdir</span> cache-demo && <span class="cmd">cd</span> cache-demo</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">package.json</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre>{
+  <span class="str">"name"</span>: <span class="str">"cache-demo"</span>,
+  <span class="str">"dependencies"</span>: { <span class="str">"express"</span>: <span class="str">"^4.18.0"</span> },
+  <span class="str">"scripts"</span>: { <span class="str">"start"</span>: <span class="str">"node index.js"</span> }
+}</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">index.js</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="hl">const</span> express = require(<span class="str">'express'</span>);
+<span class="hl">const</span> app = express();
+app.get(<span class="str">'/'</span>, (req, res) => res.send(<span class="str">'v1\n'</span>));
+app.listen(<span class="hl">3000</span>);</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Write the naïve Dockerfile — the wrong order</div>
+          <div class="step-desc">This is what most beginners write first. It works, but it's slow: <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">npm install</code> re-runs on every single code change.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Dockerfile.slow</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="kw">FROM</span> node:20-alpine
+<span class="kw">WORKDIR</span> /app
+<span class="bad">COPY . .</span>              <span class="comment"># ← copies everything first</span>
+<span class="bad">RUN npm install</span>       <span class="comment"># ← re-runs whenever ANY file changes</span>
+<span class="kw">CMD</span> [<span class="str">"node"</span>, <span class="str">"index.js"</span>]</pre>
+          </div>
+          <div class="callout bad">
+            <span class="callout-icon">✗</span>
+            <div class="callout-body"><strong>Why this is slow:</strong> <code style="font-family:var(--mono);font-size:12px">COPY . .</code> includes every source file — so editing <code style="font-family:var(--mono);font-size:12px">index.js</code> invalidates that layer, which cascades into <code style="font-family:var(--mono);font-size:12px">npm install</code>. You re-download all dependencies on every rebuild, even when <code style="font-family:var(--mono);font-size:12px">package.json</code> hasn't changed.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Build the slow version twice — observe the difference</div>
+          <div class="step-desc">Build once to prime the cache, edit one line of <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">index.js</code>, then rebuild and watch how many layers are re-executed.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># First build — primes the cache</span>
+<span class="cmd">docker</span> build <span class="flag">-f</span> Dockerfile.slow <span class="flag">-t</span> demo:slow <span class="flag">--progress=plain</span> .
+
+<span class="comment"># Edit one line of app code</span>
+<span class="cmd">sed</span> <span class="flag">-i</span> <span class="str">'s/v1/v2/'</span> index.js
+
+<span class="comment"># Rebuild — note which layers say CACHED vs re-running</span>
+<span class="cmd">docker</span> build <span class="flag">-f</span> Dockerfile.slow <span class="flag">-t</span> demo:slow <span class="flag">--progress=plain</span> .</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">rebuild output — slow dockerfile</div>
+            <div class="output-body">
+<span class="out">#1 [internal] load build definition</span><br>
+<span class="out">#2 [1/4] FROM node:20-alpine          </span><span class="g">CACHED</span><br>
+<span class="r">#3 [2/4] COPY . .                     0.1s</span><br>
+<span class="r">#4 [3/4] RUN npm install              18.4s  ← re-runs every time</span><br>
+<span class="r">#5 [4/4] CMD                          0.0s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Write the optimised Dockerfile — the right order</div>
+          <div class="step-desc">Split the copy into two stages: manifest first, install, then source. This way npm install is only re-triggered when <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">package.json</code> or <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">package-lock.json</code> changes.</div>
+
+          <div class="diff-grid">
+            <div class="diff-pane">
+              <div class="diff-header bad">
+                <div class="diff-dot" style="background:var(--red)"></div>
+                Dockerfile.slow
+              </div>
+              <div class="diff-body">
+                <span class="kw">FROM</span> node:20-alpine<br>
+                <span class="kw">WORKDIR</span> /app<br>
+                <span class="hot">COPY . .</span><br>
+                <span class="hot">RUN npm install</span><br>
+                <span class="kw">CMD</span> ["node","index.js"]
+              </div>
+            </div>
+            <div class="diff-pane">
+              <div class="diff-header good">
+                <div class="diff-dot" style="background:var(--green)"></div>
+                Dockerfile.fast
+              </div>
+              <div class="diff-body">
+                <span class="kw">FROM</span> node:20-alpine<br>
+                <span class="kw">WORKDIR</span> /app<br>
+                <span class="cold">COPY package*.json ./</span><br>
+                <span class="cold">RUN npm ci</span><br>
+                <span class="cold">COPY . .</span><br>
+                <span class="kw">CMD</span> ["node","index.js"]
+              </div>
+            </div>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Dockerfile.fast</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="kw">FROM</span> node:20-alpine
+<span class="kw">WORKDIR</span> /app
+
+<span class="comment"># 1. Copy ONLY the dependency manifests</span>
+<span class="good">COPY package*.json ./</span>
+
+<span class="comment"># 2. Install — cached unless package*.json changes</span>
+<span class="good">RUN npm ci</span>
+
+<span class="comment"># 3. Copy source code last — changes here don't bust the install cache</span>
+<span class="good">COPY . .</span>
+
+<span class="kw">CMD</span> [<span class="str">"node"</span>, <span class="str">"index.js"</span>]</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">npm ci</code> instead of <code style="font-family:var(--mono);font-size:12px">npm install</code> is the right choice in Docker — it installs from the lockfile exactly, errors on any mismatch, and produces a reproducible result every time.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Build the fast version twice — observe the speedup</div>
+          <div class="step-desc">Prime the cache with the first build, edit source code, then rebuild and confirm <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">npm ci</code> is now served from cache.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># First build — primes the cache (npm ci runs for real)</span>
+<span class="cmd">docker</span> build <span class="flag">-f</span> Dockerfile.fast <span class="flag">-t</span> demo:fast <span class="flag">--progress=plain</span> .
+
+<span class="comment"># Edit source code only</span>
+<span class="cmd">sed</span> <span class="flag">-i</span> <span class="str">'s/v2/v3/'</span> index.js
+
+<span class="comment"># Rebuild — npm ci should now say CACHED</span>
+<span class="cmd">docker</span> build <span class="flag">-f</span> Dockerfile.fast <span class="flag">-t</span> demo:fast <span class="flag">--progress=plain</span> .</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">rebuild output — fast dockerfile</div>
+            <div class="output-body">
+<span class="out">#1 [internal] load build definition</span><br>
+<span class="out">#2 [1/5] FROM node:20-alpine          </span><span class="g">CACHED</span><br>
+<span class="out">#3 [2/5] COPY package*.json ./        </span><span class="g">CACHED</span><br>
+<span class="out">#4 [3/5] RUN npm ci                   </span><span class="g">CACHED  ← skipped entirely</span><br>
+<span class="r">#5 [4/5] COPY . .                     0.1s</span><br>
+<span class="r">#6 [5/5] CMD                          0.0s</span><br>
+<span class="c">Build completed in 0.4s</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">The <strong>18-second npm ci</strong> is now a <strong>0-millisecond cache hit</strong>. On a project with hundreds of dependencies this difference is measured in minutes per build.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Verify the cache invalidates correctly when deps change</div>
+          <div class="step-desc">Confirm that adding a new dependency does bust the cache — the optimised Dockerfile should still behave correctly, not just fast.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Add a dependency — this changes package.json</span>
+<span class="cmd">npm</span> install --save lodash <span class="flag">--package-lock-only</span>
+
+<span class="comment"># Rebuild — npm ci should now re-run</span>
+<span class="cmd">docker</span> build <span class="flag">-f</span> Dockerfile.fast <span class="flag">-t</span> demo:fast <span class="flag">--progress=plain</span> .</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">#2 [1/5] FROM node:20-alpine          </span><span class="g">CACHED</span><br>
+<span class="r">#3 [2/5] COPY package*.json ./        0.1s  ← manifest changed</span><br>
+<span class="r">#4 [3/5] RUN npm ci                   12.3s ← correctly re-runs</span><br>
+<span class="r">#5 [4/5] COPY . .                     0.1s</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">The cache invalidates at exactly the right layer — <code style="font-family:var(--mono);font-size:12px">COPY package*.json</code> — and re-runs npm ci. This is correct behaviour, not a bug.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">7</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">See the cache hit rate per layer in a table</div>
+          <div class="step-desc">Here's what happens to each layer across the three scenarios you just tested. This is the mental model to carry into every Dockerfile you write.</div>
+
+          <div class="cache-table">
+            <div class="cache-row">
+              <span class="cache-step">layer</span>
+              <span class="cache-instr" style="color:var(--text-dim)">instruction</span>
+              <span class="cache-badge" style="background:transparent;color:var(--text-dim)">code change</span>
+              <span class="cache-badge" style="background:transparent;color:var(--text-dim)">dep change</span>
+            </div>
+            <div class="cache-row">
+              <span class="cache-step">1</span>
+              <span class="cache-instr"><span class="kw">FROM</span> node:20-alpine</span>
+              <span class="cache-badge hit">hit</span>
+              <span class="cache-badge hit">hit</span>
+            </div>
+            <div class="cache-row">
+              <span class="cache-step">2</span>
+              <span class="cache-instr"><span class="kw">COPY</span> package*.json ./</span>
+              <span class="cache-badge hit">hit</span>
+              <span class="cache-badge miss">miss</span>
+            </div>
+            <div class="cache-row">
+              <span class="cache-step">3</span>
+              <span class="cache-instr"><span class="kw">RUN</span> npm ci</span>
+              <span class="cache-badge hit">hit</span>
+              <span class="cache-badge miss">re-run</span>
+            </div>
+            <div class="cache-row">
+              <span class="cache-step">4</span>
+              <span class="cache-instr"><span class="kw">COPY</span> . .</span>
+              <span class="cache-badge miss">miss</span>
+              <span class="cache-badge miss">re-run</span>
+            </div>
+            <div class="cache-row">
+              <span class="cache-step">5</span>
+              <span class="cache-instr"><span class="kw">CMD</span> ["node", "index.js"]</span>
+              <span class="cache-badge miss">re-run</span>
+              <span class="cache-badge miss">re-run</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">When only code changes, layers 1–3 are cache hits — including the slow <strong>npm ci</strong>. Only when dependencies change does npm ci re-run. Both cases are correct.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">8</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Apply the same pattern to Python and Go</div>
+          <div class="step-desc">The manifest-first split works in every language — only the file names differ.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Dockerfile — Python / pip</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="kw">FROM</span> python:3.12-slim
+<span class="kw">WORKDIR</span> /app
+<span class="good">COPY requirements.txt .</span>          <span class="comment"># manifest first</span>
+<span class="good">RUN pip install --no-cache-dir -r requirements.txt</span>
+<span class="good">COPY . .</span>                           <span class="comment"># source last</span>
+<span class="kw">CMD</span> [<span class="str">"python"</span>, <span class="str">"app.py"</span>]</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Dockerfile — Go / modules</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="kw">FROM</span> golang:1.22-alpine
+<span class="kw">WORKDIR</span> /app
+<span class="good">COPY go.mod go.sum ./</span>             <span class="comment"># manifest first</span>
+<span class="good">RUN go mod download</span>
+<span class="good">COPY . .</span>                           <span class="comment"># source last</span>
+<span class="kw">RUN</span> go build <span class="flag">-o</span> server .
+<span class="kw">CMD</span> [<span class="str">"./server"</span>]</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">9</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Add a .dockerignore to stop irrelevant files busting the cache</div>
+          <div class="step-desc">Without <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.dockerignore</code>, the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">COPY . .</code> layer will miss its cache any time a <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.git</code> file, test result, or editor temp file changes — even though those files aren't part of the image.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">.dockerignore</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Never send these to the build context</span>
+node_modules
+.git
+.gitignore
+*.md
+.env
+dist
+coverage
+.DS_Store
+*.log</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">A good <code style="font-family:var(--mono);font-size:12px">.dockerignore</code> does two things: speeds up context transfer to the daemon, and prevents transient files from causing spurious cache misses on <code style="font-family:var(--mono);font-size:12px">COPY . .</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">10</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Measure total build time with --no-cache vs cached</div>
+          <div class="step-desc">Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">time</code> to get a concrete before-and-after number — useful for convincing teammates that the ordering matters.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Cold build — no cache at all</span>
+<span class="cmd">time</span> docker build <span class="flag">--no-cache</span> <span class="flag">-f</span> Dockerfile.fast <span class="flag">-t</span> demo:fast .
+
+<span class="comment"># Edit source, then warm rebuild</span>
+<span class="cmd">sed</span> <span class="flag">-i</span> <span class="str">'s/v3/v4/'</span> index.js
+<span class="cmd">time</span> docker build <span class="flag">-f</span> Dockerfile.fast <span class="flag">-t</span> demo:fast .</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">typical timing results</div>
+            <div class="output-body">
+<span class="out">Cold build (--no-cache):  </span><span class="r">real  0m22.4s</span><br>
+<span class="out">Warm rebuild (code only): </span><span class="g">real  0m0.6s</span><br>
+<span class="out">Speedup: ~37×
+</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: WHAT JUST HAPPENED               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">🔑</div>
+        <div class="flow-label">Layer key computed</div>
+        <div class="flow-desc">For each instruction Docker computes a cache key: the instruction text plus a checksum of any files it COPYs.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">🗄️</div>
+        <div class="flow-label">Cache lookup</div>
+        <div class="flow-desc">Docker checks its local layer store. If the key matches an existing layer, that layer is returned instantly — no execution.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">💥</div>
+        <div class="flow-label">Miss propagates</div>
+        <div class="flow-desc">On a miss, the instruction executes and produces a new layer. All subsequent layers are also executed, since their parent hash changed.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">📋</div>
+        <div class="flow-label">Manifest checksum</div>
+        <div class="flow-desc"><code style="font-family:var(--mono);font-size:11px">COPY package*.json</code> hashes only those two files. If they haven't changed, the checksum matches and npm ci is never touched.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">📁</div>
+        <div class="flow-label">Context filtering</div>
+        <div class="flow-desc">.dockerignore strips excluded files before computing checksums — so editor temps and .git changes can't pollute the cache key.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">⚡</div>
+        <div class="flow-label">BuildKit parallelism</div>
+        <div class="flow-desc">BuildKit can execute independent branches of a multi-stage build in parallel, compounding the savings from cache hits.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How Docker's layer cache works — every instruction is a keyed, immutable layer that can be hit or missed</li>
+      <li><span class="chk"></span>That a cache miss cascades downward and invalidates every subsequent layer in the file</li>
+      <li><span class="chk"></span>The core ordering rule: least-frequently-changed layers first, most-frequently-changed last</li>
+      <li><span class="chk"></span>How to split dependency installation into manifest-copy → install → source-copy to protect the slow install layer</li>
+      <li><span class="chk"></span>How to apply the same pattern to Node.js, Python, and Go projects</li>
+      <li><span class="chk"></span>How <code style="font-family:var(--mono);font-size:12px">.dockerignore</code> prevents transient files from causing spurious cache misses on <code style="font-family:var(--mono);font-size:12px">COPY . .</code></li>
+      <li><span class="chk"></span>How to use <code style="font-family:var(--mono);font-size:12px">--progress=plain</code> and <code style="font-family:var(--mono);font-size:12px">time</code> to observe and measure cache behaviour concretely</li>
+    </ul>
+  </section>
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

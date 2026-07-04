@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 13 — Map Multiple Ports in One Container</title>
+<link rel="icon" type="image/png" href="/assets/docker.png" >
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green-border);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--green); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-label .icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: .6rem;
+  }
+  .concept-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--green);
+    background: var(--bg);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .step-line {
+    width: 1px;
+    flex: 1;
+    background: var(--border);
+    margin: 4px 0;
+    min-height: 16px;
+  }
+  .step:last-child .step-line { display: none; }
+  .step-content {
+    padding: 0 0 2rem 1rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .step-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: .35rem;
+    padding-top: 3px;
+  }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color .15s, background .15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  pre .cmd { color: var(--blue); }
+  pre .flag { color: var(--yellow); }
+  pre .str { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .out { color: var(--text-muted); }
+  pre .hl { color: var(--purple); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px;
+    padding: .875rem 1rem;
+    margin: .75rem 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    border: 1px solid;
+    display: flex;
+    gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info { background: var(--blue-bg); border-color: rgba(88,166,255,0.2); }
+  .callout.tip { background: var(--green-bg); border-color: var(--green-border); }
+  .callout.warn { background: var(--yellow-bg); border-color: var(--yellow-border); }
+
+  /* ── Anatomy diagram ── */
+  .anatomy {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 14px;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    line-height: 2;
+    gap: 0;
+  }
+  .anatomy-part {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    margin: 2px 2px;
+  }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-img  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-hl   { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag {
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    flex-shrink: 0;
+    min-width: 52px;
+    text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-img  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .anatomy-tag.a-hl   { color: var(--purple); background: rgba(188,140,255,0.1); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Port mapping diagram ── */
+  .port-diagram {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+  }
+  .port-side {
+    flex: 1;
+    min-width: 130px;
+  }
+  .port-side-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: .75rem;
+  }
+  .port-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+  }
+  .port-pill.host { background: rgba(88,166,255,0.12); color: var(--blue); border: 1px solid rgba(88,166,255,0.2); }
+  .port-pill.container { background: rgba(63,185,80,0.1); color: var(--green); border: 1px solid var(--green-border); }
+  .port-pill-wrap { display: flex; flex-direction: column; align-items: flex-start; }
+  .port-arrow-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 0 1rem;
+    padding-top: 1.6rem;
+  }
+  .port-arrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    height: 26px;
+  }
+  .port-arrow svg { flex-shrink: 0; }
+
+  /* ── Output preview ── */
+  .output-preview {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .output-header {
+    background: var(--surface);
+    padding: .4rem .875rem;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+
+  /* ── Flow grid ── */
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .875rem;
+    text-align: center;
+  }
+  .flow-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: .35rem;
+  }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    padding: .6rem .875rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── Table ── */
+  .stat-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .stat-table th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: .7rem .875rem;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat-table td {
+    padding: .7rem .875rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    vertical-align: top;
+  }
+  .stat-table tr:last-child td { border-bottom: none; }
+  .stat-table td.col-name { font-family: var(--mono); color: var(--green); font-size: 12px; white-space: nowrap; }
+  .stat-table td strong { color: var(--text); font-weight: 500; }
+
+  /* ── Next steps ── */
+  .next-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    text-decoration: none;
+    transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .stat-table { display: block; overflow-x: auto; }
+    .port-diagram { flex-direction: column; align-items: flex-start; gap: .75rem; }
+    .port-arrow-col { flex-direction: row; padding: 0; flex-wrap: wrap; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 13</span>
+  <span class="nav-badge">Beginner</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 13 &nbsp;·&nbsp; Beginner
+    </div>
+    <h1>Map Multiple Ports<br><span class="hl">in One Container</span></h1>
+    <p class="hero-desc">Run a container that exposes several ports simultaneously using repeated <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--green)">-p</code> flags, then verify each one is reachable from the host.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~8 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker installed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal / Shell
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🔌</div>
+          <div class="concept-title">Port mapping is not port exposure</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">EXPOSE</code> in a Dockerfile is purely <strong>documentation</strong> — it tells users which ports the process inside listens on, but doesn't actually make them reachable. <strong>Publishing</strong> with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-p</code> at <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker run</code> is what actually opens a host-side door and routes traffic into the container.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🗺️</div>
+          <div class="concept-title">The host:container syntax</div>
+        </div>
+        <div class="concept-body">
+          Each <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-p</code> flag takes the form <strong>host_port:container_port</strong>. Traffic arriving on the host at <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">host_port</code> gets NAT'd into the container on <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">container_port</code>. The host port and container port do <strong>not</strong> need to match.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">🔁</div>
+          <div class="concept-title">Repeating -p for multiple ports</div>
+        </div>
+        <div class="concept-body">
+          There is no multi-port shorthand in a single <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-p</code>. To publish several ports you simply <strong>repeat the flag</strong> once per port mapping. Docker applies each one independently, and they can map to any available host port you choose.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🌐</div>
+          <div class="concept-title">Binding to a specific interface</div>
+        </div>
+        <div class="concept-body">
+          The full syntax is <strong>ip:host_port:container_port</strong>. Omitting the IP binds to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">0.0.0.0</code> (all interfaces). Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">127.0.0.1:host_port:container_port</code> to restrict a port to localhost only — useful for admin ports you don't want exposed to the network.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🎲</div>
+          <div class="concept-title">Random host port assignment</div>
+        </div>
+        <div class="concept-body">
+          Using <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-p container_port</code> (no host port) lets Docker <strong>pick a random available host port</strong> for you. Useful when running many containers of the same image to avoid conflicts. Check which port was assigned with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker port</code>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🛠️</div>
+          <div class="concept-title">docker port for quick lookups</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker port container_name</code> prints the complete port mapping table for a running container — faster than parsing <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker inspect</code> when you just want to know what's exposed where.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      Command anatomy
+    </div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">run</span>
+        <span class="anatomy-part a-hl">-p 8080:80</span>
+        <span class="anatomy-part a-hl">-p 8443:443</span>
+        <span class="anatomy-part a-img">nginx</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker</span>
+          <p>The CLI binary — how you talk to the Docker daemon from your terminal.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">run</span>
+          <p>Create and start a new container from an image.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-hl">-p 8080:80</span>
+          <p>Publish port: route traffic from host port <strong>8080</strong> into the container on port <strong>80</strong>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-hl">-p 8443:443</span>
+          <p>A second, independent mapping: host port <strong>8443</strong> → container port <strong>443</strong>. Repeat <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">-p</code> once per port.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-img">nginx</span>
+          <p>The image to run.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Port mapping visual -->
+    <div class="port-diagram">
+      <div class="port-side">
+        <div class="port-side-label">Host</div>
+        <div class="port-pill-wrap">
+          <div class="port-pill host">:8080</div>
+          <div class="port-pill host">:8443</div>
+          <div class="port-pill host">:9000</div>
+        </div>
+      </div>
+      <div class="port-arrow-col">
+        <div class="port-arrow">
+          <svg width="48" height="12" viewBox="0 0 48 12" fill="none"><line x1="0" y1="6" x2="40" y2="6" stroke="currentColor" stroke-width="1.2"/><polyline points="36,2 42,6 36,10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="port-arrow">
+          <svg width="48" height="12" viewBox="0 0 48 12" fill="none"><line x1="0" y1="6" x2="40" y2="6" stroke="currentColor" stroke-width="1.2"/><polyline points="36,2 42,6 36,10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="port-arrow">
+          <svg width="48" height="12" viewBox="0 0 48 12" fill="none"><line x1="0" y1="6" x2="40" y2="6" stroke="currentColor" stroke-width="1.2"/><polyline points="36,2 42,6 36,10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="port-side">
+        <div class="port-side-label">Container</div>
+        <div class="port-pill-wrap">
+          <div class="port-pill container">:80</div>
+          <div class="port-pill container">:443</div>
+          <div class="port-pill container">:9000</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body">Host and container ports don't need to match — <strong>8080→80</strong> is perfectly valid. Same-number mappings like <strong>9000→9000</strong> are just a common convention for clarity.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Run a container with three port mappings</div>
+          <div class="step-desc">Use the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">hashicorp/http-echo</code> image — a tiny server that responds on any port with a message you define. Start it with three different mappings in detached mode.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">multiport</span> \
+  <span class="flag">-p</span> <span class="str">8080:8080</span> \
+  <span class="flag">-p</span> <span class="str">8081:8081</span> \
+  <span class="flag">-p</span> <span class="str">8082:8082</span> \
+  hashicorp/http-echo \
+  <span class="flag">-listen=:8080</span> <span class="flag">-text=</span><span class="str">"port 8080 works"</span></pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">http-echo</code> listens on a single port per process. Steps 2 and 3 will start additional containers on the other ports to give you three independent services to verify.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Run Nginx with two ports mapped</div>
+          <div class="step-desc">A more realistic example: run Nginx mapping both port 80 (HTTP) and port 443 (HTTPS) from the container to different host ports.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">webserver</span> \
+  <span class="flag">-p</span> <span class="str">8088:80</span> \
+  <span class="flag">-p</span> <span class="str">4443:443</span> \
+  nginx</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Confirm both containers are running</div>
+          <div class="step-desc">The PORTS column in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker ps</code> lists every published mapping — a quick sanity check before you start hitting the ports.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> ps</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">CONTAINER ID   NAME         IMAGE                  PORTS</span><br>
+<span class="g">a1b2c3d4e5f6   webserver    nginx                  0.0.0.0:8088->80/tcp, 0.0.0.0:4443->443/tcp</span><br>
+<span class="g">f6e5d4c3b2a1   multiport    hashicorp/http-echo    0.0.0.0:8080->8080/tcp</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Look up mappings for a single container</div>
+          <div class="step-desc">Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker port</code> to list just the port table for <strong>webserver</strong>.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> port webserver</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">80/tcp -> 0.0.0.0:8088</span><br>
+<span class="g">443/tcp -> 0.0.0.0:4443</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Verify port 8088 is reachable</div>
+          <div class="step-desc">Hit the Nginx HTTP port on the host and confirm it responds with the default welcome page.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">curl</span> <span class="flag">-s</span> <span class="flag">-o</span> /dev/null <span class="flag">-w</span> <span class="str">"%{http_code}"</span> http://localhost:8088</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">200</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">No <code style="font-family:var(--mono);font-size:12px">curl</code>? Open <strong>http://localhost:8088</strong> in your browser instead — you should see the Nginx welcome page.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Verify port 8080 on the echo server</div>
+          <div class="step-desc">Hit the http-echo container and see the message it was configured to return.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">curl</span> http://localhost:8080</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">port 8080 works</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">7</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Bind a port to localhost only</div>
+          <div class="step-desc">Prefix the host IP to restrict a port so only processes on the same machine can reach it — not external network clients.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">local-only</span> \
+  <span class="flag">-p</span> <span class="str">127.0.0.1:9090:80</span> \
+  <span class="flag">-p</span> <span class="str">127.0.0.1:9443:443</span> \
+  nginx</pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">Without the <code style="font-family:var(--mono);font-size:12px">127.0.0.1:</code> prefix, Docker binds to <strong>0.0.0.0</strong>, meaning the port is reachable from any network interface — including external ones. Always restrict admin or debug ports to localhost in production.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">8</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Let Docker assign a random host port</div>
+          <div class="step-desc">Omit the host port entirely and Docker picks a free one for you. Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker port</code> to find out which.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">random-port</span> <span class="flag">-p</span> <span class="str">80</span> nginx
+<span class="cmd">docker</span> port random-port</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">80/tcp -> 0.0.0.0:49153</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">9</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Clean up all containers from this task</div>
+          <div class="step-desc">Stop and remove every container started in this task in one command.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> rm <span class="flag">-f</span> multiport webserver local-only random-port</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">The <code style="font-family:var(--mono);font-size:12px">-f</code> flag forces removal of running containers — combining stop and remove into one step.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: PORT SYNTAX REFERENCE            -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📐</span>
+      Port flag syntax reference
+    </div>
+
+    <table class="stat-table">
+      <thead>
+        <tr>
+          <th>Flag</th>
+          <th>What it does</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-name">-p 8080:80</td>
+          <td>Maps host port <strong>8080</strong> to container port <strong>80</strong> on all host interfaces.</td>
+        </tr>
+        <tr>
+          <td class="col-name">-p 80</td>
+          <td>Maps container port <strong>80</strong> to a <strong>random</strong> available host port. Check with <code style="font-family:var(--mono);font-size:12px">docker port</code>.</td>
+        </tr>
+        <tr>
+          <td class="col-name">-p 127.0.0.1:8080:80</td>
+          <td>Maps to host port <strong>8080</strong> but <strong>localhost only</strong> — not reachable externally.</td>
+        </tr>
+        <tr>
+          <td class="col-name">-P</td>
+          <td>Publishes <strong>all</strong> ports declared with <code style="font-family:var(--mono);font-size:12px">EXPOSE</code> in the Dockerfile to random host ports.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>That <code style="font-family:var(--mono);font-size:12px">EXPOSE</code> is documentation only — <code style="font-family:var(--mono);font-size:12px">-p</code> at run time is what actually publishes a port</li>
+      <li><span class="chk"></span>How to publish multiple ports by repeating the <code style="font-family:var(--mono);font-size:12px">-p</code> flag once per mapping</li>
+      <li><span class="chk"></span>The full <code style="font-family:var(--mono);font-size:12px">ip:host_port:container_port</code> syntax and when each part matters</li>
+      <li><span class="chk"></span>How to restrict a port to localhost only with the <code style="font-family:var(--mono);font-size:12px">127.0.0.1:</code> prefix</li>
+      <li><span class="chk"></span>How to let Docker assign a random host port and look it up with <code style="font-family:var(--mono);font-size:12px">docker port</code></li>
+      <li><span class="chk"></span>How to force-remove running containers in one step with <code style="font-family:var(--mono);font-size:12px">docker rm -f</code></li>
+    </ul>
+  </section>
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

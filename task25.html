@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 25 — Run MongoDB in Docker</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --mongo: #00ed64;
+    --mongo-bg: rgba(0,237,100,0.08);
+    --mongo-border: rgba(0,237,100,0.2);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--yellow-bg);
+    color: var(--yellow);
+    border: 1px solid var(--yellow-border);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mongo); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--mongo); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-label .icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: .6rem;
+  }
+  .concept-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mongo);
+    background: var(--bg);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .step-line {
+    width: 1px;
+    flex: 1;
+    background: var(--border);
+    margin: 4px 0;
+    min-height: 16px;
+  }
+  .step:last-child .step-line { display: none; }
+  .step-content {
+    padding: 0 0 2rem 1rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color .15s, background .15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  pre .cmd   { color: var(--blue); }
+  pre .flag  { color: var(--yellow); }
+  pre .str   { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .hl    { color: var(--purple); }
+  pre .mg    { color: var(--mongo); }
+  pre .key   { color: var(--blue); }
+  pre .val   { color: var(--green); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px;
+    padding: .875rem 1rem;
+    margin: .75rem 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    border: 1px solid;
+    display: flex;
+    gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info  { background: var(--blue-bg);  border-color: rgba(88,166,255,0.2); }
+  .callout.tip   { background: var(--green-bg); border-color: var(--green-border); }
+  .callout.warn  { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.mongo { background: var(--mongo-bg); border-color: var(--mongo-border); }
+
+  /* ── Anatomy diagram ── */
+  .anatomy {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 14px;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    line-height: 2;
+    gap: 0;
+  }
+  .anatomy-part {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    margin: 2px 2px;
+  }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-img  { background: rgba(0,237,100,0.1);    color: var(--mongo); }
+  .a-flag { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .a-env  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row  { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag  {
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    flex-shrink: 0;
+    min-width: 80px;
+    text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-img  { color: var(--mongo);  background: rgba(0,237,100,0.08); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--purple); background: rgba(188,140,255,0.1); }
+  .anatomy-row .anatomy-tag.a-env  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Output preview ── */
+  .output-preview {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .output-header {
+    background: var(--surface);
+    padding: .4rem .875rem;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #8b949e;
+  }
+  .output-body .g  { color: var(--green); }
+  .output-body .b  { color: var(--blue); }
+  .output-body .w  { color: var(--text); }
+  .output-body .y  { color: var(--yellow); }
+  .output-body .mg { color: var(--mongo); }
+
+  /* ── Document schema card ── */
+  .schema-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .75rem 0;
+  }
+  .schema-header {
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,237,100,0.04);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--mongo);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .schema-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: var(--text-muted);
+  }
+  .schema-body .k { color: var(--blue); }
+  .schema-body .v { color: var(--green); }
+  .schema-body .t { color: var(--text-dim); font-style: italic; }
+  .schema-body .oid { color: var(--mongo); }
+
+  /* ── What happened grid ── */
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .875rem;
+    text-align: center;
+  }
+  .flow-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    padding: .6rem .875rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── Next / Prev nav ── */
+  .next-prev { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .next-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    text-decoration: none;
+    transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-card.prev { flex-direction: row-reverse; }
+  .next-arrow {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .next-card.prev .next-arrow { margin-left: 0; margin-right: auto; }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .next-prev { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 25</span>
+  <span class="nav-badge">Intermediate</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 25 &nbsp;·&nbsp; Intermediate
+    </div>
+    <h1>Run MongoDB<br><span class="hl">in Docker</span></h1>
+    <p class="hero-desc">Start a MongoDB container, persist its data with a named volume so documents survive container deletion, then insert and query documents using <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--mongo)">mongosh</code> — the official MongoDB shell.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~20 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Tasks 21–24 complete
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal / Shell
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(0,237,100,0.1)">🍃</div>
+          <div class="concept-title">What is MongoDB?</div>
+        </div>
+        <div class="concept-body">
+          MongoDB is a <strong>document database</strong> — it stores data as JSON-like documents (called BSON) rather than rows and columns. Documents are grouped into <strong>collections</strong> (analogous to tables) inside <strong>databases</strong>. It's schema-flexible: documents in the same collection can have different fields.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">💾</div>
+          <div class="concept-title">Why data persistence matters</div>
+        </div>
+        <div class="concept-body">
+          A container's writable layer is <strong>deleted when the container is removed</strong>. For a database, this would mean losing all your data. By attaching a <strong>named Docker volume</strong> to MongoDB's data directory (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/data/db</code>), the data lives on the volume — independent of the container's lifecycle.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(0,237,100,0.1)">🐚</div>
+          <div class="concept-title">mongosh</div>
+        </div>
+        <div class="concept-body">
+          <strong>mongosh</strong> is the modern MongoDB Shell — a Node.js REPL that connects to a MongoDB instance and lets you run queries, insert documents, and inspect databases interactively. It's bundled into the official <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">mongo</code> Docker image so you can run it with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker exec</code>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">🔐</div>
+          <div class="concept-title">Authentication with env vars</div>
+        </div>
+        <div class="concept-body">
+          The official MongoDB image respects <strong>environment variables</strong> to set up an initial root user on first run: <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">MONGO_INITDB_ROOT_USERNAME</code> and <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">MONGO_INITDB_ROOT_PASSWORD</code>. If omitted, MongoDB starts without authentication — fine for local dev, never for production.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">📄</div>
+          <div class="concept-title">Documents & collections</div>
+        </div>
+        <div class="concept-body">
+          In MongoDB, a <strong>document</strong> is a JSON object like <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">{"name": "Alice", "age": 30}</code>. MongoDB auto-assigns an <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">_id</code> field (an ObjectId) to each document. A <strong>collection</strong> is a group of documents — you don't need to define its schema upfront.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🔢</div>
+          <div class="concept-title">Default port: 27017</div>
+        </div>
+        <div class="concept-body">
+          MongoDB listens on port <strong>27017</strong> by default. To connect to it from your host machine or another container, you publish this port with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-p 27017:27017</code>. Connection strings for apps follow the pattern <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">mongodb://user:pass@host:27017</code>.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      Command anatomy
+    </div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">run</span>
+        <span class="anatomy-part a-flag">-d</span>
+        <span class="anatomy-part a-flag">--name mongo-dev</span>
+        <span class="anatomy-part a-flag">-p 27017:27017</span>
+        <span class="anatomy-part a-flag">-v mongo-data:/data/db</span>
+        <span class="anatomy-part a-env">-e MONGO_INITDB_ROOT_USERNAME=admin</span>
+        <span class="anatomy-part a-env">-e MONGO_INITDB_ROOT_PASSWORD=secret</span>
+        <span class="anatomy-part a-img">mongo:7</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker run</span>
+          <p>Create and start a new container from the specified image.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-d</span>
+          <p>Detached mode — run the container in the background and print its ID. MongoDB is a long-running service; you don't want it tying up your terminal.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--name</span>
+          <p>Name the container <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">mongo-dev</code> so you can reference it by name in subsequent <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">exec</code> and <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">stop</code> commands.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-p</span>
+          <p>Publish port 27017 on the host, forwarding to 27017 inside the container. Allows your apps and GUI clients to connect from <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">localhost:27017</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-v</span>
+          <p>Mount the named volume <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">mongo-data</code> at <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">/data/db</code> — MongoDB's default data directory. Docker creates the volume automatically if it doesn't exist.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-env">-e</span>
+          <p>Set environment variables for the initial root credentials. Only takes effect if the data directory is empty (first run on a fresh volume).</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-img">mongo:7</span>
+          <p>The official MongoDB image pinned to major version 7. Avoids accidentally pulling a breaking version bump later.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Create a named volume for persistence</div>
+          <div class="step-desc">Create the volume explicitly before running the container. This makes it clear the volume is intentional and not an anonymous throwaway.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> volume create mongo-data</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body"><span class="mg">mongo-data</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Start the MongoDB container</div>
+          <div class="step-desc">Run MongoDB in detached mode with the volume mounted, port published, and root credentials set. This pulls the image on first run.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> \
+  <span class="flag">--name</span> mongo-dev \
+  <span class="flag">-p</span> 27017:27017 \
+  <span class="flag">-v</span> mongo-data:/data/db \
+  <span class="flag">-e</span> <span class="str">MONGO_INITDB_ROOT_USERNAME=admin</span> \
+  <span class="flag">-e</span> <span class="str">MONGO_INITDB_ROOT_PASSWORD=secret</span> \
+  mongo:7</pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><strong>Don't use these credentials in production.</strong> For local development they're fine, but in any real environment use strong passwords and store them in Docker secrets or an env file that is never committed to version control.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Confirm MongoDB is ready</div>
+          <div class="step-desc">MongoDB takes a moment to initialize. Check the logs and wait for the "Waiting for connections" line before proceeding.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> logs mongo-dev <span class="flag">--tail</span> 20</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">look for this line</div>
+            <div class="output-body">
+<span class="w">{"t":{"$date":"2024-01-15T10:00:00.000+00:00"},"s":"I", "c":"NETWORK",</span><br>
+<span class="mg">"msg":"Waiting for connections","attr":{"port":27017,"ssl":"off"}}</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">You can also run <code style="font-family:var(--mono);font-size:12px">docker logs -f mongo-dev</code> to stream logs in real time. Press <strong>Ctrl+C</strong> to stop following — this won't stop the container.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Open a mongosh session</div>
+          <div class="step-desc">Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker exec</code> to open the MongoDB shell inside the running container, authenticated as the root user you configured.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> exec <span class="flag">-it</span> mongo-dev \
+  mongosh <span class="flag">-u</span> admin <span class="flag">-p</span> secret <span class="flag">--authenticationDatabase</span> admin</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="mg">Current Mongosh Log ID: 65a4c2b3e1f8d2a0b4c6e8f0</span><br>
+<span class="w">Connecting to:  mongodb://127.0.0.1:27017/?...</span><br>
+<span class="g">Using MongoDB: 7.0.4</span><br>
+<span class="g">Using Mongosh: 2.1.1</span><br>
+<br>
+<span class="mg">test&gt;</span> <span class="w">▌</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">The prompt <strong>test&gt;</strong> means you're in the default <code style="font-family:var(--mono);font-size:12px">test</code> database. All commands from here run inside mongosh inside the container.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Create a database and insert documents</div>
+          <div class="step-desc">Switch to a new database and insert a few documents into a collection. MongoDB creates both on the fly — no schema setup needed.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">mongosh</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment">// Switch to (or create) a database called bookshop</span>
+use bookshop
+
+<span class="comment">// Insert a single document</span>
+db.books.insertOne({
+  <span class="key">title</span>: <span class="val">"The Pragmatic Programmer"</span>,
+  <span class="key">authors</span>: [<span class="val">"David Thomas"</span>, <span class="val">"Andrew Hunt"</span>],
+  <span class="key">year</span>: <span class="val">2019</span>,
+  <span class="key">tags</span>: [<span class="val">"engineering"</span>, <span class="val">"career"</span>]
+})
+
+<span class="comment">// Insert multiple documents at once</span>
+db.books.insertMany([
+  { <span class="key">title</span>: <span class="val">"Clean Code"</span>, <span class="key">authors</span>: [<span class="val">"Robert C. Martin"</span>], <span class="key">year</span>: <span class="val">2008</span> },
+  { <span class="key">title</span>: <span class="val">"Designing Data-Intensive Applications"</span>, <span class="key">authors</span>: [<span class="val">"Martin Kleppmann"</span>], <span class="key">year</span>: <span class="val">2017</span> }
+])</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">insertOne response</div>
+            <div class="output-body">
+<span class="w">{</span><br>
+<span class="b">  acknowledged</span><span class="w">: true,</span><br>
+<span class="b">  insertedId</span><span class="w">: </span><span class="mg">ObjectId('65a4c2b3e1f8d2a0b4c6e8f1')</span><br>
+<span class="w">}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Query the collection</div>
+          <div class="step-desc">Read back the documents you just inserted using <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">find()</code>, filter by field, and count results.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">mongosh</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment">// Get all documents in the collection</span>
+db.books.find()
+
+<span class="comment">// Filter: books published after 2010</span>
+db.books.find({ <span class="key">year</span>: { <span class="key">$gt</span>: <span class="val">2010</span> } })
+
+<span class="comment">// Count total documents</span>
+db.books.countDocuments()
+
+<span class="comment">// Find one specific book by title</span>
+db.books.findOne({ <span class="key">title</span>: <span class="val">"Clean Code"</span> })
+
+<span class="comment">// List all databases</span>
+show dbs
+
+<span class="comment">// List collections in current database</span>
+show collections</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">find() output (one document shown)</div>
+            <div class="output-body">
+<span class="w">[</span><br>
+<span class="w">  {</span><br>
+<span class="b">    _id</span><span class="w">: </span><span class="mg">ObjectId('65a4c2b3e1f8d2a0b4c6e8f1')</span><span class="w">,</span><br>
+<span class="b">    title</span><span class="w">: </span><span class="g">'The Pragmatic Programmer'</span><span class="w">,</span><br>
+<span class="b">    authors</span><span class="w">: [ </span><span class="g">'David Thomas'</span><span class="w">, </span><span class="g">'Andrew Hunt'</span><span class="w"> ],</span><br>
+<span class="b">    year</span><span class="w">: </span><span class="y">2019</span><span class="w">,</span><br>
+<span class="b">    tags</span><span class="w">: [ </span><span class="g">'engineering'</span><span class="w">, </span><span class="g">'career'</span><span class="w"> ]</span><br>
+<span class="w">  },</span><br>
+<span class="w">  ...</span><br>
+<span class="w">]</span>
+            </div>
+          </div>
+          <div class="callout mongo">
+            <span class="callout-icon">🍃</span>
+            <div class="callout-body">Notice the auto-generated <strong>_id</strong> field — MongoDB added it automatically. Every document gets a unique <code style="font-family:var(--mono);font-size:12px">ObjectId</code> unless you specify your own <code style="font-family:var(--mono);font-size:12px">_id</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Update and delete documents</div>
+          <div class="step-desc">Practice the full CRUD cycle — update a field on an existing document, then delete one.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">mongosh</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment">// Add a "rating" field to Clean Code</span>
+db.books.updateOne(
+  { <span class="key">title</span>: <span class="val">"Clean Code"</span> },
+  { <span class="key">$set</span>: { <span class="key">rating</span>: <span class="val">4.8</span> } }
+)
+
+<span class="comment">// Delete a document by title</span>
+db.books.deleteOne({ <span class="key">title</span>: <span class="val">"Clean Code"</span> })
+
+<span class="comment">// Confirm it's gone</span>
+db.books.countDocuments()</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Exit mongosh and prove data persists</div>
+          <div class="step-desc">Exit the shell, stop and delete the container, then start a fresh one on the same volume. Your data should survive.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">mongosh — exit shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre>exit</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell — stop and remove the container</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> stop mongo-dev
+<span class="cmd">docker</span> rm mongo-dev</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell — start a brand new container on the same volume</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">--name</span> mongo-dev <span class="flag">-p</span> 27017:27017 \
+  <span class="flag">-v</span> mongo-data:/data/db \
+  <span class="flag">-e</span> <span class="str">MONGO_INITDB_ROOT_USERNAME=admin</span> \
+  <span class="flag">-e</span> <span class="str">MONGO_INITDB_ROOT_PASSWORD=secret</span> \
+  mongo:7
+
+<span class="comment"># Re-open mongosh and verify books are still there</span>
+<span class="cmd">docker</span> exec <span class="flag">-it</span> mongo-dev \
+  mongosh <span class="flag">-u</span> admin <span class="flag">-p</span> secret <span class="flag">--authenticationDatabase</span> admin</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">mongosh — verify</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre>use bookshop
+db.books.find()</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">Your books are still there — the container was deleted but the <strong>volume survived</strong>. This is the core value of named volumes for databases: the data lifecycle is decoupled from the container lifecycle.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Clean up</div>
+          <div class="step-desc">Stop and remove the container, then optionally remove the volume if you're done with the data.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> stop mongo-dev
+<span class="cmd">docker</span> rm mongo-dev
+
+<span class="comment"># Remove the volume only if you no longer need the data</span>
+<span class="cmd">docker</span> volume rm mongo-data</pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">docker volume rm</code> <strong>permanently deletes</strong> all data stored in the volume. Docker will refuse to remove a volume that is currently mounted by a running container.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: WHAT JUST HAPPENED               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">📦</div>
+        <div class="flow-label">Image pulled</div>
+        <div class="flow-desc">mongo:7 layers downloaded from Docker Hub — includes mongod and mongosh.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">💾</div>
+        <div class="flow-label">Volume mounted</div>
+        <div class="flow-desc">Docker mounted <code style="font-family:var(--mono);font-size:11px">mongo-data</code> at <code style="font-family:var(--mono);font-size:11px">/data/db</code> inside the container.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">🔐</div>
+        <div class="flow-label">Root user created</div>
+        <div class="flow-desc">MongoDB's init scripts read the env vars and created the admin user on first start.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🐚</div>
+        <div class="flow-label">Shell connected</div>
+        <div class="flow-desc">mongosh opened a connection to mongod on localhost:27017 with auth.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">📄</div>
+        <div class="flow-label">BSON on disk</div>
+        <div class="flow-desc">Documents written as BSON files inside the volume at /data/db.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">♻️</div>
+        <div class="flow-label">Container replaced</div>
+        <div class="flow-desc">Old container deleted, new one reattached to the same volume — data intact.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How to run the official MongoDB image with authentication configured via environment variables</li>
+      <li><span class="chk"></span>How to mount a named volume at <code style="font-family:var(--mono);font-size:12px">/data/db</code> so MongoDB data outlives the container</li>
+      <li><span class="chk"></span>How to use <code style="font-family:var(--mono);font-size:12px">docker exec</code> to open a <code style="font-family:var(--mono);font-size:12px">mongosh</code> session inside a running container</li>
+      <li><span class="chk"></span>How to perform full CRUD — insert, find, update, and delete documents from the MongoDB shell</li>
+      <li><span class="chk"></span>That deleting a container does not delete its named volume, proving true data persistence</li>
+      <li><span class="chk"></span>How to use MongoDB query operators like <code style="font-family:var(--mono);font-size:12px">$gt</code> and <code style="font-family:var(--mono);font-size:12px">$set</code> in the shell</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

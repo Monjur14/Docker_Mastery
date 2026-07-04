@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 23 — Run a MySQL Container</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.1);
+    --red-border: rgba(248,81,73,0.25);
+    --orange: #f0883e;
+    --orange-bg: rgba(240,136,62,0.1);
+    --orange-border: rgba(240,136,62,0.25);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--orange-bg);
+    color: var(--orange);
+    border: 1px solid var(--orange-border);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--orange); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-label .icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: .6rem;
+  }
+  .concept-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Env var table ── */
+  .env-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 13px;
+    margin: 1rem 0;
+  }
+  .env-table th {
+    text-align: left;
+    padding: .7rem .9rem;
+    background: rgba(255,255,255,0.03);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  .env-table td {
+    padding: .7rem .9rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    vertical-align: top;
+    line-height: 1.55;
+  }
+  .env-table tr:last-child td { border-bottom: none; }
+  .env-table td.var-cell {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--purple);
+    white-space: nowrap;
+  }
+  .env-table td.val-cell {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--green);
+  }
+  .env-table td strong { color: var(--text); font-weight: 500; }
+  .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+  .badge.required { color: var(--red);    background: var(--red-bg);    border-color: var(--red-border); }
+  .badge.optional { color: var(--text-dim); background: rgba(255,255,255,0.03); border-color: var(--border-strong); }
+
+  /* ── Anatomy ── */
+  .anatomy {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 13px;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    line-height: 2.2;
+    gap: 0;
+  }
+  .anatomy-part {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin: 2px 2px;
+  }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-flag { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .a-val  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-img  { background: rgba(240,136,62,0.12);  color: var(--orange); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row  { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag  {
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    flex-shrink: 0;
+    min-width: 52px;
+    text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--purple); background: rgba(188,140,255,0.1); }
+  .anatomy-row .anatomy-tag.a-val  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .anatomy-tag.a-img  { color: var(--orange); background: rgba(240,136,62,0.1); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--orange);
+    background: var(--bg);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .step-line {
+    width: 1px;
+    flex: 1;
+    background: var(--border);
+    margin: 4px 0;
+    min-height: 16px;
+  }
+  .step:last-child .step-line { display: none; }
+  .step-content {
+    padding: 0 0 2rem 1rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc  { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color .15s, background .15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .hl      { color: var(--purple); }
+  pre .val     { color: var(--orange); }
+  pre .kw      { color: var(--blue); }
+  pre .sql-kw  { color: var(--purple); }
+  pre .sql-str { color: var(--green); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px;
+    padding: .875rem 1rem;
+    margin: .75rem 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    border: 1px solid;
+    display: flex;
+    gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info   { background: var(--blue-bg);   border-color: rgba(88,166,255,0.2); }
+  .callout.tip    { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn   { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.danger { background: var(--red-bg);    border-color: var(--red-border); }
+
+  /* ── Output preview ── */
+  .output-preview {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .output-header {
+    background: var(--surface);
+    padding: .4rem .875rem;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #8b949e;
+  }
+  .output-body .g  { color: var(--green); }
+  .output-body .b  { color: var(--blue); }
+  .output-body .w  { color: var(--text); }
+  .output-body .r  { color: var(--red); }
+  .output-body .y  { color: var(--yellow); }
+  .output-body .o  { color: var(--orange); }
+  .output-body .p  { color: var(--purple); }
+  .output-body .dim{ color: var(--text-dim); }
+
+  /* ── Client tabs ── */
+  .client-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: -1px;
+    position: relative;
+    z-index: 1;
+  }
+  .client-tab {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    background: var(--surface);
+    cursor: pointer;
+    transition: color .15s, background .15s;
+    letter-spacing: .03em;
+  }
+  .client-tab.active {
+    color: var(--orange);
+    background: var(--surface-2);
+    border-color: var(--border-strong);
+  }
+  .client-panel { display: none; }
+  .client-panel.active { display: block; }
+
+  /* ── Flow grid ── */
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .875rem;
+    text-align: center;
+  }
+  .flow-num   { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon  { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc  { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    padding: .6rem .875rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── Next task ── */
+  .next-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    text-decoration: none;
+    transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page  { padding: 0 1rem 4rem; }
+    .nav   { padding: .875rem 1rem; }
+    .hero  { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .env-table { display: block; overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 23</span>
+  <span class="nav-badge">Intermediate</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 23 &nbsp;·&nbsp; Intermediate
+    </div>
+    <h1>Run a<br><span class="hl">MySQL Container</span></h1>
+    <p class="hero-desc">Start MySQL with environment variables for credentials, expose it on the host, persist data with a volume, and connect to it from a database client — inside or outside the container.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~15 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker installed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Port 3306 free on host
+      </span>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 1 — CONCEPTS                       -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">📖</span>Required concepts</div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(240,136,62,0.1)">🗄️</div>
+          <div class="concept-title">Why run MySQL in Docker?</div>
+        </div>
+        <div class="concept-body">
+          Containerised MySQL means <strong>zero host installation</strong> — no system package manager, no version conflicts, no lingering daemons. You can run MySQL 5.7 and 8.4 side-by-side on the same machine, swap versions in seconds, and nuke the whole instance with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker rm</code>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🔑</div>
+          <div class="concept-title">Configuration via environment variables</div>
+        </div>
+        <div class="concept-body">
+          The official MySQL image reads its initial setup from <strong>environment variables</strong> passed with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-e</code>. These set the root password, create a database, and seed a user on first startup — no interactive setup wizard required.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🔌</div>
+          <div class="concept-title">Port 3306</div>
+        </div>
+        <div class="concept-body">
+          MySQL listens on port <strong>3306</strong> inside the container. With <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-p 3306:3306</code> you map it to the same port on the host, so any local client (TablePlus, DBeaver, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">mysql</code> CLI) can connect to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">127.0.0.1:3306</code> as normal.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">💾</div>
+          <div class="concept-title">Data persistence with volumes</div>
+        </div>
+        <div class="concept-body">
+          MySQL stores its data files in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/var/lib/mysql</code> inside the container. Without a volume, all your data disappears when the container is removed. Mounting a named volume at that path keeps your data safe across restarts and re-creations.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">⏳</div>
+          <div class="concept-title">MySQL takes time to start</div>
+        </div>
+        <div class="concept-body">
+          On first launch, MySQL initialises its data directory, sets up system tables, and applies the env-var config — this takes <strong>5–20 seconds</strong>. Connection attempts before it's ready will be refused. Always wait for the "ready for connections" log line before connecting.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(248,81,73,0.1)">🔐</div>
+          <div class="concept-title">Never use these credentials in production</div>
+        </div>
+        <div class="concept-body">
+          The env vars in this task set <strong>hardcoded passwords</strong> — fine for local development, not acceptable in any production or shared environment. In production, use Docker secrets or a secrets manager; never embed passwords in command history or source control.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 2 — ENV VARS REFERENCE             -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔑</span>MySQL environment variables</div>
+
+    <table class="env-table">
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Example value</th>
+          <th>What it does</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="var-cell">MYSQL_ROOT_PASSWORD</td>
+          <td class="val-cell">rootpass</td>
+          <td><strong>Required.</strong> Sets the password for the <code style="font-family:var(--mono);font-size:11px">root</code> superuser. <span class="badge required">required</span></td>
+        </tr>
+        <tr>
+          <td class="var-cell">MYSQL_DATABASE</td>
+          <td class="val-cell">appdb</td>
+          <td>Creates a database with this name on first startup. <span class="badge optional">optional</span></td>
+        </tr>
+        <tr>
+          <td class="var-cell">MYSQL_USER</td>
+          <td class="val-cell">appuser</td>
+          <td>Creates a non-root user with full access to <code style="font-family:var(--mono);font-size:11px">MYSQL_DATABASE</code>. <span class="badge optional">optional</span></td>
+        </tr>
+        <tr>
+          <td class="var-cell">MYSQL_PASSWORD</td>
+          <td class="val-cell">apppass</td>
+          <td>Password for <code style="font-family:var(--mono);font-size:11px">MYSQL_USER</code>. Required if <code style="font-family:var(--mono);font-size:11px">MYSQL_USER</code> is set. <span class="badge optional">optional</span></td>
+        </tr>
+        <tr>
+          <td class="var-cell">MYSQL_ALLOW_EMPTY_PASSWORD</td>
+          <td class="val-cell">yes</td>
+          <td>Allows root login with no password — useful for throwaway local shells only. <span class="badge optional">optional</span></td>
+        </tr>
+        <tr>
+          <td class="var-cell">MYSQL_RANDOM_ROOT_PASSWORD</td>
+          <td class="val-cell">yes</td>
+          <td>Generates a random root password and prints it to logs on first boot. <span class="badge optional">optional</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 3 — COMMAND ANATOMY                -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔬</span>Command anatomy</div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">run</span>
+        <span class="anatomy-part a-sub">-d</span>
+        <span class="anatomy-part a-flag">--name mysql-dev</span>
+        <span class="anatomy-part a-flag">-p 3306:3306</span>
+        <span class="anatomy-part a-flag">-v mysql-data:/var/lib/mysql</span>
+        <span class="anatomy-part a-val">-e MYSQL_ROOT_PASSWORD=rootpass</span>
+        <span class="anatomy-part a-val">-e MYSQL_DATABASE=appdb</span>
+        <span class="anatomy-part a-val">-e MYSQL_USER=appuser</span>
+        <span class="anatomy-part a-val">-e MYSQL_PASSWORD=apppass</span>
+        <span class="anatomy-part a-img">mysql:8.4</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker run</span>
+          <p>Create and start a new container.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">-d</span>
+          <p>Detached mode — run in the background and print the container ID. Essential for long-running services like databases.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--name</span>
+          <p>Give the container a memorable name (<code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">mysql-dev</code>) so you can reference it without copying IDs.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-p</span>
+          <p>Publish port — maps host port <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">3306</code> to container port <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">3306</code>, making MySQL reachable from the host at <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">127.0.0.1:3306</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-v</span>
+          <p>Mount the named volume <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">mysql-data</code> at <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">/var/lib/mysql</code> so data survives container restarts and deletions.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-val">-e</span>
+          <p>Set environment variables for MySQL's entrypoint script to configure root password, database name, and app user on first boot.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-img">mysql:8.4</span>
+          <p>The image to use. Pinning a specific version (<code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">8.4</code>) rather than <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">latest</code> prevents unexpected upgrades.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 4 — STEP-BY-STEP                   -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🪜</span>Step-by-step guide</div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Pull the MySQL image</div>
+          <div class="step-desc">Fetch the image explicitly first so you can see the download progress before running. Pinning a version instead of <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">latest</code> prevents surprise upgrades.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="cmd">docker</span> pull <span class="val">mysql:8.4</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="b">8.4: Pulling from library/mysql</span><br>
+<span class="b">a480a496ba95: Pull complete</span><br>
+<span class="b">...</span><br>
+<span class="g">Status: Downloaded newer image for mysql:8.4</span><br>
+<span class="dim">docker.io/library/mysql:8.4</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Run MySQL with credentials and a named volume</div>
+          <div class="step-desc">This single command starts MySQL in the background, sets up root and an app user, creates a database, and persists all data to a named volume.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> \
+  <span class="flag">--name</span> <span class="str">mysql-dev</span> \
+  <span class="flag">-p</span> <span class="val">3306:3306</span> \
+  <span class="flag">-v</span> <span class="val">mysql-data:/var/lib/mysql</span> \
+  <span class="flag">-e</span> <span class="hl">MYSQL_ROOT_PASSWORD</span>=<span class="str">rootpass</span> \
+  <span class="flag">-e</span> <span class="hl">MYSQL_DATABASE</span>=<span class="str">appdb</span> \
+  <span class="flag">-e</span> <span class="hl">MYSQL_USER</span>=<span class="str">appuser</span> \
+  <span class="flag">-e</span> <span class="hl">MYSQL_PASSWORD</span>=<span class="str">apppass</span> \
+  <span class="val">mysql:8.4</span></pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">This command puts passwords in your shell history. For real projects, load credentials from a <code style="font-family:var(--mono);font-size:12px">.env</code> file with <code style="font-family:var(--mono);font-size:12px">--env-file .env</code> instead of passing <code style="font-family:var(--mono);font-size:12px">-e</code> flags inline.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Wait for MySQL to be ready</div>
+          <div class="step-desc">MySQL initialises its data directory on the first boot — this takes several seconds. Tail the logs and wait for the "ready for connections" message before attempting to connect.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="cmd">docker</span> logs <span class="flag">-f</span> <span class="str">mysql-dev</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">look for these lines (may take 10–20 s)</div>
+            <div class="output-body">
+<span class="dim">2024-01-15T10:23:11.000Z 0 [System] [MY-010931] Starting MySQL 8.4 ...</span><br>
+<span class="dim">2024-01-15T10:23:14.000Z 1 [System] [MY-013576] InnoDB initialization has started.</span><br>
+<span class="dim">2024-01-15T10:23:16.000Z 1 [System] [MY-013577] InnoDB initialization has ended.</span><br>
+<span class="dim">...</span><br>
+<span class="g">2024-01-15T10:23:22.000Z 0 [System] [MY-010931] /usr/sbin/mysqld: ready for connections.</span><br>
+<span class="g">Version: '8.4.0'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Press <strong>Ctrl + C</strong> to stop following the logs — the container keeps running. The <code style="font-family:var(--mono);font-size:12px">-f</code> flag just tails the stream; it doesn't attach to the process.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Connect using the MySQL CLI — inside the container</div>
+          <div class="step-desc">The simplest way to verify the setup: exec into the running container and open a <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">mysql</code> shell. No client installation on the host needed.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="cmd">docker</span> exec <span class="flag">-it</span> <span class="str">mysql-dev</span> \
+  mysql <span class="flag">-u</span> <span class="val">appuser</span> <span class="flag">-p</span><span class="str">apppass</span> <span class="val">appdb</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="dim">mysql: [Warning] Using a password on the command line interface can be insecure.</span><br>
+<span class="b">Welcome to the MySQL monitor.  Commands end with ; or \g.</span><br>
+<span class="b">Your MySQL connection id is 8</span><br>
+<span class="b">Server version: 8.4.0 MySQL Community Server - GPL</span><br>
+<br>
+<span class="g">mysql&gt;</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Note there is <strong>no space</strong> between <code style="font-family:var(--mono);font-size:12px">-p</code> and the password — <code style="font-family:var(--mono);font-size:12px">-papppass</code> — this is the MySQL CLI convention. If you use <code style="font-family:var(--mono);font-size:12px">-p apppass</code> with a space, MySQL prompts you interactively and treats "apppass" as the database name.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Run some SQL to verify everything works</div>
+          <div class="step-desc">At the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">mysql&gt;</code> prompt, confirm you're in the right database, create a table, insert a row, and query it back.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">sql</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="comment">-- Confirm current database</span>
+<span class="sql-kw">SELECT</span> DATABASE();
+
+<span class="comment">-- Create a table</span>
+<span class="sql-kw">CREATE TABLE</span> users (
+  id   <span class="sql-kw">INT</span> <span class="sql-kw">AUTO_INCREMENT</span> <span class="sql-kw">PRIMARY KEY</span>,
+  name <span class="sql-kw">VARCHAR</span>(100)
+);
+
+<span class="comment">-- Insert a row</span>
+<span class="sql-kw">INSERT INTO</span> users (name) <span class="sql-kw">VALUES</span> (<span class="sql-str">'Docker'</span>);
+
+<span class="comment">-- Query it back</span>
+<span class="sql-kw">SELECT</span> * <span class="sql-kw">FROM</span> users;</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="dim">+------------+</span><br>
+<span class="dim">| DATABASE() |</span><br>
+<span class="dim">+------------+</span><br>
+<span class="g">| appdb      |</span><br>
+<span class="dim">+------------+</span><br>
+<br>
+<span class="dim">Query OK, 0 rows affected (0.02 sec)</span><br>
+<span class="dim">Query OK, 1 row affected (0.01 sec)</span><br>
+<br>
+<span class="dim">+----+--------+</span><br>
+<span class="dim">| id | name   |</span><br>
+<span class="dim">+----+--------+</span><br>
+<span class="g">|  1 | Docker |</span><br>
+<span class="dim">+----+--------+</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Type <code style="font-family:var(--mono);font-size:12px">exit</code> or press <strong>Ctrl + D</strong> to leave the MySQL shell and return to your host terminal.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Connect from a GUI client on your host</div>
+          <div class="step-desc">Because port 3306 is published to the host, any desktop database client can connect to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">127.0.0.1</code> just like a locally installed MySQL server.</div>
+
+          <!-- Client tabs -->
+          <div class="client-tabs">
+            <button class="client-tab active" onclick="showTab(event,'tab-tableplus')">TablePlus</button>
+            <button class="client-tab" onclick="showTab(event,'tab-dbeaver')">DBeaver</button>
+            <button class="client-tab" onclick="showTab(event,'tab-cli')">mysql CLI (host)</button>
+          </div>
+
+          <div id="tab-tableplus" class="client-panel active">
+            <div class="code-block" style="border-radius:0 8px 8px 8px;">
+              <div class="code-header"><span class="code-lang">connection settings</span></div>
+              <pre><span class="comment">Host     :</span> <span class="str">127.0.0.1</span>
+<span class="comment">Port     :</span> <span class="val">3306</span>
+<span class="comment">User     :</span> <span class="str">appuser</span>
+<span class="comment">Password :</span> <span class="str">apppass</span>
+<span class="comment">Database :</span> <span class="str">appdb</span></pre>
+            </div>
+          </div>
+
+          <div id="tab-dbeaver" class="client-panel">
+            <div class="code-block" style="border-radius:0 8px 8px 8px;">
+              <div class="code-header"><span class="code-lang">new connection · mysql</span></div>
+              <pre><span class="comment">Server Host :</span> <span class="str">localhost</span>
+<span class="comment">Port        :</span> <span class="val">3306</span>
+<span class="comment">Database    :</span> <span class="str">appdb</span>
+<span class="comment">Username    :</span> <span class="str">appuser</span>
+<span class="comment">Password    :</span> <span class="str">apppass</span></pre>
+            </div>
+            <div class="callout info">
+              <span class="callout-icon">ℹ️</span>
+              <div class="callout-body">DBeaver may prompt you to download the MySQL JDBC driver the first time — click <strong>Download</strong> to let it install automatically.</div>
+            </div>
+          </div>
+
+          <div id="tab-cli" class="client-panel">
+            <div class="code-block" style="border-radius:0 8px 8px 8px;">
+              <div class="code-header"><span class="code-lang">shell — requires mysql client installed on host</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+              <pre>mysql <span class="flag">-h</span> <span class="val">127.0.0.1</span> <span class="flag">-P</span> <span class="val">3306</span> \
+     <span class="flag">-u</span> <span class="val">appuser</span> <span class="flag">-p</span><span class="str">apppass</span> <span class="val">appdb</span></pre>
+            </div>
+            <div class="callout info">
+              <span class="callout-icon">ℹ️</span>
+              <div class="callout-body">Use <code style="font-family:var(--mono);font-size:12px">-h 127.0.0.1</code> (not <code style="font-family:var(--mono);font-size:12px">localhost</code>) to force a TCP connection. <code style="font-family:var(--mono);font-size:12px">localhost</code> on some systems triggers a socket connection, which won't work against the container.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Verify data persists across restarts</div>
+          <div class="step-desc">Stop and remove the container, then re-create it with the same volume. The data you inserted in step 5 should still be there, proving the volume is doing its job.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="comment"># Remove the container (NOT the volume)</span>
+<span class="cmd">docker</span> rm <span class="flag">-f</span> <span class="str">mysql-dev</span>
+
+<span class="comment"># Re-create with the same volume — data survives</span>
+<span class="cmd">docker</span> run <span class="flag">-d</span> \
+  <span class="flag">--name</span> <span class="str">mysql-dev</span> \
+  <span class="flag">-p</span> <span class="val">3306:3306</span> \
+  <span class="flag">-v</span> <span class="val">mysql-data:/var/lib/mysql</span> \
+  <span class="flag">-e</span> <span class="hl">MYSQL_ROOT_PASSWORD</span>=<span class="str">rootpass</span> \
+  <span class="flag">-e</span> <span class="hl">MYSQL_DATABASE</span>=<span class="str">appdb</span> \
+  <span class="flag">-e</span> <span class="hl">MYSQL_USER</span>=<span class="str">appuser</span> \
+  <span class="flag">-e</span> <span class="hl">MYSQL_PASSWORD</span>=<span class="str">apppass</span> \
+  <span class="val">mysql:8.4</span>
+
+<span class="comment"># Wait for ready, then query — row is still there</span>
+<span class="cmd">docker</span> exec <span class="flag">-it</span> <span class="str">mysql-dev</span> \
+  mysql <span class="flag">-u</span> <span class="val">appuser</span> <span class="flag">-p</span><span class="str">apppass</span> appdb \
+  <span class="flag">-e</span> <span class="sql-str">"SELECT * FROM users;"</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Connect as root for admin tasks</div>
+          <div class="step-desc">Some operations — creating extra users, inspecting all databases, checking server status — require the root account.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="cmd">docker</span> exec <span class="flag">-it</span> <span class="str">mysql-dev</span> \
+  mysql <span class="flag">-u</span> <span class="val">root</span> <span class="flag">-p</span><span class="str">rootpass</span></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">sql — inside root shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="comment">-- List all databases</span>
+<span class="sql-kw">SHOW</span> DATABASES;
+
+<span class="comment">-- List all users</span>
+<span class="sql-kw">SELECT</span> user, host <span class="sql-kw">FROM</span> mysql.user;
+
+<span class="comment">-- Check server status</span>
+<span class="sql-kw">SHOW</span> STATUS <span class="sql-kw">LIKE</span> <span class="sql-str">'Uptime'</span>;</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Clean up</div>
+          <div class="step-desc">Stop and remove the container. The volume is left intact by default — add the second command only if you want to wipe all data too.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button></div>
+            <pre><span class="comment"># Remove the container only</span>
+<span class="cmd">docker</span> rm <span class="flag">-f</span> <span class="str">mysql-dev</span>
+
+<span class="comment"># Also remove the data volume (wipes all data — irreversible)</span>
+<span class="cmd">docker</span> volume rm <span class="str">mysql-data</span></pre>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 5 — WHAT HAPPENED UNDER THE HOOD   -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔍</span>What happened under the hood</div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">📂</div>
+        <div class="flow-label">Volume mounted</div>
+        <div class="flow-desc">Docker created <code style="font-family:var(--mono);font-size:11px">mysql-data</code> and mounted it at <code style="font-family:var(--mono);font-size:11px">/var/lib/mysql</code> before the process started.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">⚙️</div>
+        <div class="flow-label">Entrypoint ran</div>
+        <div class="flow-desc">The image's entrypoint script detected an empty data dir and ran <code style="font-family:var(--mono);font-size:11px">mysqld --initialize</code>.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">🔑</div>
+        <div class="flow-label">Credentials applied</div>
+        <div class="flow-desc">Root password was set, <code style="font-family:var(--mono);font-size:11px">appdb</code> was created, and <code style="font-family:var(--mono);font-size:11px">appuser</code> was granted access — all from env vars.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🌐</div>
+        <div class="flow-label">Port published</div>
+        <div class="flow-desc">Docker's proxy bound host port 3306 to the container's port 3306, making MySQL reachable from the host.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🗄️</div>
+        <div class="flow-label">mysqld started</div>
+        <div class="flow-desc">After init, the entrypoint launched the main <code style="font-family:var(--mono);font-size:11px">mysqld</code> process and began accepting TCP connections.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">💾</div>
+        <div class="flow-label">Data persisted</div>
+        <div class="flow-desc">All writes (tables, rows) went to the volume. Removing the container left the volume — and all data — intact.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- SECTION 6 — WHAT YOU LEARNED               -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🎯</span>What you learned</div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How to configure MySQL on first boot using <code style="font-family:var(--mono);font-size:12px">-e</code> environment variables — no interactive setup needed</li>
+      <li><span class="chk"></span>The purpose of each MySQL env var: root password, database name, app user and password</li>
+      <li><span class="chk"></span>Why you must wait for the "ready for connections" log line before attempting any client connection</li>
+      <li><span class="chk"></span>How to connect from inside the container via <code style="font-family:var(--mono);font-size:12px">docker exec</code>, and from the host via a published port</li>
+      <li><span class="chk"></span>The <code style="font-family:var(--mono);font-size:12px">-h 127.0.0.1</code> vs <code style="font-family:var(--mono);font-size:12px">localhost</code> distinction when connecting from outside the container</li>
+      <li><span class="chk"></span>How a named volume at <code style="font-family:var(--mono);font-size:12px">/var/lib/mysql</code> keeps your data safe across container deletions and re-creations</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+
+function showTab(e, id) {
+  const wrap = e.target.closest('.step-content');
+  wrap.querySelectorAll('.client-tab').forEach(t => t.classList.remove('active'));
+  wrap.querySelectorAll('.client-panel').forEach(p => p.classList.remove('active'));
+  e.target.classList.add('active');
+  wrap.querySelector('#' + id).classList.add('active');
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 22 — Inspect Docker Volumes</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px;
+    color: var(--text-muted); text-decoration: none; transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 10px; padding: 3px 10px;
+    border-radius: 999px; background: var(--yellow-bg); color: var(--yellow);
+    border: 1px solid var(--yellow-border); letter-spacing: .04em; text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700;
+    letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--yellow); }
+  .hero-desc {
+    font-size: 16px; color: var(--text-muted); line-height: 1.65;
+    max-width: 560px; margin-bottom: 1.75rem;
+  }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px; color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon {
+    width: 22px; height: 22px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--yellow); background: var(--bg); flex-shrink: 0; z-index: 1;
+  }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin: .6rem 0;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .45rem .875rem; border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    background: transparent; border: none; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s;
+    display: flex; align-items: center; gap: 4px; letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text);
+  }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .hl      { color: var(--purple); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0;
+    font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info { background: var(--blue-bg); border-color: rgba(88,166,255,0.2); }
+  .callout.tip  { background: var(--green-bg); border-color: var(--green-border); }
+  .callout.warn { background: var(--yellow-bg); border-color: var(--yellow-border); }
+
+  /* ── Anatomy ── */
+  .anatomy {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 14px; display: flex; align-items: baseline;
+    flex-wrap: wrap; margin-bottom: 1.25rem; line-height: 2;
+  }
+  .anatomy-part { padding: 2px 6px; border-radius: 4px; font-size: 13px; margin: 2px 2px; }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-flag { background: rgba(188,140,255,0.14); color: var(--purple); }
+  .a-val  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag {
+    padding: 1px 8px; border-radius: 3px; font-size: 11px;
+    flex-shrink: 0; min-width: 64px; text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--purple); background: rgba(188,140,255,0.12); }
+  .anatomy-row .anatomy-tag.a-val  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header {
+    background: var(--surface); padding: .4rem .875rem;
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem; font-family: var(--mono);
+    font-size: 12.5px; line-height: 1.7; color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .p { color: var(--purple); }
+  .output-body .r { color: #f85149; }
+  .output-body .ann {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text-dim); font-style: italic;
+  }
+  .output-body .ann::before { content: '◀'; font-size: 10px; color: var(--yellow); font-style: normal; }
+
+  /* ── JSON field table ── */
+  .field-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: .75rem 0; }
+  .field-row { display: flex; align-items: flex-start; gap: 14px; padding: .75rem 1rem; border-bottom: 1px solid var(--border); }
+  .field-row:last-child { border-bottom: none; }
+  .field-key {
+    font-family: var(--mono); font-size: 12px; color: var(--blue);
+    background: var(--blue-bg); padding: 3px 8px; border-radius: 5px;
+    flex-shrink: 0; min-width: 110px; text-align: center;
+  }
+  .field-desc { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+  .field-desc strong { color: var(--text); font-weight: 500; }
+
+  /* ── Storage path diagram ── */
+  .path-diagram {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.25rem 1.5rem; margin: .75rem 0;
+    font-family: var(--mono); font-size: 12.5px;
+  }
+  .path-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: .5rem; }
+  .path-row:last-child { margin-bottom: 0; }
+  .path-os {
+    font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-dim); flex-shrink: 0; min-width: 70px;
+  }
+  .path-val { color: var(--green); line-height: 1.5; word-break: break-all; }
+  .path-note { font-size: 11.5px; color: var(--text-dim); margin-top: .1rem; padding-left: 80px; margin-bottom: .6rem; line-height: 1.5; }
+
+  /* ── Filter/format table ── */
+  .fmt-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: .75rem 0; }
+  .fmt-row { display: flex; align-items: flex-start; gap: 14px; padding: .75rem 1rem; border-bottom: 1px solid var(--border); }
+  .fmt-row:last-child { border-bottom: none; }
+  .fmt-code {
+    font-family: var(--mono); font-size: 12px; color: var(--purple);
+    background: rgba(188,140,255,0.08); padding: 3px 8px; border-radius: 5px;
+    flex-shrink: 0; min-width: 200px;
+  }
+  .fmt-desc { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+
+  /* ── What happened grid ── */
+  .flow-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px; margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .875rem; text-align: center;
+  }
+  .flow-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13.5px; color: var(--text-muted);
+    padding: .6rem .875rem; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px; line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px; height: 16px; border: 1.5px solid var(--border-strong);
+    border-radius: 3px; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── Next card ── */
+  .next-card {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.25rem;
+    text-decoration: none; transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); flex-shrink: 0; margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .fmt-row { flex-direction: column; gap: 6px; }
+    .fmt-code { min-width: unset; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 22</span>
+  <span class="nav-badge">Intermediate</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 22 &nbsp;·&nbsp; Intermediate
+    </div>
+    <h1>Inspect<br><span class="hl">Docker Volumes</span></h1>
+    <p class="hero-desc">List, inspect, and understand how named volumes work and where Docker stores their data on disk — using <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--yellow)">docker volume ls</code>, <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--yellow)">inspect</code>, <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--yellow)">--format</code>, and <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--yellow)">df</code>.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~10 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker installed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal / Shell
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🗂️</div>
+          <div class="concept-title">The volume subcommand group</div>
+        </div>
+        <div class="concept-body">
+          All volume operations live under <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker volume</code>: <strong>create</strong>, <strong>ls</strong>, <strong>inspect</strong>, <strong>rm</strong>, and <strong>prune</strong>. These manage volumes independently of any container — you never need a container running to list or inspect a volume.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">📍</div>
+          <div class="concept-title">Mountpoint — where data actually lives</div>
+        </div>
+        <div class="concept-body">
+          Every named volume has a <strong>Mountpoint</strong> — an absolute path on the host where Docker stores its contents. On Linux this is directly readable at <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/var/lib/docker/volumes/&lt;name&gt;/_data</code>. On Mac and Windows it's inside a hidden Linux VM, but the path is still reported accurately by inspect.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">🔠</div>
+          <div class="concept-title">Go template formatting</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker inspect --format</code> accepts <strong>Go templates</strong> to extract specific fields without parsing raw JSON. Useful in scripts where you only want, say, the Mountpoint and nothing else. Syntax: <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">{{.FieldName}}</code>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🏷️</div>
+          <div class="concept-title">Volume drivers</div>
+        </div>
+        <div class="concept-body">
+          The <strong>Driver</strong> field controls where and how the volume is stored. The default is <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">local</code> — data stays on this machine. Third-party drivers like <strong>rexray</strong> or <strong>nfs</strong> can store volume data on network shares or cloud block storage, making volumes portable across hosts.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🔍</div>
+          <div class="concept-title">Filtering and formatting ls output</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker volume ls</code> supports <strong>--filter</strong> to narrow by driver, label, or dangling status. Combining it with <strong>--format</strong> lets you produce clean, scriptable output — only the column you care about, nothing else.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🧹</div>
+          <div class="concept-title">Dangling volumes</div>
+        </div>
+        <div class="concept-body">
+          A <strong>dangling volume</strong> is one not referenced by any container. They accumulate silently over time and can consume significant disk space. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker volume prune</code> removes all dangling volumes at once — with a confirmation prompt before deleting anything.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      Command anatomy
+    </div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">volume inspect</span>
+        <span class="anatomy-part a-flag">--format</span>
+        <span class="anatomy-part a-val">'{{.Mountpoint}}'</span>
+        <span class="anatomy-part a-val">pgdata</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker</span>
+          <p>The CLI binary — how you talk to the Docker daemon from your terminal.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">volume inspect</span>
+          <p>Return the full JSON metadata for one or more named volumes.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--format</span>
+          <p>Apply a Go template to the JSON output, extracting only the fields you specify instead of printing the whole object.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-val">{{.Mountpoint}}</span>
+          <p>Go template expression that reads the <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">Mountpoint</code> field — the absolute host path where this volume's data lives on disk.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-val">pgdata</span>
+          <p>The name of the volume to inspect. Pass multiple names to inspect several at once.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: WHERE DOCKER STORES VOLUMES      -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🗺️</span>
+      Where Docker stores volume data
+    </div>
+
+    <div class="path-diagram">
+      <div class="path-row">
+        <span class="path-os">Linux</span>
+        <span class="path-val">/var/lib/docker/volumes/&lt;name&gt;/_data/</span>
+      </div>
+      <div class="path-note">Directly browsable as root. Every file inside is the volume's actual content.</div>
+      <div class="path-row">
+        <span class="path-os">Mac</span>
+        <span class="path-val">~/Library/Containers/com.docker.docker/Data/vms/0/data/docker/volumes/&lt;name&gt;/_data/</span>
+      </div>
+      <div class="path-note">Inside Docker Desktop's hidden Linux VM — not directly accessible from macOS Finder.</div>
+      <div class="path-row">
+        <span class="path-os">Windows</span>
+        <span class="path-val">\\wsl$\docker-desktop-data\data\docker\volumes\&lt;name&gt;\_data\</span>
+      </div>
+      <div class="path-note">Accessible via WSL2 path in Explorer — but treat it as read-only from Windows to avoid corruption.</div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body"><strong>docker volume inspect</strong> always reports the path inside the environment where dockerd runs. On Mac and Windows that's the VM path — which is why the Mountpoint shown won't match a host filesystem path you can browse directly.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Create a few volumes to work with</div>
+          <div class="step-desc">Set up three named volumes so the listing and filtering commands have something meaningful to operate on.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> volume create pgdata
+<span class="cmd">docker</span> volume create redisdata
+<span class="cmd">docker</span> volume create uploads</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">List all volumes</div>
+          <div class="step-desc">The default output shows driver and name. All three volumes you created should appear, along with any pre-existing ones from earlier tasks.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> volume ls</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">DRIVER    VOLUME NAME</span><br>
+<span class="g">local     pgdata</span><br>
+<span class="g">local     redisdata</span><br>
+<span class="g">local     uploads</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Inspect a single volume — full JSON</div>
+          <div class="step-desc">Get the complete metadata object Docker holds for a volume. Every field is explained in the reference table below.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> volume inspect pgdata</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">[</span><br>
+<span class="out">  {</span><br>
+<span class="out">    </span><span class="b">"CreatedAt"</span><span class="out">:  </span><span class="g">"2026-07-02T09:00:00Z"</span><span class="out">,   </span><span class="ann">when docker volume create ran</span><br>
+<span class="out">    </span><span class="b">"Driver"</span><span class="out">:     </span><span class="g">"local"</span><span class="out">,             </span><span class="ann">storage backend</span><br>
+<span class="out">    </span><span class="b">"Labels"</span><span class="out">:     </span><span class="g">null</span><span class="out">,               </span><span class="ann">key/value tags you can add</span><br>
+<span class="out">    </span><span class="b">"Mountpoint"</span><span class="out">: </span><span class="g">"/var/lib/docker/volumes/pgdata/_data"</span><span class="out">,</span><br>
+<span class="out">    </span><span class="b">"Name"</span><span class="out">:       </span><span class="g">"pgdata"</span><span class="out">,</span><br>
+<span class="out">    </span><span class="b">"Options"</span><span class="out">:    </span><span class="g">null</span><span class="out">,               </span><span class="ann">driver-specific config</span><br>
+<span class="out">    </span><span class="b">"Scope"</span><span class="out">:      </span><span class="g">"local"</span>             <span class="ann">local = this host only</span><br>
+<span class="out">  }</span><br>
+<span class="out">]</span>
+            </div>
+          </div>
+
+          <div class="field-table">
+            <div class="field-row">
+              <span class="field-key">CreatedAt</span>
+              <span class="field-desc">ISO 8601 timestamp of when the volume was created — not when it last had data written to it.</span>
+            </div>
+            <div class="field-row">
+              <span class="field-key">Driver</span>
+              <span class="field-desc"><strong>local</strong> stores data on this machine's filesystem. Third-party drivers (nfs, s3fs, rexray) can store data remotely.</span>
+            </div>
+            <div class="field-row">
+              <span class="field-key">Labels</span>
+              <span class="field-desc">Key/value metadata you attach at create time with <code style="font-family:var(--mono);font-size:11px">--label</code>. Useful for identifying which app or team owns a volume.</span>
+            </div>
+            <div class="field-row">
+              <span class="field-key">Mountpoint</span>
+              <span class="field-desc">The <strong>actual path on the host</strong> (or inside the VM) where the volume's files are stored. The directory Docker exposes into containers.</span>
+            </div>
+            <div class="field-row">
+              <span class="field-key">Options</span>
+              <span class="field-desc">Driver-specific configuration — e.g. NFS server address or mount options. Null for the default local driver.</span>
+            </div>
+            <div class="field-row">
+              <span class="field-key">Scope</span>
+              <span class="field-desc"><strong>local</strong> means the volume exists only on this Docker host. <strong>global</strong> (set by some drivers) means it's shared across a Swarm cluster.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Inspect multiple volumes at once</div>
+          <div class="step-desc">Pass several names to get a JSON array covering all of them in one call — handy for diffing config across volumes.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> volume inspect pgdata redisdata uploads</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">The result is a JSON array with one object per volume, in the order you listed them. Pipe to <code style="font-family:var(--mono);font-size:12px">jq</code> for pretty-printing and field extraction if it's installed.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Extract specific fields with --format</div>
+          <div class="step-desc">Use Go templates to pull only the data you need — ideal for shell scripts that don't want to parse JSON.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Just the host path where data lives</span>
+<span class="cmd">docker</span> volume inspect <span class="flag">--format</span> <span class="str">'{{.Mountpoint}}'</span> pgdata
+
+<span class="comment"># Name and driver on one line</span>
+<span class="cmd">docker</span> volume inspect <span class="flag">--format</span> <span class="str">'{{.Name}}  driver={{.Driver}}'</span> pgdata
+
+<span class="comment"># When was it created?</span>
+<span class="cmd">docker</span> volume inspect <span class="flag">--format</span> <span class="str">'{{.CreatedAt}}'</span> pgdata</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (first command)</div>
+            <div class="output-body">
+<span class="g">/var/lib/docker/volumes/pgdata/_data</span>
+            </div>
+          </div>
+
+          <div class="fmt-table">
+            <div class="fmt-row">
+              <span class="fmt-code">{{.Mountpoint}}</span>
+              <span class="fmt-desc">Absolute path on the host (or VM) where the volume's files are stored.</span>
+            </div>
+            <div class="fmt-row">
+              <span class="fmt-code">{{.Name}}</span>
+              <span class="fmt-desc">The volume's name as passed to <code style="font-family:var(--mono);font-size:11px">docker volume create</code>.</span>
+            </div>
+            <div class="fmt-row">
+              <span class="fmt-code">{{.Driver}}</span>
+              <span class="fmt-desc">Storage driver — <code style="font-family:var(--mono);font-size:11px">local</code> for the default, or a plugin name.</span>
+            </div>
+            <div class="fmt-row">
+              <span class="fmt-code">{{.CreatedAt}}</span>
+              <span class="fmt-desc">ISO 8601 creation timestamp.</span>
+            </div>
+            <div class="fmt-row">
+              <span class="fmt-code">{{.Scope}}</span>
+              <span class="fmt-desc"><code style="font-family:var(--mono);font-size:11px">local</code> or <code style="font-family:var(--mono);font-size:11px">global</code> depending on the driver.</span>
+            </div>
+            <div class="fmt-row">
+              <span class="fmt-code">{{json .Labels}}</span>
+              <span class="fmt-desc">Serialise the Labels map back to JSON — useful when labels hold structured data.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Filter the volume list</div>
+          <div class="step-desc"><code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker volume ls --filter</code> narrows output without inspecting every volume individually.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Show only volumes using the local driver</span>
+<span class="cmd">docker</span> volume ls <span class="flag">--filter</span> <span class="str">driver=local</span>
+
+<span class="comment"># Show only dangling volumes (not attached to any container)</span>
+<span class="cmd">docker</span> volume ls <span class="flag">--filter</span> <span class="str">dangling=true</span>
+
+<span class="comment"># Print just the volume names — one per line, no header</span>
+<span class="cmd">docker</span> volume ls <span class="flag">--format</span> <span class="str">'{{.Name}}'</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (last command)</div>
+            <div class="output-body">
+<span class="w">pgdata</span><br>
+<span class="w">redisdata</span><br>
+<span class="w">uploads</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Combine <code style="font-family:var(--mono);font-size:12px">--format '{{.Name}}'</code> with a shell loop to perform batch operations — like inspecting all volumes in a list without typing each name manually.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">7</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Check disk usage with docker system df</div>
+          <div class="step-desc">See exactly how much disk space volumes (and other Docker objects) are consuming on this host — and how much could be reclaimed.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> system df</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">TYPE            TOTAL   ACTIVE   SIZE      RECLAIMABLE</span><br>
+<span class="out">Images          4       2        1.23GB    512MB (41%)</span><br>
+<span class="out">Containers      2       1        14kB      0B (0%)</span><br>
+<span class="g">Local Volumes   3       0        148MB     148MB (100%)</span><br>
+<span class="out">Build Cache     12      0        230MB     230MB</span>
+            </div>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><strong>ACTIVE 0</strong> in the Volumes row means all three are dangling — not attached to any running container. <strong>Reclaimable: 100%</strong> means <code style="font-family:var(--mono);font-size:12px">docker volume prune</code> could free all of that space.</div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Verbose breakdown — one row per volume</span>
+<span class="cmd">docker</span> system df <span class="flag">-v</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (volumes section)</div>
+            <div class="output-body">
+<span class="out">VOLUME NAME   LINKS   SIZE</span><br>
+<span class="w">pgdata        0       144MB</span><br>
+<span class="w">redisdata     0       2.1MB</span><br>
+<span class="w">uploads       0       1.8MB</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">8</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Browse a volume's contents directly (Linux)</div>
+          <div class="step-desc">On Linux you can read the Mountpoint path and list the files Docker is actually storing. On Mac/Windows, use a temporary container to browse instead.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell — Linux only</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Get the path, then list its contents</span>
+MOUNT=$(<span class="cmd">docker</span> volume inspect <span class="flag">--format</span> <span class="str">'{{.Mountpoint}}'</span> pgdata)
+<span class="cmd">sudo</span> ls <span class="flag">-lah</span> <span class="hl">$MOUNT</span></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell — Mac / Windows alternative</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Spin up a temporary Alpine container to peek inside the volume</span>
+<span class="cmd">docker</span> run <span class="flag">--rm</span> \
+  <span class="flag">-v</span> <span class="str">pgdata:/inspect:ro</span> \
+  alpine \
+  sh <span class="flag">-c</span> <span class="str">'ls -lah /inspect'</span></pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">The <strong>:ro</strong> suffix makes the mount read-only inside the Alpine container — you can browse without risk of accidentally modifying the data.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">9</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Create a volume with a label</div>
+          <div class="step-desc">Labels let you tag volumes with metadata — who owns it, which app it belongs to, what environment it's for. This makes filtering and auditing far easier at scale.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> volume create \
+  <span class="flag">--label</span> <span class="str">app=myapp</span> \
+  <span class="flag">--label</span> <span class="str">env=production</span> \
+  myapp-prod-data</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Filter ls by label to find all production volumes</span>
+<span class="cmd">docker</span> volume ls <span class="flag">--filter</span> <span class="str">label=env=production</span>
+
+<span class="comment"># Inspect and print the labels as JSON</span>
+<span class="cmd">docker</span> volume inspect <span class="flag">--format</span> <span class="str">'{{json .Labels}}'</span> myapp-prod-data</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (second command)</div>
+            <div class="output-body">
+<span class="g">{"app":"myapp","env":"production"}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">10</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Clean up — prune dangling volumes and remove the rest</div>
+          <div class="step-desc">Remove all volumes created in this task. Use prune for the dangling ones, and rm for any still referenced.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Remove all dangling volumes (prompts for confirmation)</span>
+<span class="cmd">docker</span> volume prune
+
+<span class="comment"># Or remove specific volumes by name</span>
+<span class="cmd">docker</span> volume rm pgdata redisdata uploads myapp-prod-data</pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><strong>docker volume prune</strong> only removes volumes not referenced by any container — stopped or running. It will not touch a volume that a stopped container still points at. To remove those too, first run <code style="font-family:var(--mono);font-size:12px">docker container prune</code>, then prune volumes.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: WHAT JUST HAPPENED               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">🗃️</div>
+        <div class="flow-label">Daemon registry</div>
+        <div class="flow-desc">Docker stores volume metadata in its own database — <code style="font-family:var(--mono);font-size:11px">docker volume ls</code> reads from there, not the filesystem.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">📂</div>
+        <div class="flow-label">_data directory</div>
+        <div class="flow-desc">Each volume's files live in a <code style="font-family:var(--mono);font-size:11px">_data/</code> subdirectory under the volumes root — isolating content from Docker's own metadata files.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">🔬</div>
+        <div class="flow-label">inspect reads metadata</div>
+        <div class="flow-desc">The daemon returns the stored metadata object as JSON — no disk scan needed. Size data comes from a separate accounting layer.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🧮</div>
+        <div class="flow-label">system df scans</div>
+        <div class="flow-desc"><code style="font-family:var(--mono);font-size:11px">docker system df</code> walks the volume directories on disk to compute actual byte counts — which is why it can be slower than inspect.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🏷️</div>
+        <div class="flow-label">Labels stored in DB</div>
+        <div class="flow-desc">Labels are persisted in Docker's metadata store, not as files inside the volume — so they survive even if the volume's data directory is empty.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🧹</div>
+        <div class="flow-label">Prune checks refs</div>
+        <div class="flow-desc">Before deleting, prune checks the container-to-volume reference table. Any volume with at least one reference — even a stopped container — is skipped.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How to list all volumes and filter by driver, label, or dangling status with <code style="font-family:var(--mono);font-size:12px">docker volume ls</code></li>
+      <li><span class="chk"></span>What every field in <code style="font-family:var(--mono);font-size:12px">docker volume inspect</code> means — CreatedAt, Driver, Labels, Mountpoint, Options, Scope</li>
+      <li><span class="chk"></span>How to use <code style="font-family:var(--mono);font-size:12px">--format</code> with Go templates to extract specific fields for use in scripts</li>
+      <li><span class="chk"></span>Where Docker physically stores volume data on Linux, Mac, and Windows</li>
+      <li><span class="chk"></span>How to measure disk usage per volume with <code style="font-family:var(--mono);font-size:12px">docker system df -v</code></li>
+      <li><span class="chk"></span>How to browse a volume's contents directly (Linux) or via a temporary container (Mac/Windows)</li>
+      <li><span class="chk"></span>How to tag volumes with labels and filter by them, and how to safely prune dangling volumes</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

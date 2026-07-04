@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 37 — Scan Images for Vulnerabilities</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --blue-border: rgba(88,166,255,0.2);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --purple-border: rgba(188,140,255,0.2);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.08);
+    --red-border: rgba(248,81,73,0.2);
+    --orange: #e08a3a;
+    --orange-bg: rgba(224,138,58,0.1);
+    --orange-border: rgba(224,138,58,0.25);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  /* ── Nav ── */
+  .nav { border-bottom: 1px solid var(--border); padding: .875rem 2rem; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; background: rgba(13,17,23,0.92); backdrop-filter: blur(8px); z-index: 100; }
+  .nav-back { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); text-decoration: none; transition: color .15s; }
+  .nav-back:hover { color: var(--text); }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge { margin-left: auto; font-family: var(--mono); font-size: 10px; padding: 3px 10px; border-radius: 999px; background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); letter-spacing: .04em; text-transform: uppercase; }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero { padding: 3.5rem 0 3rem; border-bottom: 1px solid var(--border); margin-bottom: 3rem; }
+  .hero-eyebrow { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+  .hero h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem; }
+  .hero h1 .hl { color: var(--purple); }
+  .hero-desc { font-size: 16px; color: var(--text-muted); line-height: 1.65; max-width: 560px; margin-bottom: 1.75rem; }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 3rem; }
+  .section-label { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem; }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Severity scale ── */
+  .severity-scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 1rem 0; }
+  .sev-card { border-radius: 8px; padding: .75rem .875rem; text-align: center; border: 1px solid; }
+  .sev-card.critical { background: rgba(248,81,73,0.12);   border-color: var(--red-border);    }
+  .sev-card.high     { background: var(--orange-bg);        border-color: var(--orange-border); }
+  .sev-card.medium   { background: var(--yellow-bg);        border-color: var(--yellow-border); }
+  .sev-card.low      { background: var(--blue-bg);          border-color: var(--blue-border);   }
+  .sev-card.none     { background: var(--green-bg);         border-color: var(--green-border);  }
+  .sev-label { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: .35rem; font-weight: 700; }
+  .sev-card.critical .sev-label { color: var(--red); }
+  .sev-card.high     .sev-label { color: var(--orange); }
+  .sev-card.medium   .sev-label { color: var(--yellow); }
+  .sev-card.low      .sev-label { color: var(--blue); }
+  .sev-card.none     .sev-label { color: var(--green); }
+  .sev-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Tool comparison ── */
+  .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 1rem 0; }
+  .tool-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem; position: relative; overflow: hidden; }
+  .tool-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  .tool-card.scout::before { background: var(--blue); }
+  .tool-card.trivy::before { background: var(--purple); }
+  .tool-tag { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: .4rem; }
+  .tool-card.scout .tool-tag { color: var(--blue); }
+  .tool-card.trivy .tool-tag { color: var(--purple); }
+  .tool-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: .35rem; }
+  .tool-desc  { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; margin-bottom: .5rem; }
+  .tool-pros  { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+  .tool-pros span { display: block; }
+  .tool-pros .pro  { color: var(--green); }
+  .tool-pros .con  { color: var(--text-dim); }
+
+  /* ── CVE anatomy ── */
+  .cve-anatomy { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono); }
+  .cve-display { font-size: clamp(1.1rem, 3vw, 1.6rem); font-weight: 700; letter-spacing: -0.01em; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0; flex-wrap: wrap; line-height: 2; }
+  .cve-part { padding: 2px 8px; border-radius: 4px; font-size: 1em; margin: 2px 2px; }
+  .cp-prefix { background: rgba(248,81,73,0.15);   color: var(--red); }
+  .cp-year   { background: rgba(227,179,65,0.12);   color: var(--yellow); }
+  .cp-id     { background: rgba(188,140,255,0.12);  color: var(--purple); }
+  .cve-rows { display: flex; flex-direction: column; gap: 6px; }
+  .cve-row  { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .cve-tag  { padding: 1px 8px; border-radius: 3px; font-size: 11px; flex-shrink: 0; min-width: 56px; text-align: center; }
+  .cve-row .cp-prefix { color: var(--red);    background: rgba(248,81,73,0.1); font-family: var(--mono); }
+  .cve-row .cp-year   { color: var(--yellow); background: rgba(227,179,65,0.1); font-family: var(--mono); }
+  .cve-row .cp-id     { color: var(--purple); background: rgba(188,140,255,0.08); font-family: var(--mono); }
+  .cve-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--purple); background: var(--bg); flex-shrink: 0; z-index: 1; }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .code-header { display: flex; align-items: center; justify-content: space-between; padding: .45rem .875rem; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn { font-family: var(--mono); font-size: 10px; color: var(--text-dim); background: transparent; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s; display: flex; align-items: center; gap: 4px; letter-spacing: .04em; }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre { padding: .875rem 1rem; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text); }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .key     { color: var(--blue); }
+  pre .val     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .dim     { color: var(--text-dim); }
+  pre .crit    { color: var(--red); font-weight: 700; }
+  pre .high    { color: var(--orange); }
+  pre .med     { color: var(--yellow); }
+  pre .low     { color: var(--blue); }
+  pre .ok      { color: var(--green); }
+
+  /* ── Callouts ── */
+  .callout { border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0; font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px; }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info   { background: var(--blue-bg);   border-color: var(--blue-border); }
+  .callout.tip    { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn   { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.danger { background: var(--red-bg);    border-color: var(--red-border); }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header { background: var(--surface); padding: .4rem .875rem; font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .output-body { padding: .875rem 1rem; font-family: var(--mono); font-size: 12.5px; line-height: 1.8; color: #8b949e; }
+  .output-body .crit { color: var(--red);    font-weight: 700; }
+  .output-body .high { color: var(--orange); }
+  .output-body .med  { color: var(--yellow); }
+  .output-body .low  { color: var(--blue); }
+  .output-body .ok   { color: var(--green); }
+  .output-body .w    { color: var(--text); }
+  .output-body .b    { color: var(--blue); }
+  .output-body .d    { color: var(--text-dim); }
+  .output-body .p    { color: var(--purple); }
+
+  /* ── Remediation table ── */
+  .remed-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 1rem 0; }
+  .remed-header { display: grid; grid-template-columns: 2fr 1fr 2fr; padding: .5rem 1rem; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .remed-header span { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .08em; text-transform: uppercase; }
+  .remed-row { display: grid; grid-template-columns: 2fr 1fr 2fr; padding: .65rem 1rem; border-bottom: 1px solid var(--border); align-items: start; gap: 8px; }
+  .remed-row:last-child { border-bottom: none; }
+  .remed-cause  { font-size: 13px; color: var(--text-muted); }
+  .remed-sev    { font-family: var(--mono); font-size: 11px; font-weight: 600; }
+  .remed-fix    { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+  .remed-fix code { font-family: var(--mono); font-size: 11.5px; background: rgba(255,255,255,0.05); padding: 1px 4px; border-radius: 3px; }
+
+  /* ── CVSS visual ── */
+  .cvss-bar { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; margin: 1rem 0; }
+  .cvss-title { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .08em; text-transform: uppercase; margin-bottom: .875rem; }
+  .cvss-track { height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--green) 0%, var(--blue) 25%, var(--yellow) 50%, var(--orange) 70%, var(--red) 90%); margin-bottom: .5rem; position: relative; }
+  .cvss-labels { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+  .cvss-ranges { display: flex; justify-content: space-between; margin-top: .4rem; font-family: var(--mono); font-size: 10px; }
+  .cvss-range { text-align: center; }
+  .cvss-range.none { color: var(--green); }
+  .cvss-range.low  { color: var(--blue); }
+  .cvss-range.med  { color: var(--yellow); }
+  .cvss-range.high { color: var(--orange); }
+  .cvss-range.crit { color: var(--red); }
+
+  /* ── Flow grid ── */
+  .flow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 1rem 0; }
+  .flow-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .875rem; text-align: center; }
+  .flow-num  { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label{ font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--text-muted); padding: .6rem .875rem; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; line-height: 1.5; }
+  .checklist li .chk { width: 16px; height: 16px; border: 1.5px solid var(--border-strong); border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Task nav ── */
+  .task-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .prev-card, .next-card { display: flex; align-items: center; gap: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; text-decoration: none; transition: border-color .15s; }
+  .prev-card:hover, .next-card:hover { border-color: var(--border-strong); }
+  .nav-arrow { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center; color: var(--text-muted); flex-shrink: 0; }
+  .next-card .nav-arrow { margin-left: auto; }
+  .nav-card-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .nav-card-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .severity-scale { grid-template-columns: repeat(3, 1fr); }
+    .tool-grid { grid-template-columns: 1fr; }
+    .remed-header, .remed-row { grid-template-columns: 1.5fr 1fr; }
+    .remed-header span:last-child, .remed-row .remed-fix { display: none; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .task-nav { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 37</span>
+  <span class="nav-badge">Advanced</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 37 &nbsp;·&nbsp; Advanced
+    </div>
+    <h1>Scan Images for<br><span class="hl">Vulnerabilities</span></h1>
+    <p class="hero-desc">Use <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--blue)">docker scout</code> and <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--purple)">trivy</code> to scan a custom image for known CVEs, read the security report, and apply fixes that actually shrink your attack surface.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~25 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker Desktop 4.17+ or Trivy installed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        A built image to scan (Task 15+)
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">📖</span>Required concepts</div>
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--red-bg)">🐛</div>
+          <div class="concept-title">What is a CVE?</div>
+        </div>
+        <div class="concept-body">
+          A <strong>Common Vulnerability and Exposure</strong> is a publicly disclosed security flaw in a specific version of a piece of software, assigned a unique ID like <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">CVE-2024-21626</code>. The National Vulnerability Database rates each one's severity. When your image contains an OS package or npm library with a known CVE, scanners flag it.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--blue-bg)">🔍</div>
+          <div class="concept-title">How Image Scanners Work</div>
+        </div>
+        <div class="concept-body">
+          A scanner unpacks your image layers and builds an inventory of every installed package — OS packages (apt/apk), language packages (npm/pip/gems), and binaries. It then cross-references each version against a <strong>vulnerability database</strong> (NVD, GitHub Advisories, OS vendor advisories) to find known CVEs.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--purple-bg)">📊</div>
+          <div class="concept-title">CVSS Score</div>
+        </div>
+        <div class="concept-body">
+          The <strong>Common Vulnerability Scoring System</strong> gives each CVE a numeric score from 0 to 10. It measures exploitability (how easy to attack?), impact (how bad if exploited?), and scope (can it jump to other systems?). Scores map to severity labels: Critical, High, Medium, Low.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--yellow-bg)">🩹</div>
+          <div class="concept-title">Fixed vs Unfixed CVEs</div>
+        </div>
+        <div class="concept-body">
+          A scanner distinguishes between CVEs that have a <strong>patched version available</strong> (actionable — upgrade the package) and ones that are <strong>unfixed</strong> (the vendor hasn't released a patch yet). Focus on fixed CVEs first — they're the easiest wins with the highest impact.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--green-bg)">🏔️</div>
+          <div class="concept-title">Base Image is the Biggest Factor</div>
+        </div>
+        <div class="concept-body">
+          Most CVEs in a container image come from the <strong>OS base layer</strong>, not your code. Switching from <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node:20</code> (Debian, ~200 packages) to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node:20-alpine</code> (musl libc, ~15 packages) or <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node:20-slim</code> typically eliminates 80–90% of all CVEs in one change.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--orange-bg)">📌</div>
+          <div class="concept-title">Pinning and Rebuilding</div>
+        </div>
+        <div class="concept-body">
+          New CVEs are disclosed constantly. An image that was clean last month may have Critical vulnerabilities today. The remedy is to <strong>rebuild regularly</strong> (at least weekly in CI) using a fresh pull of the base image — even if your code hasn't changed — so OS packages stay up to date.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: CVE ANATOMY                      -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔬</span>Anatomy of a CVE identifier</div>
+
+    <div class="cve-anatomy">
+      <div class="cve-display">
+        <span class="cve-part cp-prefix">CVE</span>
+        <span style="color:var(--text-dim);font-size:.9em;margin:0 2px;">-</span>
+        <span class="cve-part cp-year">2024</span>
+        <span style="color:var(--text-dim);font-size:.9em;margin:0 2px;">-</span>
+        <span class="cve-part cp-id">21626</span>
+      </div>
+      <div class="cve-rows">
+        <div class="cve-row">
+          <span class="cve-tag cp-prefix">CVE</span>
+          <p>Common Vulnerabilities and Exposures — the naming standard maintained by MITRE. All public vulnerability databases use this ID format.</p>
+        </div>
+        <div class="cve-row">
+          <span class="cve-tag cp-year">year</span>
+          <p>The year the vulnerability was assigned a CVE ID — <em>not</em> necessarily when the bug was introduced or discovered. High-profile bugs from the past often get IDs years later.</p>
+        </div>
+        <div class="cve-row">
+          <span class="cve-tag cp-id">number</span>
+          <p>A sequential identifier within that year. Lower numbers were assigned earlier. Numbers above 10000 are common for busy years. Look up any CVE at <code style="font-family:var(--mono);font-size:11px;background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">nvd.nist.gov</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: SEVERITY SCALE                   -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">📊</span>CVSS severity scale</div>
+
+    <div class="cvss-bar">
+      <div class="cvss-title">CVSS v3 Score → Severity</div>
+      <div class="cvss-track"></div>
+      <div class="cvss-labels">
+        <span>0.0</span><span>3.9</span><span>6.9</span><span>8.9</span><span>10.0</span>
+      </div>
+      <div class="cvss-ranges" style="margin-top:.6rem;">
+        <span class="cvss-range none">None</span>
+        <span class="cvss-range low">Low</span>
+        <span class="cvss-range med">Medium</span>
+        <span class="cvss-range high">High</span>
+        <span class="cvss-range crit">Critical</span>
+      </div>
+    </div>
+
+    <div class="severity-scale">
+      <div class="sev-card critical">
+        <div class="sev-label">Critical</div>
+        <div class="sev-desc">9.0–10.0. Remote code execution, no auth required. Fix immediately.</div>
+      </div>
+      <div class="sev-card high">
+        <div class="sev-label">High</div>
+        <div class="sev-desc">7.0–8.9. Serious impact. Plan fix within days.</div>
+      </div>
+      <div class="sev-card medium">
+        <div class="sev-label">Medium</div>
+        <div class="sev-desc">4.0–6.9. Requires conditions. Fix in next release.</div>
+      </div>
+      <div class="sev-card low">
+        <div class="sev-label">Low</div>
+        <div class="sev-desc">0.1–3.9. Minimal impact. Fix when convenient.</div>
+      </div>
+      <div class="sev-card none">
+        <div class="sev-label">None</div>
+        <div class="sev-desc">0.0. No security impact. Informational only.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: TOOL COMPARISON                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🛠️</span>Docker Scout vs Trivy</div>
+
+    <div class="tool-grid">
+      <div class="tool-card scout">
+        <div class="tool-tag">Built-in · Docker</div>
+        <div class="tool-title">Docker Scout</div>
+        <div class="tool-desc">First-party scanner integrated into Docker Desktop and the CLI. Zero setup if you already have Docker Desktop 4.17+.</div>
+        <div class="tool-pros">
+          <span class="pro">✓ Zero install — ships with Docker Desktop</span>
+          <span class="pro">✓ Web UI in Docker Desktop dashboard</span>
+          <span class="pro">✓ Integrates with Docker Hub policy gates</span>
+          <span class="pro">✓ Remediation suggestions built in</span>
+          <span class="con">· Free tier limited to 3 local images</span>
+          <span class="con">· Requires Docker account for full features</span>
+        </div>
+      </div>
+      <div class="tool-card trivy">
+        <div class="tool-tag">Open Source · Aqua Security</div>
+        <div class="tool-title">Trivy</div>
+        <div class="tool-desc">Best-in-class open source scanner. Scans images, filesystems, git repos, Kubernetes clusters, and IaC files.</div>
+        <div class="tool-pros">
+          <span class="pro">✓ Fully open source, no account needed</span>
+          <span class="pro">✓ Scans OS pkgs, npm, pip, gems, cargo</span>
+          <span class="pro">✓ JSON/SARIF output for CI pipelines</span>
+          <span class="pro">✓ Also scans Dockerfiles and Compose files</span>
+          <span class="con">· Requires separate install</span>
+          <span class="con">· No built-in GUI</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body">This task covers both tools. <strong>Use Scout</strong> for quick local scans with Docker Desktop. <strong>Use Trivy</strong> in CI pipelines and when you need JSON output, threshold enforcement, or to scan non-image targets.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: STEP-BY-STEP                     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🪜</span>Step-by-step guide</div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Build a deliberately vulnerable image to scan</div>
+          <div class="step-desc">Start with an older base image — this guarantees a realistic number of CVEs to work with, so the scan output is interesting rather than empty.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Dockerfile.scan-demo</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Intentionally older image — produces scan results worth reading</span>
+FROM node:<span class="high">18</span>
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+
+EXPOSE 3000
+CMD [<span class="val">"node"</span>, <span class="val">"index.js"</span>]</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> build <span class="flag">-f</span> Dockerfile.scan-demo <span class="flag">-t</span> <span class="str">myapp:scan-demo</span> .</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Install Trivy</div>
+          <div class="step-desc">Trivy has packages for every platform. Choose the method for your OS:</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">macOS — homebrew</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>brew install aquasecurity/trivy/trivy</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Linux — install script</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">any platform — run as a container (no install)</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> run <span class="flag">--rm</span> <span class="flag">-v</span> /var/run/docker.sock:/var/run/docker.sock \
+  aquasec/trivy image myapp:scan-demo</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Running Trivy as a container is the fastest way to try it — no install, always the latest version. Mount the Docker socket so Trivy can read local images directly.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Run your first Trivy scan</div>
+          <div class="step-desc">The default scan checks OS packages and language dependencies. Trivy downloads its vulnerability database on the first run.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>trivy image myapp:scan-demo</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (abbreviated)</div>
+            <div class="output-body">
+<span class="d">2024-07-03 09:12:01 INFO Vulnerability scanning is enabled</span><br>
+<span class="d">2024-07-03 09:12:01 INFO Secret scanning is enabled</span><br>
+<span class="d">2024-07-03 09:12:03 INFO Detected OS: debian 12.5</span><br>
+<br>
+<span class="w">myapp:scan-demo (debian 12.5)</span><br>
+<span class="d">═══════════════════════════════════════════════════</span><br>
+<span class="w">Total: 87 (UNKNOWN: 0, LOW: 36, MEDIUM: 34, HIGH: 14, CRITICAL: 3)</span><br>
+<br>
+<span class="d">┌──────────────────┬───────────────┬──────────┬────────┬──────────────────────────┐</span><br>
+<span class="d">│ Library          │ Vulnerability │ Severity │ Status │ Installed → Fixed        │</span><br>
+<span class="d">├──────────────────┼───────────────┼──────────┼────────┼──────────────────────────┤</span><br>
+<span class="d">│ </span><span class="w">libssl3</span><span class="d">          │ </span><span class="crit">CVE-2024-5535</span><span class="d"> │ </span><span class="crit">CRITICAL</span><span class="d"> │ fixed  │ 3.0.11 → 3.0.14          │</span><br>
+<span class="d">│ </span><span class="w">libc6</span><span class="d">            │ </span><span class="crit">CVE-2024-2961</span><span class="d"> │ </span><span class="crit">CRITICAL</span><span class="d"> │ fixed  │ 2.36-9+deb12u4 → 2.36-9+ │</span><br>
+<span class="d">│ </span><span class="w">libexpat1</span><span class="d">        │ </span><span class="high">CVE-2023-52425</span><span class="d">│ </span><span class="high">HIGH</span><span class="d">     │ fixed  │ 2.5.0-1 → 2.6.2-1        │</span><br>
+<span class="d">│ </span><span class="w">zlib1g</span><span class="d">           │ </span><span class="high">CVE-2023-45853</span><span class="d">│ </span><span class="high">HIGH</span><span class="d">     │ fixed  │ 1:1.2.13 → 1:1.2.13.dfsg │</span><br>
+<span class="d">│ </span><span class="w">busybox</span><span class="d">          │ </span><span class="med">CVE-2023-42363</span><span class="d">│ </span><span class="med">MEDIUM</span><span class="d">   │ fixed  │ 1:1.35.0 → 1:1.36.1      │</span><br>
+<span class="d">│ </span><span class="w">...</span><span class="d">              │ </span><span class="low">...</span><span class="d">           │ </span><span class="low">LOW</span><span class="d">      │ ...    │ ...                      │</span><br>
+<span class="d">└──────────────────┴───────────────┴──────────┴────────┴──────────────────────────┘</span>
+            </div>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">87 CVEs including 3 Critical is typical for a <code style="font-family:var(--mono);font-size:12px">node:18</code> image that hasn't been rebuilt recently. Most are in OS packages your app never calls directly — which is exactly why base image choice matters so much.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Filter to only Critical and High</div>
+          <div class="step-desc">Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--severity</code> to focus on what needs immediate action. Ignoring LOW and MEDIUM noise helps you triage efficiently.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Show only Critical and High — your immediate to-do list</span>
+trivy image <span class="flag">--severity</span> CRITICAL,HIGH myapp:scan-demo
+
+<span class="comment"># Show only issues that have a fix available</span>
+trivy image <span class="flag">--severity</span> CRITICAL,HIGH <span class="flag">--ignore-unfixed</span> myapp:scan-demo</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">--ignore-unfixed</code> hides CVEs where no patch exists yet — there's nothing you can do about them right now. This gives you a clean actionable list.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Scan with Docker Scout</div>
+          <div class="step-desc">If you have Docker Desktop 4.17+ or the Scout CLI, run a quickview and a full CVE report. Scout is built into the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker</code> command — no separate install needed.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># One-line summary of CVE counts by severity</span>
+<span class="cmd">docker</span> scout quickview myapp:scan-demo
+
+<span class="comment"># Full CVE list with fix recommendations</span>
+<span class="cmd">docker</span> scout cves myapp:scan-demo
+
+<span class="comment"># Filter to Critical/High only</span>
+<span class="cmd">docker</span> scout cves <span class="flag">--only-severity</span> critical,high myapp:scan-demo
+
+<span class="comment"># Compare your image against the recommended base image</span>
+<span class="cmd">docker</span> scout recommendations myapp:scan-demo</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">docker scout quickview output</div>
+            <div class="output-body">
+<span class="d">    i  New version of Docker Scout CLI available</span><br><br>
+<span class="b">  ## Overview</span><br>
+<span class="d">                    │   Analyzed Image</span><br>
+<span class="d">  ────────────────────┼──────────────────────</span><br>
+<span class="d">    Target            │  myapp:scan-demo</span><br>
+<span class="d">      digest          │  sha256:a3f72b...</span><br>
+<span class="d">      platform        │ linux/amd64</span><br>
+<span class="d">      size            │ 392 MB</span><br>
+<span class="d">      packages        │ 412</span><br><br>
+<span class="b">  ## Packages and Vulnerabilities</span><br>
+<span class="d">  0C  </span><span class="crit">3H</span><span class="d"> 12M  36L  </span><span class="w">base-files</span><span class="d"> 12.4+deb12u5</span><br>
+<span class="d">  </span><span class="crit">2C  </span><span class="high">5H</span><span class="d">  3M   2L  </span><span class="w">libssl3</span><span class="d"> 3.0.11+dfsg-2</span><br>
+<span class="d">  </span><span class="crit">1C  </span><span class="high">2H</span><span class="d">  1M   0L  </span><span class="w">libc6</span><span class="d"> 2.36-9+deb12u4</span><br>
+<span class="d">  0C   0H  0M   0L  </span><span class="ok">express</span><span class="d"> 4.18.2</span><br>
+<br>
+<span class="d">  </span><span class="crit">3 Critical</span><span class="d">  </span><span class="high">14 High</span><span class="d">  34 Medium  36 Low</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Apply Fix #1 — switch to a minimal base image</div>
+          <div class="step-desc">The single highest-impact change: replace <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node:18</code> (Debian, full) with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node:20-alpine</code>. Alpine ships with ~15 OS packages versus Debian's ~200.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Dockerfile — after base image upgrade</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Before: node:18  → 87 CVEs, 3 Critical</span>
+<span class="comment"># After:  node:20-alpine → typically <5 CVEs, 0 Critical</span>
+FROM node:<span class="ok">20-alpine</span>
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci <span class="flag">--omit=dev</span>   <span class="comment"># omit devDependencies too</span>
+COPY . .
+
+EXPOSE 3000
+CMD [<span class="val">"node"</span>, <span class="val">"index.js"</span>]</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> build <span class="flag">-t</span> <span class="str">myapp:hardened</span> .
+trivy image <span class="flag">--severity</span> CRITICAL,HIGH myapp:hardened</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">scan after switching to alpine</div>
+            <div class="output-body">
+<span class="w">myapp:hardened (alpine 3.20.1)</span><br>
+<span class="d">═══════════════════════════════════════════</span><br>
+<span class="ok">Total: 0 (HIGH: 0, CRITICAL: 0)</span><br>
+<br>
+<span class="d">Node.js (node-pkg)</span><br>
+<span class="d">═══════════════════</span><br>
+<span class="ok">Total: 0 (HIGH: 0, CRITICAL: 0)</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">Zero Critical and High CVEs — down from 17 — with a single line change. The image size also dropped from ~392 MB to ~145 MB as a bonus.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Apply Fix #2 — audit and update npm packages</div>
+          <div class="step-desc">CVEs also come from your <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node_modules</code>. Use npm's built-in audit and Trivy's package scanner together.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre"><span class="comment"># Audit your local node_modules for known CVEs</span>
+npm audit
+
+<span class="comment"># Auto-fix compatible upgrades (semver-safe)</span>
+npm audit fix
+
+<span class="comment"># Also scan just the npm packages inside a built image</span>
+trivy image <span class="flag">--scanners</span> vuln <span class="flag">--pkg-types</span> library myapp:hardened</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">npm audit fix --force</code> will bump major versions that may include breaking changes. Review its output carefully before committing. Prefer the non-force version first.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Export a JSON report for CI</div>
+          <div class="step-desc">In a CI pipeline you need machine-readable output to gate a build. Trivy's JSON and SARIF formats integrate with GitHub Actions, GitLab, and most security platforms.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre"><span class="comment"># JSON report for programmatic processing</span>
+trivy image <span class="flag">--format</span> json <span class="flag">--output</span> scan-report.json myapp:hardened
+
+<span class="comment"># SARIF format for GitHub Code Scanning tab</span>
+trivy image <span class="flag">--format</span> sarif <span class="flag">--output</span> trivy-results.sarif myapp:hardened
+
+<span class="comment"># Exit with non-zero code if any CRITICAL found — blocks CI</span>
+trivy image <span class="flag">--exit-code</span> 1 <span class="flag">--severity</span> CRITICAL myapp:hardened</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">--exit-code 1</code> makes Trivy exit with a failure code when it finds CVEs above your threshold. This is how you enforce a policy: CI fails the build and blocks the image from being pushed to production.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Add a CI scan step to your workflow</div>
+          <div class="step-desc">A scan that only runs locally isn't a security policy. Add Trivy to your GitHub Actions workflow so every pushed image is scanned automatically.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">.github/workflows/scan.yml</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre">name: Build and Scan
+
+on: [push]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: <span class="val">docker build -t myapp:${{ github.sha }} .</span>
+
+      - name: Run Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: <span class="val">'myapp:${{ github.sha }}'</span>
+          format: <span class="val">'sarif'</span>
+          output: <span class="val">'trivy-results.sarif'</span>
+          severity: <span class="val">'CRITICAL,HIGH'</span>
+          exit-code: <span class="val">'1'</span>           <span class="comment"># fail build on findings</span>
+
+      - name: Upload results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()               <span class="comment"># upload even if scan failed</span>
+        with:
+          sarif_file: <span class="val">'trivy-results.sarif'</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">10</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Scan a Dockerfile for misconfigurations</div>
+          <div class="step-desc">Trivy can also lint your Dockerfile for security misconfigurations before you even build — catching issues like running as root, missing <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">HEALTHCHECK</code>, or pinning images to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">latest</code>.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre"><span class="comment"># Scan the Dockerfile itself for misconfigurations</span>
+trivy config .
+
+<span class="comment"># Scan a specific file</span>
+trivy config <span class="flag">--file-patterns</span> <span class="str">'dockerfile:Dockerfile'</span> .</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">example misconfiguration findings</div>
+            <div class="output-body">
+<span class="w">Dockerfile (dockerfile)</span><br>
+<span class="d">══════════════════════════════════════════</span><br>
+<span class="w">Tests: 23 (SUCCESSES: 20, FAILURES: 3)</span><br><br>
+<span class="high">HIGH: Specify at least 1 USER command</span><br>
+<span class="d">  Running containers as root is not recommended</span><br>
+<span class="d">  avd.aquasec.com/nvd/avd-ds-0002</span><br><br>
+<span class="med">MEDIUM: Add HEALTHCHECK instruction</span><br>
+<span class="d">  Ensure each container has a health check configured</span><br>
+<span class="d">  avd.aquasec.com/nvd/avd-ds-0026</span><br><br>
+<span class="low">LOW: Pin base image to digest, not just tag</span><br>
+<span class="d">  node:20-alpine could resolve to different layers over time</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: REMEDIATION PATTERNS             -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🩹</span>Common CVE sources and fixes</div>
+
+    <div class="remed-table">
+      <div class="remed-header">
+        <span>Root cause</span>
+        <span>Typical severity</span>
+        <span>Fix</span>
+      </div>
+      <div class="remed-row">
+        <div class="remed-cause">Outdated OS base image</div>
+        <div class="remed-sev" style="color:var(--red)">Critical/High</div>
+        <div class="remed-fix">Switch to <code>node:20-alpine</code> or rebuild weekly with <code>--pull</code></div>
+      </div>
+      <div class="remed-row">
+        <div class="remed-cause">Full Debian/Ubuntu base</div>
+        <div class="remed-sev" style="color:var(--orange)">High</div>
+        <div class="remed-fix">Switch to <code>-alpine</code> or <code>-slim</code> variant — removes 90% of packages</div>
+      </div>
+      <div class="remed-row">
+        <div class="remed-cause">Vulnerable npm dependency</div>
+        <div class="remed-sev" style="color:var(--orange)">High</div>
+        <div class="remed-fix">Run <code>npm audit fix</code> and update <code>package-lock.json</code></div>
+      </div>
+      <div class="remed-row">
+        <div class="remed-cause">devDependencies in image</div>
+        <div class="remed-sev" style="color:var(--yellow)">Medium</div>
+        <div class="remed-fix">Use <code>npm ci --omit=dev</code> or multistage build to exclude them</div>
+      </div>
+      <div class="remed-row">
+        <div class="remed-cause">Installed build tools (gcc, make)</div>
+        <div class="remed-sev" style="color:var(--yellow)">Medium</div>
+        <div class="remed-fix">Use multistage build — install tools in builder stage, copy only artifacts</div>
+      </div>
+      <div class="remed-row">
+        <div class="remed-cause">Unfixed CVE (no patch exists)</div>
+        <div class="remed-sev" style="color:var(--blue)">Varies</div>
+        <div class="remed-fix">Add to <code>.trivyignore</code> with expiry date and risk acknowledgement</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 7: WHAT HAPPENED                    -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔍</span>What happened under the hood</div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">📦</div>
+        <div class="flow-label">Layers unpacked</div>
+        <div class="flow-desc">Trivy pulled and unpacked each image layer into a virtual filesystem for analysis.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">📋</div>
+        <div class="flow-label">SBOM built</div>
+        <div class="flow-desc">Every installed package — OS, npm, pip, gems — was inventoried into a Software Bill of Materials.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">🗄️</div>
+        <div class="flow-label">DB queried</div>
+        <div class="flow-desc">Each package version was cross-referenced against NVD, GitHub Advisories, and OS vendor advisories.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">📊</div>
+        <div class="flow-label">CVEs matched</div>
+        <div class="flow-desc">Matching CVEs were collected with their CVSS scores, severity, and fixed-version data.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🖨️</div>
+        <div class="flow-label">Report rendered</div>
+        <div class="flow-desc">Results were formatted as a table, JSON, or SARIF depending on your output flag.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🚦</div>
+        <div class="flow-label">Exit code set</div>
+        <div class="flow-desc">With <code style="font-family:var(--mono);font-size:11px">--exit-code 1</code>, Trivy exited non-zero if findings exceeded the severity threshold.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 8: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🎯</span>What you learned</div>
+    <ul class="checklist">
+      <li><span class="chk"></span>What a CVE is, how CVSS scores map to severity levels, and the difference between fixed and unfixed findings</li>
+      <li><span class="chk"></span>How image scanners work — unpacking layers, building a package inventory, querying vulnerability databases</li>
+      <li><span class="chk"></span>How to run a full Trivy scan and filter by severity with <code style="font-family:var(--mono);font-size:12px">--severity</code> and <code style="font-family:var(--mono);font-size:12px">--ignore-unfixed</code></li>
+      <li><span class="chk"></span>How to use Docker Scout's <code style="font-family:var(--mono);font-size:12px">quickview</code>, <code style="font-family:var(--mono);font-size:12px">cves</code>, and <code style="font-family:var(--mono);font-size:12px">recommendations</code> subcommands</li>
+      <li><span class="chk"></span>Why switching from <code style="font-family:var(--mono);font-size:12px">node:18</code> to <code style="font-family:var(--mono);font-size:12px">node:20-alpine</code> eliminated 87 CVEs in a single change</li>
+      <li><span class="chk"></span>How to export SARIF and JSON reports and enforce a scan gate in GitHub Actions CI with <code style="font-family:var(--mono);font-size:12px">--exit-code 1</code></li>
+      <li><span class="chk"></span>How to scan a Dockerfile itself for security misconfigurations with <code style="font-family:var(--mono);font-size:12px">trivy config</code></li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

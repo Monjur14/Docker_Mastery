@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 15 — Run a Custom-Built Image</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --orange: #f0883e;
+    --orange-bg: rgba(240,136,62,0.1);
+    --orange-border: rgba(240,136,62,0.25);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--orange-bg);
+    color: var(--orange);
+    border: 1px solid var(--orange-border);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--orange); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-label .icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: .6rem;
+  }
+  .concept-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--orange);
+    background: var(--bg);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .step-line {
+    width: 1px;
+    flex: 1;
+    background: var(--border);
+    margin: 4px 0;
+    min-height: 16px;
+  }
+  .step:last-child .step-line { display: none; }
+  .step-content {
+    padding: 0 0 2rem 1rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .step-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: .35rem;
+    padding-top: 3px;
+  }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color .15s, background .15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .kw      { color: var(--orange); font-weight: 600; }
+  pre .val     { color: var(--green); }
+  pre .num     { color: var(--purple); }
+  pre .dim     { color: var(--text-dim); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px;
+    padding: .875rem 1rem;
+    margin: .75rem 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    border: 1px solid;
+    display: flex;
+    gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info  { background: var(--blue-bg);   border-color: rgba(88,166,255,0.2); }
+  .callout.tip   { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn  { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.note  { background: var(--orange-bg); border-color: var(--orange-border); }
+
+  /* ── Anatomy diagram ── */
+  .anatomy {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 13px;
+    display: flex;
+    align-items: baseline;
+    gap: 0;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    line-height: 2.2;
+  }
+  .anatomy-part {
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    margin: 2px 2px;
+  }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-flag { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .a-val  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-img  { background: rgba(240,136,62,0.12);  color: var(--orange); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12px;
+  }
+  .anatomy-tag {
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    flex-shrink: 0;
+    min-width: 64px;
+    text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--purple); background: rgba(188,140,255,0.1); }
+  .anatomy-row .anatomy-tag.a-val  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .anatomy-tag.a-img  { color: var(--orange); background: rgba(240,136,62,0.1); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Workflow pipeline ── */
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 1rem 0;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .pipeline-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 110px;
+  }
+  .pipeline-box {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .75rem .5rem;
+    text-align: center;
+    position: relative;
+  }
+  .pipeline-icon { font-size: 1.4rem; margin-bottom: .3rem; }
+  .pipeline-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--orange);
+    letter-spacing: .04em;
+    margin-bottom: .2rem;
+  }
+  .pipeline-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+  .pipeline-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    color: var(--text-dim);
+    font-size: 16px;
+    flex-shrink: 0;
+    padding-bottom: 28px;
+  }
+
+  /* ── Output preview ── */
+  .output-preview {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .output-header {
+    background: var(--surface);
+    padding: .4rem .875rem;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .o { color: var(--orange); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .p { color: var(--purple); }
+
+  /* ── Flag reference table ── */
+  .flag-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: .75rem 0;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .flag-table th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: .5rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .flag-table td {
+    padding: .6rem .875rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .flag-table tr:last-child td { border-bottom: none; }
+  .flag-table tr { background: var(--surface); }
+  .flag-table tr:nth-child(even) { background: var(--surface-2); }
+  .td-flag { font-family: var(--mono); font-size: 12px; color: var(--yellow); white-space: nowrap; width: 130px; }
+  .td-what { color: var(--text); font-size: 13px; }
+  .td-ex   { color: var(--text-muted); font-size: 12px; font-family: var(--mono); }
+
+  /* ── What happened grid ── */
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .875rem;
+    text-align: center;
+  }
+  .flow-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: .35rem;
+  }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc  { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    padding: .6rem .875rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── Next / Prev cards ── */
+  .next-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    text-decoration: none;
+    transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  /* ── Tag anatomy side-by-side ── */
+  .tag-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: .75rem 0;
+  }
+  .tag-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .875rem 1rem;
+  }
+  .tag-card-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: .6rem;
+  }
+  .tag-card code {
+    display: block;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    margin-bottom: .5rem;
+    padding: .35rem .6rem;
+    background: var(--surface-2);
+    border-radius: 5px;
+    border: 1px solid var(--border);
+  }
+  .tag-card p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .tag-grid { grid-template-columns: 1fr; }
+    .pipeline { flex-direction: column; }
+    .pipeline-arrow { transform: rotate(90deg); padding: 4px 0; align-self: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 15</span>
+  <span class="nav-badge">Intermediate</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 15 &nbsp;·&nbsp; Intermediate
+    </div>
+    <h1>Run a Custom-<br><span class="hl">Built Image</span></h1>
+    <p class="hero-desc">Take the image from Task 14 and run it as a live container — mapping ports, naming the container, and understanding the full <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--orange)">build → tag → run</code> workflow end to end.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~15 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Task 14 completed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal + browser
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: THE FULL WORKFLOW                -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🗺️</span>
+      The full workflow
+    </div>
+
+    <p>Every custom Docker image follows the same three-stage lifecycle before it's accessible in a browser. This task walks you through all three stages in sequence.</p>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="pipeline-box">
+          <div class="pipeline-icon">🏗️</div>
+          <div class="pipeline-label">BUILD</div>
+          <div class="pipeline-desc">Dockerfile → image layers on disk</div>
+        </div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step">
+        <div class="pipeline-box">
+          <div class="pipeline-icon">🏷️</div>
+          <div class="pipeline-label">TAG</div>
+          <div class="pipeline-desc">Attach a human-readable name + version</div>
+        </div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step">
+        <div class="pipeline-box">
+          <div class="pipeline-icon">▶️</div>
+          <div class="pipeline-label">RUN</div>
+          <div class="pipeline-desc">Image → live container with port mapping</div>
+        </div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step">
+        <div class="pipeline-box">
+          <div class="pipeline-icon">🌐</div>
+          <div class="pipeline-label">ACCESS</div>
+          <div class="pipeline-desc">Hit the app in your browser</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(240,136,62,0.1)">🔌</div>
+          <div class="concept-title">Port Mapping — <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-p host:container</code></div>
+        </div>
+        <div class="concept-body">
+          Containers run in their own isolated network. To reach a service from your host machine, you must <strong>map</strong> a host port to the container port. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-p 8080:3000</code> means "traffic arriving at host port 8080 is forwarded to port 3000 inside the container."
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🏷️</div>
+          <div class="concept-title">Image Tags</div>
+        </div>
+        <div class="concept-body">
+          A tag is a label attached to an image: <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">name:version</code>. When no tag is specified, Docker defaults to <strong>:latest</strong>. Tags are how you distinguish versions of the same image — <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">my-node-app:1.0.0</code> vs <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">my-node-app:latest</code> can point to different layers.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🎯</div>
+          <div class="concept-title">Detached vs. Foreground Mode</div>
+        </div>
+        <div class="concept-body">
+          By default, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker run</code> attaches to the container's output — your terminal is "locked" to it. The <strong><code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-d</code> flag</strong> runs in detached (background) mode, printing only the container ID and returning your prompt. This is what you want for long-running servers.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">📛</div>
+          <div class="concept-title">Container Names</div>
+        </div>
+        <div class="concept-body">
+          Docker auto-generates quirky names like <em>laughing_morse</em> unless you provide one with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--name</code>. A predictable name makes it easy to reference the container in later commands — <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker logs my-app</code> instead of <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker logs a1b2c3d4</code>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">🔄</div>
+          <div class="concept-title"><code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--rm</code> — Auto-remove on Exit</div>
+        </div>
+        <div class="concept-body">
+          The <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--rm</code> flag tells Docker to delete the container automatically when it stops. Great for development and one-off runs — keeps <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker ps -a</code> from filling up with dead containers. <strong>Do not use in production</strong> if you need to inspect logs after a crash.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(240,136,62,0.1)">🌡️</div>
+          <div class="concept-title">Environment Variables at Runtime</div>
+        </div>
+        <div class="concept-body">
+          You can inject configuration into a running container with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-e KEY=VALUE</code>. In Task 14's server, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">process.env.PORT</code> reads the port from the environment — letting you override it without rebuilding the image.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      Command anatomy
+    </div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">run</span>
+        <span class="anatomy-part a-flag">-d</span>
+        <span class="anatomy-part a-flag">-p 8080:3000</span>
+        <span class="anatomy-part a-flag">--name my-app</span>
+        <span class="anatomy-part a-img">my-node-app</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker</span>
+          <p>The Docker CLI — your interface to the daemon.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">run</span>
+          <p>Creates and starts a new container from the specified image in one step.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-d</span>
+          <p>Detached mode — runs the container in the background and returns your terminal prompt immediately.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-p</span>
+          <p><code style="font-family:var(--mono);font-size:11px;background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">8080:3000</code> — maps host port 8080 to container port 3000. Visit <code style="font-family:var(--mono);font-size:11px;background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">localhost:8080</code> in your browser to reach the app.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--name</span>
+          <p>Assigns a human-readable name to the container instead of a random one. Use this name in all subsequent commands.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-img">my-node-app</span>
+          <p>The image to run — the one you built in Task 14. Docker appends <code style="font-family:var(--mono);font-size:11px;background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">:latest</code> if no tag is specified.</p>
+        </div>
+      </div>
+    </div>
+
+    <p style="margin-top:.75rem">Understanding the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-p</code> flag syntax:</p>
+    <div class="tag-grid">
+      <div class="tag-card">
+        <div class="tag-card-title">Host side (left)</div>
+        <code style="color:var(--yellow)">-p <span style="font-size:15px;color:var(--yellow)">8080</span>:3000</code>
+        <p>The port on <strong>your machine</strong>. This is what you type in the browser: <code style="font-family:var(--mono);font-size:11px">localhost:8080</code>. Choose any free port.</p>
+      </div>
+      <div class="tag-card">
+        <div class="tag-card-title">Container side (right)</div>
+        <code style="color:var(--orange)">-p 8080:<span style="font-size:15px;color:var(--orange)">3000</span></code>
+        <p>The port the app listens on <strong>inside the container</strong>. Must match the <code style="font-family:var(--mono);font-size:11px">EXPOSE</code> value in the Dockerfile.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Confirm the image exists</div>
+          <div class="step-desc">Make sure your Task 14 image is still on disk before trying to run it.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> images my-node-app</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">REPOSITORY     TAG       IMAGE ID       CREATED        SIZE</span><br>
+<span class="g">my-node-app    latest    a3f8b2c91d02   2 hours ago    178MB</span>
+            </div>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><strong>Nothing listed?</strong> Go back to Task 14 and run <code style="font-family:var(--mono);font-size:12px">docker build -t my-node-app .</code> from inside the <code style="font-family:var(--mono);font-size:12px">my-node-app/</code> project folder first.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Add a version tag</div>
+          <div class="step-desc">Apply a specific version tag to the image alongside the default <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">:latest</code>. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker tag</code> creates an <em>alias</em> — both names point to the same image layers, no data is duplicated.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> tag my-node-app my-node-app:<span class="val">1.0.0</span></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> images my-node-app</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output — two tags, same image ID</div>
+            <div class="output-body">
+<span class="w">REPOSITORY     TAG       IMAGE ID       CREATED        SIZE</span><br>
+<span class="g">my-node-app    1.0.0     a3f8b2c91d02   2 hours ago    178MB</span><br>
+<span class="b">my-node-app    latest    a3f8b2c91d02   2 hours ago    178MB</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Notice both rows share the <strong>same IMAGE ID</strong>. A tag is just a pointer — the underlying layer data is stored once.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Run the container in detached mode</div>
+          <div class="step-desc">Start the container in the background with port mapping and a named handle. This is the core command of the entire task.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">-p</span> <span class="num">8080</span>:<span class="num">3000</span> <span class="flag">--name</span> <span class="str">my-app</span> my-node-app</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="p">3e4f7a9b2c1d8e5f6a0b4c7d9e2f1a3b8c5d7e0f4a2b6c9d1e3f7a0b5c8d</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">A long hex string means it worked — that's the full container ID. Your terminal prompt returns immediately because of <code style="font-family:var(--mono);font-size:12px">-d</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Verify the container is running</div>
+          <div class="step-desc">Confirm the container started successfully and the port mapping is active.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> ps</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">CONTAINER ID   IMAGE          COMMAND              STATUS         PORTS                    NAMES</span><br>
+<span class="g">3e4f7a9b2c1d   my-node-app    "node server.js"     Up 5 seconds   <span class="o">0.0.0.0:8080->3000/tcp</span>   my-app</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">The <strong>PORTS</strong> column confirms the mapping: <code style="font-family:var(--mono);font-size:12px">0.0.0.0:8080->3000/tcp</code> means all host interfaces on port 8080 forward to the container's port 3000.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Hit the app in your browser</div>
+          <div class="step-desc">Open your browser and navigate to the mapped host port. You should see the response from your Node.js server.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">url</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre>http://localhost:8080</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected browser response</div>
+            <div class="output-body">
+<span class="g">Hello from inside Docker! 🐳</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">You can also verify from the terminal with <code style="font-family:var(--mono);font-size:12px">curl http://localhost:8080</code> — you'll see the same response.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Inspect the container's logs</div>
+          <div class="step-desc">The startup log from Node.js is captured by Docker. Fetch it by name — this is why naming your container matters.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> logs my-app</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">Server running on port 3000</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">7</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Override the port via environment variable</div>
+          <div class="step-desc">Your app reads <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">process.env.PORT</code>. Pass a different value at runtime with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-e</code> to change the port without touching the image. First, stop and remove the existing container.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Stop and remove the running container</span>
+<span class="cmd">docker</span> rm <span class="flag">-f</span> my-app
+
+<span class="comment"># Run again, overriding the port to 4000 inside the container</span>
+<span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">-p</span> <span class="num">8080</span>:<span class="num">4000</span> <span class="flag">-e</span> PORT=<span class="num">4000</span> <span class="flag">--name</span> <span class="str">my-app</span> my-node-app</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> logs my-app</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output — different port, same image</div>
+            <div class="output-body">
+<span class="g">Server running on port 4000</span>
+            </div>
+          </div>
+          <div class="callout note">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Same image, different runtime config — no rebuild required. This is the value of reading config from environment variables instead of hardcoding it.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">8</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Inspect the running container's full config</div>
+          <div class="step-desc">Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker inspect</code> to see every detail about the running container — its IP address, mounts, environment variables, and port bindings — as structured JSON.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Full JSON dump</span>
+<span class="cmd">docker</span> inspect my-app
+
+<span class="comment"># Extract just the port bindings with --format</span>
+<span class="cmd">docker</span> inspect <span class="flag">--format</span> <span class="str">'{{json .NetworkSettings.Ports}}'</span> my-app</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">port bindings output</div>
+            <div class="output-body">
+<span class="w">{"4000/tcp":[{"HostIp":"0.0.0.0","HostPort":"8080"}]}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">9</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Stop and clean up</div>
+          <div class="step-desc">Stop the running container and remove both the container and the tagged image when you're done.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Stop the container gracefully</span>
+<span class="cmd">docker</span> stop my-app
+
+<span class="comment"># Remove the stopped container</span>
+<span class="cmd">docker</span> rm my-app
+
+<span class="comment"># Optional: remove the image when done with this task</span>
+<span class="cmd">docker</span> rmi my-node-app my-node-app:<span class="val">1.0.0</span></pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">docker stop</code> sends <strong>SIGTERM</strong> to the process, giving it a chance to clean up gracefully (10s timeout). <code style="font-family:var(--mono);font-size:12px">docker kill</code> sends SIGKILL immediately — use that only when stop hangs.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: FLAG QUICK REFERENCE             -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📋</span>
+      docker run flag reference
+    </div>
+
+    <table class="flag-table">
+      <thead>
+        <tr>
+          <th>Flag</th>
+          <th>What it does</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-flag">-d</td>
+          <td class="td-what">Detached — run in background, return prompt</td>
+          <td class="td-ex">docker run -d …</td>
+        </tr>
+        <tr>
+          <td class="td-flag">-p host:container</td>
+          <td class="td-what">Publish a port from container to host</td>
+          <td class="td-ex">-p 8080:3000</td>
+        </tr>
+        <tr>
+          <td class="td-flag">--name</td>
+          <td class="td-what">Assign a predictable name to the container</td>
+          <td class="td-ex">--name my-app</td>
+        </tr>
+        <tr>
+          <td class="td-flag">-e KEY=VALUE</td>
+          <td class="td-what">Set an environment variable inside the container</td>
+          <td class="td-ex">-e PORT=4000</td>
+        </tr>
+        <tr>
+          <td class="td-flag">--rm</td>
+          <td class="td-what">Auto-delete container when it exits</td>
+          <td class="td-ex">docker run --rm …</td>
+        </tr>
+        <tr>
+          <td class="td-flag">-it</td>
+          <td class="td-what">Interactive + TTY — for shell access</td>
+          <td class="td-ex">docker run -it … sh</td>
+        </tr>
+        <tr>
+          <td class="td-flag">--restart</td>
+          <td class="td-what">Restart policy on crash or reboot</td>
+          <td class="td-ex">--restart unless-stopped</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: WHAT HAPPENED UNDER THE HOOD     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">🔍</div>
+        <div class="flow-label">Image located</div>
+        <div class="flow-desc">Docker found <code style="font-family:var(--mono);font-size:11px">my-node-app:latest</code> in the local image store — no pull needed.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">📦</div>
+        <div class="flow-label">Container created</div>
+        <div class="flow-desc">A writable layer was added on top of the read-only image layers.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">🌐</div>
+        <div class="flow-label">Network configured</div>
+        <div class="flow-desc">Docker set up port forwarding: host 8080 → container 3000.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">▶️</div>
+        <div class="flow-label">Process started</div>
+        <div class="flow-desc"><code style="font-family:var(--mono);font-size:11px">node server.js</code> ran as PID 1 inside the isolated container.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🔒</div>
+        <div class="flow-label">Isolated</div>
+        <div class="flow-desc">The container has its own filesystem, network stack, and process space.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🎯</div>
+        <div class="flow-label">Request served</div>
+        <div class="flow-desc">Your browser's HTTP request traversed the port mapping and reached Express.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 7: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>The full <code style="font-family:var(--mono);font-size:12px">build → tag → run</code> workflow for custom Docker images</li>
+      <li><span class="chk"></span>How port mapping works — <code style="font-family:var(--mono);font-size:12px">-p host:container</code> and the difference between the two sides</li>
+      <li><span class="chk"></span>How to run a container in detached mode with <code style="font-family:var(--mono);font-size:12px">-d</code> and check it with <code style="font-family:var(--mono);font-size:12px">docker ps</code></li>
+      <li><span class="chk"></span>How <code style="font-family:var(--mono);font-size:12px">docker tag</code> creates an alias — two names pointing to the same image layers</li>
+      <li><span class="chk"></span>How to inject runtime config with <code style="font-family:var(--mono);font-size:12px">-e</code> without rebuilding the image</li>
+      <li><span class="chk"></span>How to read logs, inspect container metadata, and stop containers cleanly</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

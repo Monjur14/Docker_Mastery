@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 2 — Pull and Run Nginx</title>
+<link rel="icon" type="image/png" href="/assets/docker.png" >
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --accent: #3fb950;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  /* ── Nav ── */
+  .nav { border-bottom: 1px solid var(--border); padding: .875rem 2rem; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; background: rgba(13,17,23,0.92); backdrop-filter: blur(8px); z-index: 100; }
+  .nav-back { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); text-decoration: none; transition: color .15s; }
+  .nav-back:hover { color: var(--text); }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge { margin-left: auto; font-family: var(--mono); font-size: 10px; padding: 3px 10px; border-radius: 999px; background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); letter-spacing: .04em; text-transform: uppercase; }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero { padding: 3.5rem 0 3rem; border-bottom: 1px solid var(--border); margin-bottom: 3rem; }
+  .hero-eyebrow { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .hero h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem; }
+  .hero h1 .hl { color: var(--accent); }
+  .hero-desc { font-size: 16px; color: var(--text-muted); line-height: 1.65; max-width: 560px; margin-bottom: 1.75rem; }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  h2 { font-size: 1.2rem; font-weight: 600; letter-spacing: -0.01em; margin-bottom: .5rem; color: var(--text); }
+  h3 { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: .4rem; }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+  code { font-family: var(--mono); font-size: 12px; background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem; }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--accent); background: var(--bg); flex-shrink: 0; z-index: 1; }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .code-header { display: flex; align-items: center; justify-content: space-between; padding: .45rem .875rem; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn { font-family: var(--mono); font-size: 10px; color: var(--text-dim); background: transparent; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s; display: flex; align-items: center; gap: 4px; letter-spacing: .04em; }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre { padding: .875rem 1rem; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.75; color: var(--text); }
+  pre .cmd { color: var(--blue); }
+  pre .flag { color: var(--yellow); }
+  pre .str { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .out { color: var(--text-muted); }
+  pre .hl { color: var(--purple); }
+  pre .num { color: #f97583; }
+
+  /* ── Callouts ── */
+  .callout { border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0; font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px; }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info { background: var(--blue-bg); border-color: rgba(88,166,255,0.2); }
+  .callout.tip  { background: var(--green-bg); border-color: var(--green-border); }
+  .callout.warn { background: var(--yellow-bg); border-color: var(--yellow-border); }
+
+  /* ── Anatomy ── */
+  .anatomy { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono); }
+  .anatomy-cmd { font-size: 14px; display: flex; align-items: baseline; gap: 0; flex-wrap: wrap; margin-bottom: 1.25rem; line-height: 2.2; }
+  .anatomy-part { padding: 2px 8px; border-radius: 4px; font-size: 13px; margin: 2px 2px; }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-img  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-port { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 8px; }
+  .anatomy-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag { padding: 1px 8px; border-radius: 3px; font-size: 11px; flex-shrink: 0; min-width: 64px; text-align: center; }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-img  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .anatomy-tag.a-port { color: var(--purple); background: rgba(188,140,255,0.1); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.55; }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header { background: var(--surface); padding: .4rem .875rem; font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .output-body { padding: .875rem 1rem; font-family: var(--mono); font-size: 12.5px; line-height: 1.75; color: #8b949e; }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .r { color: #f97583; }
+
+  /* ── Port diagram ── */
+  .port-diagram { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; }
+  .port-box { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; padding: .75rem 1.25rem; text-align: center; min-width: 120px; }
+  .port-box .label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+  .port-box .port-num { font-family: var(--mono); font-size: 20px; font-weight: 700; }
+  .port-box.host .port-num { color: var(--purple); }
+  .port-box.container .port-num { color: var(--green); }
+  .port-arrow { display: flex; flex-direction: column; align-items: center; padding: 0 1rem; gap: 4px; }
+  .port-arrow svg { color: var(--text-dim); }
+  .port-arrow span { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+
+  /* ── Flow grid ── */
+  .flow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 1rem 0; }
+  .flow-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .875rem; text-align: center; }
+  .flow-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Log anatomy table ── */
+  .log-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; margin: .75rem 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .log-table th { background: var(--surface-2); color: var(--text-dim); text-align: left; padding: .5rem .875rem; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; font-size: 10px; border-bottom: 1px solid var(--border); }
+  .log-table td { padding: .5rem .875rem; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.55; color: var(--text-muted); }
+  .log-table tr:last-child td { border-bottom: none; }
+  .log-table td:first-child { color: var(--yellow); white-space: nowrap; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--text-muted); padding: .6rem .875rem; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; line-height: 1.5; }
+  .checklist li .chk { width: 16px; height: 16px; border: 1.5px solid var(--border-strong); border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 2</span>
+  <span class="nav-badge">Beginner</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 02 &nbsp;·&nbsp; Beginner
+    </div>
+    <h1>Pull &amp; Run<br><span class="hl">Nginx Web Server</span></h1>
+    <p class="hero-desc">Fetch the official <code>nginx</code> image from Docker Hub and start it in the foreground. Watch live HTTP access logs stream to your terminal as you browse to it.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~10 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Task 1 complete
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal + Browser
+      </span>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- CONCEPTS                               -->
+  <!-- ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">📖</span>Required concepts</div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🌐</div>
+          <div class="concept-title">What is Nginx?</div>
+        </div>
+        <div class="concept-body">
+          Nginx (pronounced <em>"engine-x"</em>) is a high-performance <strong>web server</strong>, reverse proxy, and load balancer. It's one of the most widely deployed servers on the internet. Its official Docker image is minimal, well-maintained, and a perfect first real-world container to run.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">⬇️</div>
+          <div class="concept-title">docker pull vs docker run</div>
+        </div>
+        <div class="concept-body">
+          <strong>docker pull</strong> downloads an image from a registry to your local machine — nothing runs. <strong>docker run</strong> does a pull automatically if the image isn't local, then creates and starts a container. You can use them separately or let <code>run</code> handle both.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🔌</div>
+          <div class="concept-title">Port Mapping (-p flag)</div>
+        </div>
+        <div class="concept-body">
+          Containers are <strong>isolated networks</strong> by default — a port open inside a container is not visible on your host. The <code>-p HOST:CONTAINER</code> flag creates a mapping: traffic to <code>HOST</code> port on your machine is forwarded into <code>CONTAINER</code> port. For example, <code>-p 8080:80</code> means your browser visits <code>localhost:8080</code> but Nginx inside hears it on port 80.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">📺</div>
+          <div class="concept-title">Foreground vs Detached Mode</div>
+        </div>
+        <div class="concept-body">
+          By default <code>docker run</code> runs in <strong>foreground</strong> mode — your terminal is attached to the container's stdout/stderr and you see logs live. The container stops when you press <kbd>Ctrl+C</kbd>. Detached mode (<code>-d</code>) runs in the background — you get the prompt back immediately. This task runs in foreground so you can see live logs.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">📝</div>
+          <div class="concept-title">stdout / stderr & Container Logs</div>
+        </div>
+        <div class="concept-body">
+          Docker captures anything a process writes to <strong>stdout</strong> (standard output) and <strong>stderr</strong> (standard error) as the container's logs. Nginx is configured in its official image to write access logs to stdout and error logs to stderr — this is why you see requests appear in your terminal in real time.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🏷️</div>
+          <div class="concept-title">Image Tags</div>
+        </div>
+        <div class="concept-body">
+          An image tag specifies a version: <code>nginx:latest</code>, <code>nginx:1.25</code>, <code>nginx:alpine</code>. When you omit the tag, Docker defaults to <strong>:latest</strong>. The <code>alpine</code> variant is much smaller (under 50 MB vs ~190 MB) as it's built on Alpine Linux — a minimal distro designed for containers.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- PORT DIAGRAM                           -->
+  <!-- ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔌</span>How port mapping works</div>
+
+    <div class="port-diagram">
+      <div class="port-box host">
+        <div class="label">Your Machine</div>
+        <div class="port-num">:8080</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:4px">localhost:8080</div>
+      </div>
+      <div class="port-arrow">
+        <svg width="40" height="16" viewBox="0 0 40 16" fill="none">
+          <line x1="0" y1="8" x2="32" y2="8" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <polyline points="28,3 38,8 28,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>-p 8080:80</span>
+      </div>
+      <div class="port-box container">
+        <div class="label">Container</div>
+        <div class="port-num">:80</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:4px">nginx inside</div>
+      </div>
+    </div>
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body">The left side of <code>-p</code> is always the <strong>host port</strong> (your machine). The right side is the <strong>container port</strong> (inside Docker). You can map any available host port — if 8080 is busy, use 9090 or any free port above 1024.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- COMMAND ANATOMY                        -->
+  <!-- ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔬</span>Command anatomy</div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">run</span>
+        <span class="anatomy-part a-port">-p 8080:80</span>
+        <span class="anatomy-part a-img">nginx</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker</span>
+          <p>The Docker CLI binary.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">run</span>
+          <p>Pull (if needed) + create + start a container in foreground mode.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-port">-p 8080:80</span>
+          <p>Publish port — map host port <strong>8080</strong> → container port <strong>80</strong>. Nginx listens on 80 inside the container.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-img">nginx</span>
+          <p>Official Nginx image from Docker Hub. Shorthand for <code>docker.io/library/nginx:latest</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- STEP BY STEP                           -->
+  <!-- ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🪜</span>Step-by-step guide</div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Pull the Nginx image explicitly</div>
+          <div class="step-desc">This downloads the image without running it yet — great for understanding the pull step separately. Watch the layer download progress.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> pull nginx</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="b">Using default tag: latest</span><br>
+<span class="b">latest: Pulling from library/nginx</span><br>
+<span class="b">a803e7c4b030: Pull complete</span><br>
+<span class="b">8b625c47d697: Pull complete</span><br>
+<span class="b">4d3239651a63: Pull complete</span><br>
+<span class="b">0f816efa513d: Pull complete</span><br>
+<span class="b">01d159b8db2f: Pull complete</span><br>
+<span class="b">Digest: sha256:32fdf92b4e...</span><br>
+<span class="g">Status: Downloaded newer image for nginx:latest</span><br>
+<span class="w">docker.io/library/nginx:latest</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Each line like <strong>a803e7c4b030: Pull complete</strong> is one image layer being downloaded. Docker downloads them in parallel and caches each one separately.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Verify the image is stored locally</div>
+          <div class="step-desc">Confirm the image is in your local cache before running it.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> images nginx</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">REPOSITORY   TAG       IMAGE ID       CREATED        SIZE</span><br>
+<span class="g">nginx        latest    a8758716bb6a   2 weeks ago    187MB</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Run Nginx in foreground with port mapping</div>
+          <div class="step-desc">Start the container. Your terminal will show Nginx startup messages, then wait — it stays running and streams logs. <strong>Don't close this terminal yet.</strong></div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-p</span> <span class="num">8080</span>:<span class="num">80</span> nginx</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output — nginx startup</div>
+            <div class="output-body">
+<span class="w">/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration</span><br>
+<span class="w">/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/</span><br>
+<span class="w">/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh</span><br>
+<span class="w">/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh</span><br>
+<span class="g">/docker-entrypoint.sh: Configuration complete; ready for start up</span><br>
+<br>
+<span class="y">█</span> <span class="w">cursor blinks here — nginx is running and waiting for requests</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">The blinking cursor means Nginx is up and waiting. Your terminal is now "inside" the container's output stream — this is foreground mode.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Open your browser and visit Nginx</div>
+          <div class="step-desc">Open a browser and navigate to the address below. You should see the Nginx welcome page.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">url</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>http://localhost:8080</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">You should see a page that says <strong>"Welcome to nginx!"</strong> — Nginx is serving HTTP from inside a Docker container to your browser.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Watch the live access logs appear</div>
+          <div class="step-desc">Switch back to your terminal. You'll see an HTTP access log entry appear for every request your browser made.</div>
+          <div class="output-preview">
+            <div class="output-header">live log output in your terminal</div>
+            <div class="output-body">
+<span class="w">172.17.0.1 - - [01/Jul/2026:10:23:45 +0000] <span class="g">"GET / HTTP/1.1"</span> <span class="b">200</span> 615 "-" "Mozilla/5.0 ..."</span><br>
+<span class="w">172.17.0.1 - - [01/Jul/2026:10:23:45 +0000] <span class="g">"GET /favicon.ico HTTP/1.1"</span> <span class="r">404</span> 555 ...</span>
+            </div>
+          </div>
+
+          <p style="font-size:13.5px;margin-top:.75rem">Each log line follows the standard Nginx combined log format:</p>
+          <table class="log-table">
+            <thead><tr><th>Part</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td>172.17.0.1</td><td>IP address of the client (your browser, seen from inside Docker's network)</td></tr>
+              <tr><td>[01/Jul/2026:10:23:45 +0000]</td><td>Timestamp of the request in UTC</td></tr>
+              <tr><td>"GET / HTTP/1.1"</td><td>HTTP method, path, and protocol version</td></tr>
+              <tr><td>200</td><td>HTTP status code — 200 means OK (success)</td></tr>
+              <tr><td>615</td><td>Response size in bytes</td></tr>
+              <tr><td>"Mozilla/5.0 ..."</td><td>User-agent string — identifies your browser</td></tr>
+            </tbody>
+          </table>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Refresh the browser a few times — watch a new log line appear for each request. The <strong>404</strong> for <code>/favicon.ico</code> is normal; Nginx's default page has no favicon.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Also test with curl (optional)</div>
+          <div class="step-desc">Open a second terminal and use <code>curl</code> to send a request from the command line instead of a browser.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell — second terminal</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">curl</span> <span class="flag">-I</span> http://localhost:8080</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">HTTP/1.1 </span><span class="g">200 OK</span><br>
+<span class="w">Server: nginx/1.25.3</span><br>
+<span class="w">Date: Tue, 01 Jul 2026 10:25:00 GMT</span><br>
+<span class="w">Content-Type: text/html</span><br>
+<span class="w">Content-Length: 615</span><br>
+<span class="w">Connection: keep-alive</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><code>curl -I</code> sends a <strong>HEAD</strong> request — it fetches only the HTTP headers, not the body. The <code>Server: nginx/1.25.3</code> header confirms Nginx is responding from inside the container.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Stop the container</div>
+          <div class="step-desc">Go back to the terminal running Nginx and press <kbd style="background:var(--surface-2);border:1px solid var(--border-strong);border-radius:4px;padding:1px 7px;font-family:var(--mono);font-size:12px">Ctrl</kbd> + <kbd style="background:var(--surface-2);border:1px solid var(--border-strong);border-radius:4px;padding:1px 7px;font-family:var(--mono);font-size:12px">C</kbd>. Docker sends a SIGTERM signal to Nginx, which gracefully shuts down.</div>
+          <div class="output-preview">
+            <div class="output-header">terminal after Ctrl+C</div>
+            <div class="output-body">
+<span class="r">^C</span><br>
+<span class="w">2026/07/01 10:30:00 [notice] 1#1: signal 2 (SIGINT) received, exiting</span><br>
+<span class="w">2026/07/01 10:30:00 [notice] 1#1: gracefully shutting down</span><br>
+<span class="w">2026/07/01 10:30:00 [notice] 1#1: exit</span><br>
+<br>
+<span class="w">$</span> <span class="y">█</span>  <span class="out">← prompt is back</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Run it with a custom container name</div>
+          <div class="step-desc">Re-run Nginx with <code>--name</code> so it's easier to reference instead of using auto-generated names.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> run <span class="flag">--name</span> <span class="str">my-nginx</span> <span class="flag">-p</span> <span class="num">8080</span>:<span class="num">80</span> nginx</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Now <code>docker stop my-nginx</code>, <code>docker logs my-nginx</code>, and <code>docker rm my-nginx</code> all work by name — much friendlier than using a random ID.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Try the lightweight Alpine variant</div>
+          <div class="step-desc">Compare image sizes by pulling the Alpine-based Nginx — it's over 75% smaller.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Stop current container first</span>
+<span class="cmd">docker</span> stop my-nginx
+
+<span class="comment"># Pull and run the alpine variant</span>
+<span class="cmd">docker</span> run <span class="flag">--name</span> <span class="str">my-nginx-alpine</span> <span class="flag">-p</span> <span class="num">8080</span>:<span class="num">80</span> nginx:<span class="hl">alpine</span></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell — compare sizes</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> images nginx</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">REPOSITORY   TAG       IMAGE ID       CREATED        SIZE</span><br>
+<span class="g">nginx        alpine    b1b2c3d4e5f6   3 days ago     <strong>41.5MB</strong></span><br>
+<span class="w">nginx        latest    a8758716bb6a   2 weeks ago    187MB</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">10</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Clean up all containers and images</div>
+          <div class="step-desc">Stop and remove everything from this task to keep your system tidy.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Stop and remove named containers</span>
+<span class="cmd">docker</span> stop my-nginx my-nginx-alpine
+<span class="cmd">docker</span> rm my-nginx my-nginx-alpine
+
+<span class="comment"># Remove both nginx images</span>
+<span class="cmd">docker</span> rmi nginx nginx:alpine</pre>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- WHAT HAPPENED                          -->
+  <!-- ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔍</span>What happened under the hood</div>
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">⬇️</div>
+        <div class="flow-label">Pull layers</div>
+        <div class="flow-desc">Docker fetched 6 image layers from Docker Hub in parallel.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">📦</div>
+        <div class="flow-label">Container created</div>
+        <div class="flow-desc">A writable layer was stacked on top of the read-only Nginx image.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">🌐</div>
+        <div class="flow-label">Network bridged</div>
+        <div class="flow-desc">Docker created a virtual NIC and mapped host port 8080 → container port 80.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">▶️</div>
+        <div class="flow-label">Nginx started</div>
+        <div class="flow-desc">The entrypoint script ran, configured Nginx, and launched the master process.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">📝</div>
+        <div class="flow-label">Logs streamed</div>
+        <div class="flow-desc">Nginx wrote access logs to stdout → Docker captured them → your terminal displayed them.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">⏹️</div>
+        <div class="flow-label">Graceful stop</div>
+        <div class="flow-desc">Ctrl+C sent SIGTERM → Nginx drained connections and exited cleanly.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- WHAT YOU LEARNED                       -->
+  <!-- ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🎯</span>What you learned</div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How to pull an image explicitly with <code>docker pull</code> before running it</li>
+      <li><span class="chk"></span>How port mapping works — <code>-p HOST:CONTAINER</code> bridges your machine to the container</li>
+      <li><span class="chk"></span>The difference between foreground mode (logs visible) and detached mode (<code>-d</code>)</li>
+      <li><span class="chk"></span>How to read Nginx access logs and what each field means</li>
+      <li><span class="chk"></span>How to name containers with <code>--name</code> for easier management</li>
+      <li><span class="chk"></span>How image tags work — <code>nginx:alpine</code> vs <code>nginx:latest</code> and their size difference</li>
+      <li><span class="chk"></span>How to stop a foreground container with Ctrl+C and clean up with stop, rm, rmi</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>

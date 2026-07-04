@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 27 — Full Node.js + MongoDB Stack</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --orange: #f0883e;
+    --orange-bg: rgba(240,136,62,0.1);
+    --orange-border: rgba(240,136,62,0.25);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--orange-bg);
+    color: var(--orange);
+    border: 1px solid var(--orange-border);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--orange); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--orange);
+    background: var(--bg);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .code-filename { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color .15s, background .15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .kw      { color: var(--orange); font-weight: 600; }
+  pre .val     { color: var(--green); }
+  pre .num     { color: var(--purple); }
+  pre .dim     { color: var(--text-dim); }
+  pre .hl      { color: var(--purple); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px;
+    padding: .875rem 1rem;
+    margin: .75rem 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    border: 1px solid;
+    display: flex;
+    gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info  { background: var(--blue-bg);   border-color: rgba(88,166,255,0.2); }
+  .callout.tip   { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn  { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.note  { background: var(--orange-bg); border-color: var(--orange-border); }
+
+  /* ── Architecture diagram ── */
+  .arch-diagram {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.75rem 1.5rem;
+    margin: 1rem 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .arch-diagram::before {
+    content: 'ARCHITECTURE';
+    position: absolute;
+    top: .6rem;
+    right: .875rem;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .1em;
+    color: var(--text-dim);
+  }
+  .arch-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .arch-box {
+    border-radius: 8px;
+    padding: .75rem 1rem;
+    text-align: center;
+    min-width: 130px;
+    border: 1px solid;
+    position: relative;
+  }
+  .arch-box.host {
+    background: rgba(88,166,255,0.06);
+    border-color: rgba(88,166,255,0.2);
+  }
+  .arch-box.network {
+    background: rgba(188,140,255,0.06);
+    border-color: rgba(188,140,255,0.2);
+    padding: 1rem 1rem .75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .arch-box.container {
+    background: rgba(240,136,62,0.06);
+    border-color: rgba(240,136,62,0.2);
+    min-width: 115px;
+  }
+  .arch-box.mongo-container {
+    background: rgba(63,185,80,0.06);
+    border-color: rgba(63,185,80,0.2);
+    min-width: 115px;
+  }
+  .arch-box.volume {
+    background: rgba(227,179,65,0.06);
+    border-color: rgba(227,179,65,0.2);
+    min-width: 115px;
+  }
+  .arch-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: .3rem;
+  }
+  .arch-name { font-size: 13px; font-weight: 600; }
+  .arch-detail { font-size: 11px; color: var(--text-muted); font-family: var(--mono); margin-top: .2rem; }
+  .arch-arrow {
+    font-size: 16px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    padding: 0 2px;
+  }
+  .arch-network-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--purple);
+    margin-bottom: .5rem;
+  }
+  .arch-containers-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    justify-content: center;
+  }
+  .arch-volume-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 1rem;
+  }
+  .arch-volume-line {
+    flex: 1;
+    height: 1px;
+    border-top: 1px dashed rgba(227,179,65,0.3);
+  }
+
+  /* ── Output preview ── */
+  .output-preview {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .output-header {
+    background: var(--surface);
+    padding: .4rem .875rem;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .o { color: var(--orange); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .p { color: var(--purple); }
+
+  /* ── File tree ── */
+  .file-tree {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .file-tree-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .file-tree-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 2;
+    color: var(--text-muted);
+  }
+  .file-tree-body .dir  { color: var(--blue); }
+  .file-tree-body .file { color: var(--text); }
+  .file-tree-body .new  { color: var(--orange); }
+  .file-tree-body .dim  { color: var(--text-dim); }
+
+  /* ── Phase banner ── */
+  .phase-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--orange);
+    border-radius: 0 8px 8px 0;
+    padding: .75rem 1rem;
+    margin: 1.5rem 0 .5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .phase-banner-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--orange);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    background: var(--orange-bg);
+    border: 1px solid var(--orange-border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    flex-shrink: 0;
+  }
+  .phase-banner-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .phase-banner-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+    font-family: var(--mono);
+  }
+
+  /* ── What happened grid ── */
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .875rem;
+    text-align: center;
+  }
+  .flow-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc  { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    padding: .6rem .875rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── Next card ── */
+  .next-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    text-decoration: none;
+    transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  /* ── Command summary ── */
+  .cmd-summary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: .75rem 0;
+  }
+  .cmd-summary-header {
+    padding: .6rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.02);
+  }
+  .cmd-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: .6rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+  }
+  .cmd-row:last-child { border-bottom: none; }
+  .cmd-row code {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--blue);
+    flex-shrink: 0;
+    min-width: 200px;
+  }
+  .cmd-row span { color: var(--text-muted); line-height: 1.5; }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .arch-containers-row { flex-direction: column; align-items: center; }
+    .arch-row { flex-direction: column; align-items: center; }
+    .phase-banner-desc { display: none; }
+    .cmd-row { flex-direction: column; gap: 4px; }
+    .cmd-row code { min-width: unset; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 27</span>
+  <span class="nav-badge">Intermediate</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 27 &nbsp;·&nbsp; Intermediate
+    </div>
+    <h1>Full Node.js +<br><span class="hl">MongoDB Stack</span></h1>
+    <p class="hero-desc">Wire together a complete backend manually — a Node.js API container, a MongoDB container, a named volume for persistence, and a custom bridge network so they talk by name. No Compose yet: every command by hand.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~30 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Tasks 14–26 completed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal + text editor
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: ARCHITECTURE                     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🏗️</span>
+      Stack architecture
+    </div>
+
+    <p>Four Docker primitives cooperate to form a production-shaped backend. Every connection below is explicit and intentional — nothing is automatic.</p>
+
+    <div class="arch-diagram">
+      <!-- Host -->
+      <div class="arch-row" style="margin-bottom:1rem">
+        <div class="arch-box host" style="min-width:180px">
+          <div class="arch-label" style="color:var(--blue)">Your machine</div>
+          <div class="arch-name" style="color:var(--blue)">localhost:3000</div>
+          <div class="arch-detail">Browser / curl</div>
+        </div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-detail" style="font-family:var(--mono);font-size:11px;color:var(--text-dim)">-p 3000:3000</div>
+      </div>
+
+      <!-- Custom network wrapping both containers -->
+      <div class="arch-box network" style="width:100%">
+        <div class="arch-network-label">custom bridge network — app-network</div>
+        <div class="arch-containers-row">
+
+          <div class="arch-box container">
+            <div class="arch-label" style="color:var(--orange)">Container</div>
+            <div class="arch-name" style="color:var(--orange)">node-app</div>
+            <div class="arch-detail">Express API<br>port 3000</div>
+          </div>
+
+          <div class="arch-arrow">→<br><span style="font-size:10px;color:var(--text-dim);font-family:var(--mono)">mongodb://mongo:27017</span></div>
+
+          <div class="arch-box mongo-container">
+            <div class="arch-label" style="color:var(--green)">Container</div>
+            <div class="arch-name" style="color:var(--green)">mongo</div>
+            <div class="arch-detail">MongoDB<br>port 27017</div>
+          </div>
+
+        </div>
+        <div class="arch-volume-row">
+          <div class="arch-volume-line"></div>
+          <div class="arch-arrow" style="font-size:12px;color:var(--yellow)">↕</div>
+          <div class="arch-box volume" style="min-width:130px;padding:.5rem .75rem">
+            <div class="arch-label" style="color:var(--yellow)">Named volume</div>
+            <div class="arch-name" style="color:var(--yellow);font-size:12px">mongo-data</div>
+            <div class="arch-detail">/data/db</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout note">
+      <span class="callout-icon">🎯</span>
+      <div class="callout-body"><strong>The goal of this task</strong> is to build the stack above entirely by hand so you understand every wire. Task 28 collapses all of these commands into a single <code style="font-family:var(--mono);font-size:12px">docker-compose.yml</code>.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🌐</div>
+          <div class="concept-title">User-defined bridge networks</div>
+        </div>
+        <div class="concept-body">
+          When you create a custom network and attach containers to it, Docker gives each container a <strong>DNS name equal to its container name</strong>. The Node app can reach Mongo at <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">mongodb://mongo:27017</code> — no IP address needed, ever. The default bridge network does not have this DNS feature.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">💾</div>
+          <div class="concept-title">Named volumes for persistence</div>
+        </div>
+        <div class="concept-body">
+          MongoDB stores its data at <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/data/db</code> inside the container. Without a volume, all data is lost when the container is removed. A <strong>named volume</strong> lives independently of the container — delete and recreate the Mongo container as many times as you want, the data survives.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(240,136,62,0.1)">📦</div>
+          <div class="concept-title">Container startup order</div>
+        </div>
+        <div class="concept-body">
+          Containers start in parallel by default — MongoDB must be <strong>ready to accept connections</strong> before the Node app tries to connect. You control this manually here by starting Mongo first and adding retry logic in the app. Task 34 (Healthchecks) handles this more elegantly.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🔌</div>
+          <div class="concept-title">Inter-container communication</div>
+        </div>
+        <div class="concept-body">
+          Once on the same custom network, containers communicate over the <strong>internal virtual network</strong>. Mongo's port 27017 is never exposed to your host — only to other containers on <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">app-network</code>. This is the principle of least exposure.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: PROJECT FILES                    -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📁</span>
+      Project files
+    </div>
+
+    <p>You need three files for the Node.js app. MongoDB uses the official image with no custom Dockerfile.</p>
+
+    <div class="file-tree">
+      <div class="file-tree-header">📁 project layout</div>
+      <div class="file-tree-body">
+<span class="dir">node-mongo-app/</span><br>
+<span class="dim">├── </span><span class="new">Dockerfile</span><br>
+<span class="dim">├── </span><span class="new">package.json</span><br>
+<span class="dim">└── </span><span class="new">server.js</span>
+      </div>
+    </div>
+
+    <p style="margin-top:1rem">Create the folder and files below before running any Docker commands.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">package.json</span>
+        <button class="copy-btn" onclick="copyCode(this)">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          copy
+        </button>
+      </div>
+<pre>{
+  <span class="str">"name"</span>: <span class="str">"node-mongo-app"</span>,
+  <span class="str">"version"</span>: <span class="str">"1.0.0"</span>,
+  <span class="str">"main"</span>: <span class="str">"server.js"</span>,
+  <span class="str">"scripts"</span>: { <span class="str">"start"</span>: <span class="str">"node server.js"</span> },
+  <span class="str">"dependencies"</span>: {
+    <span class="str">"express"</span>: <span class="str">"^4.18.2"</span>,
+    <span class="str">"mongoose"</span>: <span class="str">"^8.0.0"</span>
+  }
+}</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">server.js</span>
+        <button class="copy-btn" onclick="copyCode(this)">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          copy
+        </button>
+      </div>
+<pre><span class="kw">const</span> express  = <span class="cmd">require</span>(<span class="str">'express'</span>);
+<span class="kw">const</span> mongoose = <span class="cmd">require</span>(<span class="str">'mongoose'</span>);
+
+<span class="kw">const</span> app  = <span class="cmd">express</span>();
+<span class="kw">const</span> PORT = process.env.PORT || <span class="num">3000</span>;
+<span class="kw">const</span> MONGO_URI = process.env.MONGO_URI
+  || <span class="str">'mongodb://mongo:27017/mydb'</span>;
+
+app.<span class="cmd">use</span>(express.<span class="cmd">json</span>());
+
+<span class="comment">// Simple Note model</span>
+<span class="kw">const</span> Note = mongoose.<span class="cmd">model</span>(<span class="str">'Note'</span>, {
+  text: String,
+  createdAt: { type: Date, default: Date.now }
+});
+
+<span class="comment">// GET  /notes  — list all notes</span>
+app.<span class="cmd">get</span>(<span class="str">'/notes'</span>, async (req, res) => {
+  <span class="kw">const</span> notes = await Note.<span class="cmd">find</span>().<span class="cmd">sort</span>({ createdAt: <span class="flag">-1</span> });
+  res.<span class="cmd">json</span>(notes);
+});
+
+<span class="comment">// POST /notes  — create a note</span>
+app.<span class="cmd">post</span>(<span class="str">'/notes'</span>, async (req, res) => {
+  <span class="kw">const</span> note = await Note.<span class="cmd">create</span>({ text: req.body.text });
+  res.<span class="cmd">status</span>(<span class="num">201</span>).<span class="cmd">json</span>(note);
+});
+
+<span class="comment">// GET  /health — readiness probe</span>
+app.<span class="cmd">get</span>(<span class="str">'/health'</span>, (req, res) => {
+  <span class="kw">const</span> state = mongoose.connection.readyState;
+  res.<span class="cmd">json</span>({ status: state === <span class="num">1</span> ? <span class="str">'ok'</span> : <span class="str">'degraded'</span>, mongo: state });
+});
+
+<span class="comment">// Connect to Mongo with retry, then start server</span>
+<span class="kw">async function</span> <span class="cmd">start</span>() {
+  <span class="kw">let</span> retries = <span class="num">5</span>;
+  <span class="kw">while</span> (retries) {
+    <span class="kw">try</span> {
+      await mongoose.<span class="cmd">connect</span>(MONGO_URI);
+      console.<span class="cmd">log</span>(<span class="str">'✅ Connected to MongoDB'</span>);
+      <span class="kw">break</span>;
+    } <span class="kw">catch</span> (err) {
+      console.<span class="cmd">log</span>(<span class="str">`⏳ Mongo not ready, retrying... (${retries} left)`</span>);
+      retries<span class="flag">--</span>;
+      await <span class="kw">new</span> <span class="cmd">Promise</span>(r => <span class="cmd">setTimeout</span>(r, <span class="num">3000</span>));
+    }
+  }
+  app.<span class="cmd">listen</span>(PORT, () => console.<span class="cmd">log</span>(<span class="str">`🚀 API on port ${PORT}`</span>));
+}
+
+<span class="cmd">start</span>();</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">Dockerfile</span>
+        <button class="copy-btn" onclick="copyCode(this)">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          copy
+        </button>
+      </div>
+<pre><span class="kw">FROM</span> <span class="val">node:20-alpine</span>
+<span class="kw">WORKDIR</span> <span class="val">/app</span>
+<span class="kw">COPY</span> <span class="val">package*.json ./</span>
+<span class="kw">RUN</span> npm install <span class="flag">--omit=dev</span>
+<span class="kw">COPY</span> <span class="val">. .</span>
+<span class="kw">EXPOSE</span> <span class="num">3000</span>
+<span class="kw">CMD</span> [<span class="str">"node"</span>, <span class="str">"server.js"</span>]</pre>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <!-- Phase 1 -->
+    <div class="phase-banner">
+      <span class="phase-banner-num">Phase 1</span>
+      <span class="phase-banner-title">Network &amp; Volume</span>
+      <span class="phase-banner-desc">infrastructure first</span>
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Create the custom bridge network</div>
+          <div class="step-desc">This network lets containers find each other by name. Create it before starting any containers.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> network create app-network</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body"><span class="p">7f3a1b9c2d4e5f6a8b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f</span></div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Inspect the new network at any time with <code style="font-family:var(--mono);font-size:12px">docker network inspect app-network</code> — it will list every container attached to it.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Create the named volume</div>
+          <div class="step-desc">The volume holds MongoDB's data directory. Creating it explicitly (rather than letting Docker auto-create it) is best practice — it makes the volume visible in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker volume ls</code> even before any container uses it.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> volume create mongo-data</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> volume inspect mongo-data</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">inspect output (truncated)</div>
+            <div class="output-body">
+<span class="w">[</span><br>
+<span class="w">  {</span><br>
+<span class="b">    "Name": "mongo-data",</span><br>
+<span class="b">    "Driver": "local",</span><br>
+<span class="b">    "Mountpoint": "/var/lib/docker/volumes/mongo-data/_data",</span><br>
+<span class="b">    "Scope": "local"</span><br>
+<span class="w">  }</span><br>
+<span class="w">]</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /phase 1 steps -->
+
+    <!-- Phase 2 -->
+    <div class="phase-banner">
+      <span class="phase-banner-num">Phase 2</span>
+      <span class="phase-banner-title">MongoDB Container</span>
+      <span class="phase-banner-desc">start the database first</span>
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Start the MongoDB container</div>
+          <div class="step-desc">Pull and run the official Mongo image, connecting it to the volume and the network. Mongo's port is intentionally <strong>not</strong> published to the host — it's only reachable by containers on <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">app-network</code>.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> \
+  <span class="flag">--name</span> mongo \
+  <span class="flag">--network</span> app-network \
+  <span class="flag">-v</span> mongo-data:/data/db \
+  <span class="flag">-e</span> MONGO_INITDB_DATABASE=mydb \
+  mongo:<span class="val">7</span></pre>
+          </div>
+          <div class="callout note">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body"><strong>No <code style="font-family:var(--mono);font-size:12px">-p</code> flag on Mongo</strong> — this is by design. Exposing the database port to the host is a security risk. The Node app reaches it over the internal Docker network instead.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Wait for MongoDB to be ready</div>
+          <div class="step-desc">MongoDB takes a few seconds to initialise its storage engine. Watch the logs until you see the <em>Waiting for connections</em> message before starting the Node app.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> logs <span class="flag">-f</span> mongo</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">watch for this line — then Ctrl+C</div>
+            <div class="output-body">
+<span class="dim">…</span><br>
+<span class="g">{"t":{"$date":"…"},"s":"I", "c":"NETWORK", "msg":"Waiting for connections","attr":{"port":27017}}</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">Once you see <strong>"Waiting for connections"</strong>, press <strong>Ctrl+C</strong> to stop following logs (the container keeps running). MongoDB is ready.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /phase 2 steps -->
+
+    <!-- Phase 3 -->
+    <div class="phase-banner">
+      <span class="phase-banner-num">Phase 3</span>
+      <span class="phase-banner-title">Node.js API Container</span>
+      <span class="phase-banner-desc">build and run the app</span>
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Build the Node.js image</div>
+          <div class="step-desc">From inside your <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node-mongo-app/</code> folder, build the app image.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Run from inside node-mongo-app/</span>
+<span class="cmd">docker</span> build <span class="flag">-t</span> node-mongo-app <span class="val">.</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Run the Node.js container on the same network</div>
+          <div class="step-desc">Connect it to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">app-network</code> so it can reach the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">mongo</code> container by name. The <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">MONGO_URI</code> env var points to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">mongo</code> — the container name, resolved by Docker DNS.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-d</span> \
+  <span class="flag">--name</span> node-app \
+  <span class="flag">--network</span> app-network \
+  <span class="flag">-p</span> <span class="num">3000</span>:<span class="num">3000</span> \
+  <span class="flag">-e</span> <span class="str">MONGO_URI=mongodb://mongo:27017/mydb</span> \
+  node-mongo-app</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">The hostname <strong><code style="font-family:var(--mono);font-size:12px">mongo</code></strong> in the URI resolves to the MongoDB container's internal IP because both containers share <code style="font-family:var(--mono);font-size:12px">app-network</code>. This only works on user-defined networks — not the default bridge.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">7</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Confirm both containers are running</div>
+          <div class="step-desc">Check that both services are up and the port mapping is active.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> ps</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">CONTAINER ID   IMAGE            COMMAND                  STATUS          PORTS                    NAMES</span><br>
+<span class="o">b1c2d3e4f5a6   node-mongo-app   "node server.js"         Up 12 seconds   0.0.0.0:3000->3000/tcp   node-app</span><br>
+<span class="g">a9b8c7d6e5f4   mongo:7          "docker-entrypoint.s…"   Up 45 seconds                            mongo</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /phase 3 steps -->
+
+    <!-- Phase 4 -->
+    <div class="phase-banner">
+      <span class="phase-banner-num">Phase 4</span>
+      <span class="phase-banner-title">Test &amp; Verify</span>
+      <span class="phase-banner-desc">hit the api and confirm persistence</span>
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">8</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Check the health endpoint</div>
+          <div class="step-desc">The <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/health</code> route reports whether the app connected to MongoDB. Wait a few seconds after starting for the retry logic to succeed.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">curl</span> http://localhost:3000/health</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body"><span class="g">{"status":"ok","mongo":1}</span></div>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">If you see <strong>"degraded"</strong>, check the Node app logs: <code style="font-family:var(--mono);font-size:12px">docker logs node-app</code>. The retry loop runs up to 5 times at 3-second intervals — wait ~15 seconds and try again.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">9</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Create and retrieve notes</div>
+          <div class="step-desc">Exercise the full API — write a record to MongoDB via the Node app, then read it back.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Create a note</span>
+<span class="cmd">curl</span> <span class="flag">-X</span> POST http://localhost:3000/notes \
+  <span class="flag">-H</span> <span class="str">"Content-Type: application/json"</span> \
+  <span class="flag">-d</span> <span class="str">'{"text":"Hello from Docker!"}'</span>
+
+<span class="comment"># List all notes</span>
+<span class="cmd">curl</span> http://localhost:3000/notes</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="comment"># POST response</span><br>
+<span class="g">{"_id":"6570a1…","text":"Hello from Docker!","createdAt":"2024-12-06T…","__v":0}</span><br>
+<br>
+<span class="comment"># GET response</span><br>
+<span class="g">[{"_id":"6570a1…","text":"Hello from Docker!","createdAt":"2024-12-06T…","__v":0}]</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">10</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Prove data survives container deletion</div>
+          <div class="step-desc">This is the key test for named volumes. Delete the Mongo container, recreate it from scratch, and verify your notes are still there.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># 1. Stop and destroy the Mongo container entirely</span>
+<span class="cmd">docker</span> rm <span class="flag">-f</span> mongo
+
+<span class="comment"># 2. Recreate it (same command as step 3)</span>
+<span class="cmd">docker</span> run <span class="flag">-d</span> \
+  <span class="flag">--name</span> mongo \
+  <span class="flag">--network</span> app-network \
+  <span class="flag">-v</span> mongo-data:/data/db \
+  <span class="flag">-e</span> MONGO_INITDB_DATABASE=mydb \
+  mongo:<span class="val">7</span>
+
+<span class="comment"># 3. Wait ~5 seconds, then query the API</span>
+<span class="cmd">curl</span> http://localhost:3000/notes</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected — data still there after container restart</div>
+            <div class="output-body">
+<span class="g">[{"_id":"6570a1…","text":"Hello from Docker!","createdAt":"2024-12-06T…","__v":0}]</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">Your note survived because it lives in <strong>mongo-data</strong>, which is managed by Docker independently of any container. The container was recreated from scratch — the volume was not touched.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">11</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Inspect the network — see both containers</div>
+          <div class="step-desc">Confirm Docker's internal DNS by inspecting the network and seeing both containers registered with their names.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> network inspect app-network \
+  <span class="flag">--format</span> <span class="str">'{{range .Containers}}{{.Name}} → {{.IPv4Address}}{{"\n"}}{{end}}'</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="o">node-app</span> → <span class="b">172.18.0.3/16</span><br>
+<span class="g">mongo</span>    → <span class="b">172.18.0.2/16</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /phase 4 steps -->
+
+    <!-- Phase 5 -->
+    <div class="phase-banner">
+      <span class="phase-banner-num">Phase 5</span>
+      <span class="phase-banner-title">Teardown</span>
+      <span class="phase-banner-desc">clean up everything</span>
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 12 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">12</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Stop and remove all resources</div>
+          <div class="step-desc">Remove containers, network, and (optionally) the volume. Run these in order — you can't remove a network while containers are using it.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># 1. Stop and remove both containers</span>
+<span class="cmd">docker</span> rm <span class="flag">-f</span> node-app mongo
+
+<span class="comment"># 2. Remove the network</span>
+<span class="cmd">docker</span> network rm app-network
+
+<span class="comment"># 3. Remove the volume (DESTROYS ALL DATA)</span>
+<span class="cmd">docker</span> volume rm mongo-data
+
+<span class="comment"># 4. Remove the app image</span>
+<span class="cmd">docker</span> rmi node-mongo-app</pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><strong>Step 3 permanently deletes your data.</strong> Skip <code style="font-family:var(--mono);font-size:12px">docker volume rm</code> if you want to keep the database contents for Task 28 (Docker Compose), which reuses the same volume name.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /phase 5 steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: FULL COMMAND REFERENCE           -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📋</span>
+      All commands at a glance
+    </div>
+
+    <div class="cmd-summary">
+      <div class="cmd-summary-header">Complete run sequence</div>
+      <div class="cmd-row">
+        <code>docker network create app-network</code>
+        <span>Create the shared bridge network with automatic DNS</span>
+      </div>
+      <div class="cmd-row">
+        <code>docker volume create mongo-data</code>
+        <span>Create the persistent volume for MongoDB data</span>
+      </div>
+      <div class="cmd-row">
+        <code>docker run -d --name mongo --network app-network -v mongo-data:/data/db mongo:7</code>
+        <span>Start MongoDB — internal only, no host port published</span>
+      </div>
+      <div class="cmd-row">
+        <code>docker logs -f mongo</code>
+        <span>Wait for "Waiting for connections" before proceeding</span>
+      </div>
+      <div class="cmd-row">
+        <code>docker build -t node-mongo-app .</code>
+        <span>Build the Node.js API image from the Dockerfile</span>
+      </div>
+      <div class="cmd-row">
+        <code>docker run -d --name node-app --network app-network -p 3000:3000 -e MONGO_URI=mongodb://mongo:27017/mydb node-mongo-app</code>
+        <span>Start the API, connecting to Mongo by container name</span>
+      </div>
+      <div class="cmd-row">
+        <code>curl localhost:3000/health</code>
+        <span>Verify both containers are connected</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: WHAT HAPPENED UNDER THE HOOD     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">🌐</div>
+        <div class="flow-label">Virtual network</div>
+        <div class="flow-desc">Docker created a virtual L2 network with its own subnet and a built-in DNS resolver.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">💾</div>
+        <div class="flow-label">Volume allocated</div>
+        <div class="flow-desc">A directory was allocated on the host inside Docker's storage area, ready to be mounted.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">🗄️</div>
+        <div class="flow-label">Mongo registered</div>
+        <div class="flow-desc">The mongo container joined the network and its name was registered with the DNS resolver.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🔗</div>
+        <div class="flow-label">DNS resolution</div>
+        <div class="flow-desc">When node-app resolved <code style="font-family:var(--mono);font-size:11px">mongo</code>, Docker's resolver returned the Mongo container's internal IP.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🔌</div>
+        <div class="flow-label">TCP handshake</div>
+        <div class="flow-desc">Mongoose opened a persistent connection to Mongo over the virtual network interface.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">📝</div>
+        <div class="flow-label">Data persisted</div>
+        <div class="flow-desc">Documents written to MongoDB were stored in <code style="font-family:var(--mono);font-size:11px">mongo-data</code>, independent of the container lifecycle.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 7: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How to create a custom bridge network and why container-name DNS only works on user-defined networks</li>
+      <li><span class="chk"></span>How to wire two containers together using <code style="font-family:var(--mono);font-size:12px">--network</code> and reference one from the other by name</li>
+      <li><span class="chk"></span>How to attach a named volume to MongoDB and prove data survives container deletion</li>
+      <li><span class="chk"></span>Why Mongo's port should not be published to the host — only the API container needs access</li>
+      <li><span class="chk"></span>How to add retry logic in an app to handle the database not being ready immediately</li>
+      <li><span class="chk"></span>The correct teardown order: containers → network → volume → images</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

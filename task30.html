@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 30 — Environment Variable Injection</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --blue-border: rgba(88,166,255,0.2);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --purple-border: rgba(188,140,255,0.2);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.08);
+    --red-border: rgba(248,81,73,0.2);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); text-decoration: none; transition: color .15s; }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto; font-family: var(--mono); font-size: 10px;
+    padding: 3px 10px; border-radius: 999px;
+    background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border);
+    letter-spacing: .04em; text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero { padding: 3.5rem 0 3rem; border-bottom: 1px solid var(--border); margin-bottom: 3rem; }
+  .hero-eyebrow { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+  .hero h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem; }
+  .hero h1 .hl { color: var(--blue); }
+  .hero-desc { font-size: 16px; color: var(--text-muted); line-height: 1.65; max-width: 560px; margin-bottom: 1.75rem; }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 3rem; }
+  .section-label { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem; }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Method comparison cards ── */
+  .method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 1rem 0; }
+  .method-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; position: relative; overflow: hidden; }
+  .method-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  .method-card.cli::before    { background: var(--yellow); }
+  .method-card.file::before   { background: var(--green); }
+  .method-card.compose::before{ background: var(--blue); }
+  .method-card.secret::before { background: var(--purple); }
+  .method-tag { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: .4rem; }
+  .method-card.cli    .method-tag { color: var(--yellow); }
+  .method-card.file   .method-tag { color: var(--green); }
+  .method-card.compose .method-tag { color: var(--blue); }
+  .method-card.secret  .method-tag { color: var(--purple); }
+  .method-title { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: .35rem; }
+  .method-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; }
+  .method-when { font-size: 11.5px; color: var(--text-dim); margin-top: .4rem; font-style: italic; }
+
+  /* ── Anatomy diagram ── */
+  .anatomy { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono); }
+  .anatomy-cmd { font-size: 14px; display: flex; align-items: baseline; flex-wrap: wrap; margin-bottom: 1.25rem; line-height: 2; }
+  .anatomy-part { padding: 2px 6px; border-radius: 4px; font-size: 13px; margin: 2px 2px; }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-flg  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-val  { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .a-img  { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag { padding: 1px 8px; border-radius: 3px; font-size: 11px; flex-shrink: 0; min-width: 72px; text-align: center; }
+  .anatomy-row .a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .a-flg  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .a-val  { color: var(--purple); background: rgba(188,140,255,0.08); }
+  .anatomy-row .a-img  { color: var(--text-muted); background: rgba(255,255,255,0.04); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--blue); background: var(--bg); flex-shrink: 0; z-index: 1; }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .code-header { display: flex; align-items: center; justify-content: space-between; padding: .45rem .875rem; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn { font-family: var(--mono); font-size: 10px; color: var(--text-dim); background: transparent; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s; display: flex; align-items: center; gap: 4px; letter-spacing: .04em; }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre { padding: .875rem 1rem; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text); }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .key     { color: var(--blue); }
+  pre .val     { color: var(--green); }
+  pre .num     { color: var(--purple); }
+  pre .hl      { color: var(--purple); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .dim     { color: var(--text-dim); }
+  pre .err     { color: var(--red); }
+  pre .warn    { color: var(--yellow); }
+
+  /* ── Callouts ── */
+  .callout { border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0; font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px; }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info   { background: var(--blue-bg);   border-color: var(--blue-border); }
+  .callout.tip    { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn   { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.danger { background: var(--red-bg);    border-color: var(--red-border); }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header { background: var(--surface); padding: .4rem .875rem; font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .output-body { padding: .875rem 1rem; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: #8b949e; }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .p { color: var(--purple); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .r { color: var(--red); }
+  .output-body .d { color: var(--text-dim); }
+
+  /* ── Precedence table ── */
+  .precedence-list { display: flex; flex-direction: column; gap: 0; margin: 1rem 0; }
+  .prec-row { display: flex; align-items: center; gap: 12px; padding: .65rem 1rem; background: var(--surface); border: 1px solid var(--border); border-bottom: none; }
+  .prec-row:first-child { border-radius: 8px 8px 0 0; }
+  .prec-row:last-child  { border-bottom: 1px solid var(--border); border-radius: 0 0 8px 8px; }
+  .prec-rank { font-family: var(--mono); font-size: 11px; font-weight: 700; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .prec-rank.p1 { background: rgba(248,81,73,0.15); color: var(--red); }
+  .prec-rank.p2 { background: rgba(227,179,65,0.12); color: var(--yellow); }
+  .prec-rank.p3 { background: rgba(88,166,255,0.1); color: var(--blue); }
+  .prec-rank.p4 { background: rgba(63,185,80,0.1); color: var(--green); }
+  .prec-rank.p5 { background: rgba(255,255,255,0.05); color: var(--text-dim); }
+  .prec-source { font-family: var(--mono); font-size: 12.5px; color: var(--text); flex: 1; }
+  .prec-note   { font-size: 12px; color: var(--text-dim); }
+  .prec-wins   { font-family: var(--mono); font-size: 10px; padding: 1px 7px; border-radius: 3px; background: rgba(248,81,73,0.08); color: var(--red); border: 1px solid var(--red-border); flex-shrink: 0; }
+
+  /* ── Security checklist ── */
+  .security-grid { display: grid; gap: 8px; margin: 1rem 0; }
+  .security-row { display: flex; align-items: flex-start; gap: 10px; padding: .75rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .security-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+  .security-body { flex: 1; }
+  .security-title { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: .2rem; }
+  .security-desc  { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; }
+
+  /* ── Flow grid ── */
+  .flow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 1rem 0; }
+  .flow-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .875rem; text-align: center; }
+  .flow-num  { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label{ font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--text-muted); padding: .6rem .875rem; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; line-height: 1.5; }
+  .checklist li .chk { width: 16px; height: 16px; border: 1.5px solid var(--border-strong); border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Task nav ── */
+  .task-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .prev-card, .next-card { display: flex; align-items: center; gap: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; text-decoration: none; transition: border-color .15s; }
+  .prev-card:hover, .next-card:hover { border-color: var(--border-strong); }
+  .nav-arrow { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center; color: var(--text-muted); flex-shrink: 0; }
+  .next-card .nav-arrow { margin-left: auto; }
+  .nav-card-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .nav-card-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .method-grid { grid-template-columns: 1fr; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .task-nav { grid-template-columns: 1fr; }
+    .prec-note { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 30</span>
+  <span class="nav-badge">Intermediate</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 30 &nbsp;·&nbsp; Intermediate
+    </div>
+    <h1>Environment<br><span class="hl">Variable Injection</span></h1>
+    <p class="hero-desc">Pass runtime config and secrets into containers via <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--blue)">--env-file</code> and Compose <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--blue)">environment:</code> fields — keeping secrets out of images and Dockerfiles, and config out of source control.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~20 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Completed Tasks 14 – 29
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Docker Compose v2
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">📖</span>Required concepts</div>
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--blue-bg)">🌍</div>
+          <div class="concept-title">Environment Variables in Containers</div>
+        </div>
+        <div class="concept-body">
+          Every process inherits a set of key=value pairs from its environment. Containers are no different — when Docker starts a container, it can inject any number of variables that are immediately available to the running process via <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">process.env</code>, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">os.environ</code>, or equivalent in any language.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--red-bg)">🚫</div>
+          <div class="concept-title">Never Hardcode Secrets in Images</div>
+        </div>
+        <div class="concept-body">
+          Anything written into a Dockerfile with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">ENV</code> or <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">COPY</code> is <strong>baked into a layer forever</strong> — even if you delete it in a later step. Anyone who pulls the image can read that layer. Inject secrets at <em>runtime</em>, not build time.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--green-bg)">📄</div>
+          <div class="concept-title">The .env File</div>
+        </div>
+        <div class="concept-body">
+          A plain text file with one <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">KEY=value</code> pair per line. Compose automatically reads a <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.env</code> in the project root for <strong>variable substitution</strong> in the compose file itself. For injecting variables <em>into containers</em>, you use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--env-file</code> or <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">env_file:</code> — these are different things, and the distinction matters.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--yellow-bg)">🔢</div>
+          <div class="concept-title">Precedence: Which Value Wins?</div>
+        </div>
+        <div class="concept-body">
+          When the same variable is set in multiple places, Docker uses a strict order of precedence. <strong>CLI flags beat compose file beats env_file beats Dockerfile defaults.</strong> Knowing the order lets you safely override values for local dev without touching the compose file.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--purple-bg)">🔁</div>
+          <div class="concept-title">Pass-through Variables</div>
+        </div>
+        <div class="concept-body">
+          In a compose file, listing a variable name <em>without</em> a value — e.g. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">- DATABASE_URL</code> — <strong>passes through</strong> the value from your shell environment. This lets you set secrets in your shell (or CI) and forward them in without writing them to any file.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--blue-bg)">🏗️</div>
+          <div class="concept-title">ARG vs ENV in Dockerfiles</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">ARG</code> is a build-time variable — available during <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker build</code> only, gone at runtime. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">ENV</code> sets a variable that persists into the running container. Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">ARG</code> for non-secret build config (e.g. Node version) and runtime injection for secrets.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: THE FOUR METHODS                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🗂️</span>Four ways to inject variables</div>
+
+    <div class="method-grid">
+      <div class="method-card cli">
+        <div class="method-tag">CLI flag</div>
+        <div class="method-title">-e / --env</div>
+        <div class="method-desc">Set one variable inline: <code style="font-family:var(--mono);font-size:11.5px;background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">-e PORT=3000</code>. Repeatable. Highest precedence.</div>
+        <div class="method-when">Best for: one-off overrides, quick testing.</div>
+      </div>
+      <div class="method-card file">
+        <div class="method-tag">CLI flag</div>
+        <div class="method-title">--env-file</div>
+        <div class="method-desc">Load all vars from a file: <code style="font-family:var(--mono);font-size:11.5px;background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">--env-file .env.prod</code>. One flag, many variables.</div>
+        <div class="method-when">Best for: environment-specific config bundles.</div>
+      </div>
+      <div class="method-card compose">
+        <div class="method-tag">Compose file</div>
+        <div class="method-title">environment:</div>
+        <div class="method-desc">Declare vars in the compose file — with a value, or as pass-through (name only).</div>
+        <div class="method-when">Best for: non-secret config committed to source.</div>
+      </div>
+      <div class="method-card secret">
+        <div class="method-tag">Compose file</div>
+        <div class="method-title">env_file:</div>
+        <div class="method-desc">Point to a file in the compose file: <code style="font-family:var(--mono);font-size:11.5px;background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">env_file: .env.local</code>. File stays out of git.</div>
+        <div class="method-when">Best for: secrets alongside a compose service.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔬</span>Command anatomy</div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">run</span>
+        <span class="anatomy-part a-flg">--env-file</span>
+        <span class="anatomy-part a-val">.env.prod</span>
+        <span class="anatomy-part a-sub">-e</span>
+        <span class="anatomy-part a-val">LOG_LEVEL=debug</span>
+        <span class="anatomy-part a-img">myapp:1.0.0</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker</span>
+          <p>The Docker CLI.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">run</span>
+          <p>Create and start a container from an image.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flg">--env-file</span>
+          <p>Load all <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">KEY=value</code> lines from a file into the container's environment. Comments (<code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">#</code>) and blank lines are ignored.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-val">.env.prod</span>
+          <p>Path to the env file — relative to current working directory. Can be named anything; convention is <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">.env</code>, <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">.env.prod</code>, <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">.env.local</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">-e</span>
+          <p>Set a single variable inline. <strong>Overrides</strong> the same key from <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">--env-file</code> — CLI flags have higher precedence.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-img">image</span>
+          <p>The image to run. Env vars are injected after the container starts — they're never written into the image.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🪜</span>Step-by-step guide</div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Inspect a container's environment baseline</div>
+          <div class="step-desc">First, see what variables a plain container receives without any injection. The <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">env</code> command prints every variable in the container's environment.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> run <span class="flag">--rm</span> alpine env</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="d">PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin</span><br>
+<span class="d">HOSTNAME=3f8a2b1c9d7e</span><br>
+<span class="d">HOME=/root</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Only a handful of OS defaults. Nothing from your host shell leaks in unless you explicitly pass it — containers are isolated by default.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Inject a single variable with -e</div>
+          <div class="step-desc">The fastest way — pass one key=value pair directly on the command line. Useful for quick tests and CI overrides.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> run <span class="flag">--rm</span> \
+  <span class="flag">-e</span> <span class="str">NODE_ENV=production</span> \
+  <span class="flag">-e</span> <span class="str">PORT=3000</span> \
+  alpine env</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">NODE_ENV=production</span><br>
+<span class="g">PORT=3000</span><br>
+<span class="d">PATH=/usr/local/sbin:...</span><br>
+<span class="d">HOSTNAME=9c2b4f1e8a3d</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Create an env file for your app</div>
+          <div class="step-desc">An env file keeps all your config in one place and out of your command history. Create <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.env.local</code> (and add it to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.gitignore</code>):</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">.env.local</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># App config</span>
+<span class="key">NODE_ENV</span>=<span class="val">development</span>
+<span class="key">PORT</span>=<span class="val">3000</span>
+<span class="key">LOG_LEVEL</span>=<span class="val">debug</span>
+
+<span class="comment"># Database — never commit real credentials</span>
+<span class="key">DATABASE_URL</span>=<span class="val">mongodb://user:password@db:27017/myapp</span>
+<span class="key">DATABASE_NAME</span>=<span class="val">myapp_dev</span>
+
+<span class="comment"># Third-party</span>
+<span class="key">STRIPE_SECRET_KEY</span>=<span class="val">sk_test_abc123...</span>
+<span class="key">JWT_SECRET</span>=<span class="val">supersecretkey-change-in-prod</span></pre>
+          </div>
+          <div class="callout danger">
+            <span class="callout-icon">🔐</span>
+            <div class="callout-body"><strong>Always add <code style="font-family:var(--mono);font-size:12px">.env*</code> to .gitignore before creating these files.</strong> A single accidental commit of real credentials to a public repo is an incident — secret scanning bots harvest them within seconds of the push.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Load the file with --env-file</div>
+          <div class="step-desc">Pass the file path to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--env-file</code>. All key=value pairs are injected at once. You can stack multiple files.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> run <span class="flag">--rm</span> \
+  <span class="flag">--env-file</span> <span class="str">.env.local</span> \
+  alpine env | sort</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">DATABASE_NAME=myapp_dev</span><br>
+<span class="g">DATABASE_URL=mongodb://user:password@db:27017/myapp</span><br>
+<span class="g">JWT_SECRET=supersecretkey-change-in-prod</span><br>
+<span class="g">LOG_LEVEL=debug</span><br>
+<span class="g">NODE_ENV=development</span><br>
+<span class="g">PORT=3000</span><br>
+<span class="g">STRIPE_SECRET_KEY=sk_test_abc123...</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">You can override any file value at runtime with <code style="font-family:var(--mono);font-size:12px">-e</code>: <code style="font-family:var(--mono);font-size:12px">--env-file .env.local -e NODE_ENV=production</code>. The <code style="font-family:var(--mono);font-size:12px">-e</code> flag wins — this is how you quickly flip one value without editing the file.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Use environment: in a Compose file</div>
+          <div class="step-desc">The <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">environment:</code> key injects variables into a specific service. Use a value to hardcode non-secrets; omit the value to pass through from your shell.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="key">services</span>:
+  <span class="key">app</span>:
+    <span class="key">build</span>: <span class="val">.</span>
+    <span class="key">environment</span>:
+      <span class="comment"># Hardcoded — safe to commit (non-secret config)</span>
+      <span class="key">NODE_ENV</span>: <span class="val">production</span>
+      <span class="key">PORT</span>: <span class="val">"3000"</span>
+
+      <span class="comment"># Pass-through — value comes from your shell or CI</span>
+      <span class="comment"># (no value after the colon)</span>
+      <span class="key">DATABASE_URL</span>:
+      <span class="key">JWT_SECRET</span>:
+      <span class="key">STRIPE_SECRET_KEY</span>:</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Pass-through variables with no value are <strong>silently absent</strong> if the variable isn't set in your shell — Docker won't error. Verify they're present inside the container after startup if your app requires them.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Use env_file: in a Compose service</div>
+          <div class="step-desc">Point a service at an env file directly in the compose file. Compose loads it when the service starts — no need to pass <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--env-file</code> on the CLI every time.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="key">services</span>:
+  <span class="key">app</span>:
+    <span class="key">build</span>: <span class="val">.</span>
+    <span class="key">env_file</span>:
+      - <span class="val">.env</span>          <span class="comment"># shared defaults (committed — no secrets)</span>
+      - <span class="val">.env.local</span>   <span class="comment"># local overrides (gitignored — secrets OK)</span>
+    <span class="key">environment</span>:
+      <span class="comment"># Still override specific keys here if needed</span>
+      <span class="key">NODE_ENV</span>: <span class="val">development</span></pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Stack multiple files — later files override earlier ones for the same key. A common pattern: commit <code style="font-family:var(--mono);font-size:12px">.env</code> with safe defaults and gitignore <code style="font-family:var(--mono);font-size:12px">.env.local</code> for each developer's real secrets.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Use ${VARIABLE} substitution in the compose file itself</div>
+          <div class="step-desc">The compose file can reference variables from your shell or a root <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.env</code> file using <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">${VAR}</code> syntax. This is distinct from injecting into containers — it controls the compose file's own values.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="key">services</span>:
+  <span class="key">app</span>:
+    <span class="comment"># Image tag comes from the shell or .env at project root</span>
+    <span class="key">image</span>: <span class="val">myapp:${APP_VERSION:-latest}</span>
+    <span class="key">ports</span>:
+      <span class="comment"># Host port is configurable per environment</span>
+      - <span class="val">"${HOST_PORT:-3000}:3000"</span></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">.env (committed — controls compose file, not container)</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="key">APP_VERSION</span>=<span class="val">1.2.0</span>
+<span class="key">HOST_PORT</span>=<span class="val">8080</span></pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">The root <code style="font-family:var(--mono);font-size:12px">.env</code> file is for <strong>compose file substitution only</strong> — it does NOT automatically inject into containers unless you also add <code style="font-family:var(--mono);font-size:12px">env_file: .env</code> to a service. This distinction trips up almost everyone the first time.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Verify what a running container sees</div>
+          <div class="step-desc">After <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker compose up -d</code>, confirm the container received the right variables by execing into it.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Exec into the running service container</span>
+<span class="cmd">docker</span> compose exec app env | sort
+
+<span class="comment"># Or check one specific variable</span>
+<span class="cmd">docker</span> compose exec app printenv DATABASE_URL</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">docker compose config</code> shows the fully resolved compose file with all substitutions applied — useful for debugging <code style="font-family:var(--mono);font-size:12px">${VAR}</code> references before you even start the containers.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Read env vars in your Node.js app</div>
+          <div class="step-desc">With variables injected, your app reads them at runtime via <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">process.env</code>. No library needed — this is standard Node.js.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">index.js</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment">// Read injected variables — no hardcoded values</span>
+<span class="key">const</span> port    = process.env.<span class="str">PORT</span>         || <span class="num">3000</span>;
+<span class="key">const</span> dbUrl   = process.env.<span class="str">DATABASE_URL</span>;
+<span class="key">const</span> nodeEnv = process.env.<span class="str">NODE_ENV</span>     || <span class="val">'development'</span>;
+
+<span class="key">if</span> (!dbUrl) {
+  console.<span class="err">error</span>(<span class="val">'DATABASE_URL is required'</span>);
+  process.exit(<span class="num">1</span>);   <span class="comment">// fail fast if required secret is missing</span>
+}
+
+console.log(<span class="val">`Starting in ${nodeEnv} mode on port ${port}`</span>);</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body"><strong>Fail fast</strong> on missing required variables at startup. It's far easier to debug a container that refuses to start with a clear error than one that starts but fails silently 10 minutes later when it first tries to connect to a database.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">10</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Set a default in the Dockerfile with ENV</div>
+          <div class="step-desc"><code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">ENV</code> in a Dockerfile sets a fallback that's always present — runtime injection overrides it. Only use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">ENV</code> for <em>non-secret</em> defaults like port numbers or mode flags.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Dockerfile</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre>FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+
+<span class="comment"># Safe defaults — overridden at runtime by -e or env_file</span>
+<span class="key">ENV</span> <span class="str">NODE_ENV</span>=<span class="val">production</span>
+<span class="key">ENV</span> <span class="str">PORT</span>=<span class="val">3000</span>
+
+<span class="comment"># NEVER do this:</span>
+<span class="comment"># ENV DATABASE_URL=mongodb://user:secret@host/db</span>
+
+EXPOSE <span class="num">3000</span>
+CMD [<span class="val">"node"</span>, <span class="val">"index.js"</span>]</pre>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: PRECEDENCE                       -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🏆</span>Precedence — which value wins</div>
+
+    <p style="color:var(--text-muted);font-size:13.5px;margin-bottom:1rem;">When the same variable is defined in multiple places, Docker resolves it top-down. Higher wins.</p>
+
+    <div class="precedence-list">
+      <div class="prec-row">
+        <div class="prec-rank p1">1</div>
+        <div class="prec-source">-e KEY=value (CLI flag)</div>
+        <div class="prec-note">Explicit inline override — always wins</div>
+        <div class="prec-wins">highest</div>
+      </div>
+      <div class="prec-row">
+        <div class="prec-rank p2">2</div>
+        <div class="prec-source">--env-file path (CLI flag)</div>
+        <div class="prec-note">File loaded via docker run</div>
+      </div>
+      <div class="prec-row">
+        <div class="prec-rank p3">3</div>
+        <div class="prec-source">environment: in compose file</div>
+        <div class="prec-note">Hardcoded or pass-through in the YAML</div>
+      </div>
+      <div class="prec-row">
+        <div class="prec-rank p4">4</div>
+        <div class="prec-source">env_file: in compose file</div>
+        <div class="prec-note">File reference declared per-service</div>
+      </div>
+      <div class="prec-row">
+        <div class="prec-rank p5">5</div>
+        <div class="prec-source">ENV in Dockerfile</div>
+        <div class="prec-note">Baked-in default — lowest priority</div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body">Precedence only matters when the <strong>same key</strong> appears in multiple sources. Different keys from different sources are all merged together — there's no conflict.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: SECURITY RULES                   -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔐</span>Security rules for env vars</div>
+
+    <div class="security-grid">
+      <div class="security-row">
+        <div class="security-icon">🚫</div>
+        <div class="security-body">
+          <div class="security-title">Never use ENV in Dockerfiles for secrets</div>
+          <div class="security-desc">Every <code style="font-family:var(--mono);font-size:12px">ENV</code> instruction is a permanent layer visible to anyone who pulls the image — even if overwritten later. There is no safe way to delete it after the fact.</div>
+        </div>
+      </div>
+      <div class="security-row">
+        <div class="security-icon">🚫</div>
+        <div class="security-body">
+          <div class="security-title">Never commit .env files with real secrets</div>
+          <div class="security-desc">Add <code style="font-family:var(--mono);font-size:12px">.env*</code> to <code style="font-family:var(--mono);font-size:12px">.gitignore</code> before you create them. A rewritten git history is a painful and often incomplete fix.</div>
+        </div>
+      </div>
+      <div class="security-row">
+        <div class="security-icon">✅</div>
+        <div class="security-body">
+          <div class="security-title">Commit a .env.example with placeholder values</div>
+          <div class="security-desc">Document every variable your app needs without real values. Developers copy it to <code style="font-family:var(--mono);font-size:12px">.env.local</code> and fill in their own credentials.</div>
+        </div>
+      </div>
+      <div class="security-row">
+        <div class="security-icon">✅</div>
+        <div class="security-body">
+          <div class="security-title">Use a secret manager in production</div>
+          <div class="security-desc">Env files are fine for local dev. In production, pull secrets from AWS Secrets Manager, HashiCorp Vault, or Docker Swarm secrets — never ship a plain-text secrets file to a server.</div>
+        </div>
+      </div>
+      <div class="security-row">
+        <div class="security-icon">✅</div>
+        <div class="security-body">
+          <div class="security-title">Validate required vars at startup</div>
+          <div class="security-desc">Crash immediately with a clear message if a required variable is absent. This prevents subtler failures and makes missing-secret problems obvious in logs.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 7: WHAT HAPPENED                    -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔍</span>What happened under the hood</div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">📋</div>
+        <div class="flow-label">File parsed</div>
+        <div class="flow-desc">Docker CLI read the <code style="font-family:var(--mono);font-size:11px">--env-file</code>, stripping comments and blank lines.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">🔀</div>
+        <div class="flow-label">Sources merged</div>
+        <div class="flow-desc">Variables from all sources were merged in precedence order — higher wins on conflict.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">📦</div>
+        <div class="flow-label">Container spec</div>
+        <div class="flow-desc">The resolved key=value list was attached to the container's OCI spec before any process started.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🚀</div>
+        <div class="flow-label">Process started</div>
+        <div class="flow-desc">The container's init process received the variables in its environment before executing <code style="font-family:var(--mono);font-size:11px">CMD</code>.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🔒</div>
+        <div class="flow-label">Image unchanged</div>
+        <div class="flow-desc">No variable was written to any image layer — the image is identical regardless of what was injected at runtime.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🔄</div>
+        <div class="flow-label">Re-injectable</div>
+        <div class="flow-desc">Run the same image with different env vars for dev, staging, or prod — no rebuild needed.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 8: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🎯</span>What you learned</div>
+    <ul class="checklist">
+      <li><span class="chk"></span>The four injection methods: <code style="font-family:var(--mono);font-size:12px">-e</code>, <code style="font-family:var(--mono);font-size:12px">--env-file</code>, <code style="font-family:var(--mono);font-size:12px">environment:</code>, and <code style="font-family:var(--mono);font-size:12px">env_file:</code> — and when to use each</li>
+      <li><span class="chk"></span>Why <code style="font-family:var(--mono);font-size:12px">ENV</code> in a Dockerfile must never hold secrets — it's baked permanently into image layers</li>
+      <li><span class="chk"></span>The precedence order: CLI <code style="font-family:var(--mono);font-size:12px">-e</code> beats <code style="font-family:var(--mono);font-size:12px">--env-file</code> beats <code style="font-family:var(--mono);font-size:12px">environment:</code> beats <code style="font-family:var(--mono);font-size:12px">env_file:</code> beats Dockerfile <code style="font-family:var(--mono);font-size:12px">ENV</code></li>
+      <li><span class="chk"></span>The difference between the root <code style="font-family:var(--mono);font-size:12px">.env</code> (compose file substitution) and <code style="font-family:var(--mono);font-size:12px">env_file:</code> (container injection)</li>
+      <li><span class="chk"></span>How to use pass-through variables in Compose to forward shell or CI secrets without writing them to files</li>
+      <li><span class="chk"></span>How to verify a container's environment with <code style="font-family:var(--mono);font-size:12px">docker compose exec app env</code> and <code style="font-family:var(--mono);font-size:12px">docker compose config</code></li>
+      <li><span class="chk"></span>Security best practices: <code style="font-family:var(--mono);font-size:12px">.env.example</code>, <code style="font-family:var(--mono);font-size:12px">.gitignore</code>, fail-fast validation, and secret managers for production</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

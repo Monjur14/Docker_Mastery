@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 43 — Multi-architecture Builds with Buildx</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.08);
+    --red-border: rgba(248,81,73,0.2);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px;
+    color: var(--text-muted); text-decoration: none; transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 10px; padding: 3px 10px;
+    border-radius: 999px; background: var(--purple-bg); color: var(--purple);
+    border: 1px solid rgba(188,140,255,0.25); letter-spacing: .04em; text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700;
+    letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--purple); }
+  .hero-desc {
+    font-size: 16px; color: var(--text-muted); line-height: 1.65;
+    max-width: 560px; margin-bottom: 1.75rem;
+  }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px; color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon {
+    width: 22px; height: 22px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--purple); background: var(--bg); flex-shrink: 0; z-index: 1;
+  }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin: .6rem 0;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .45rem .875rem; border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    background: transparent; border: none; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s;
+    display: flex; align-items: center; gap: 4px; letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text);
+  }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .hl      { color: var(--purple); }
+  pre .kw      { color: var(--blue); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0;
+    font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info  { background: var(--blue-bg);   border-color: rgba(88,166,255,0.2); }
+  .callout.tip   { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn  { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.bad   { background: var(--red-bg);    border-color: var(--red-border); }
+
+  /* ── Anatomy ── */
+  .anatomy {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 14px; display: flex; align-items: baseline;
+    flex-wrap: wrap; margin-bottom: 1.25rem; line-height: 2;
+  }
+  .anatomy-part { padding: 2px 6px; border-radius: 4px; font-size: 13px; margin: 2px 2px; }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-flag { background: rgba(188,140,255,0.14); color: var(--purple); }
+  .a-val  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-img  { background: rgba(88,166,255,0.10);  color: var(--blue); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag {
+    padding: 1px 8px; border-radius: 3px; font-size: 11px;
+    flex-shrink: 0; min-width: 80px; text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--purple); background: rgba(188,140,255,0.12); }
+  .anatomy-row .anatomy-tag.a-val  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .anatomy-tag.a-img  { color: var(--blue);   background: rgba(88,166,255,0.10); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header {
+    background: var(--surface); padding: .4rem .875rem;
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem; font-family: var(--mono);
+    font-size: 12.5px; line-height: 1.7; color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .p { color: var(--purple); }
+  .output-body .r { color: var(--red); }
+
+  /* ── Manifest diagram ── */
+  .manifest-diagram {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.5rem; margin: .75rem 0;
+    font-family: var(--mono);
+  }
+  .manifest-top {
+    background: var(--surface); border: 1px solid rgba(188,140,255,0.25);
+    border-radius: 8px; padding: .875rem 1rem; text-align: center; margin-bottom: 1rem;
+  }
+  .manifest-top-label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: .3rem; }
+  .manifest-top-name  { font-size: 14px; color: var(--purple); font-weight: 600; }
+  .manifest-top-sub   { font-size: 11.5px; color: var(--text-muted); margin-top: .2rem; }
+  .manifest-branches  { display: flex; align-items: flex-start; gap: 10px; }
+  .manifest-line-wrap { display: flex; flex-direction: column; align-items: center; flex: 1; gap: 4px; }
+  .manifest-line-top  { width: 1px; height: 20px; background: var(--border); }
+  .manifest-line-h    { height: 1px; width: 100%; background: var(--border); }
+  .manifest-leaf {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .75rem .875rem; text-align: center; width: 100%;
+  }
+  .manifest-leaf-arch { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: .3rem; }
+  .manifest-leaf-hash { font-size: 11px; color: var(--text-dim); }
+  .manifest-center { display: flex; flex-direction: column; align-items: center; padding-top: 20px; color: var(--text-dim); }
+  .manifest-center svg { margin: 4px 0; }
+
+  /* ── Platform table ── */
+  .platform-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: .75rem 0; }
+  .platform-row { display: flex; align-items: center; gap: 14px; padding: .7rem 1rem; border-bottom: 1px solid var(--border); }
+  .platform-row:last-child { border-bottom: none; }
+  .platform-tag {
+    font-family: var(--mono); font-size: 11.5px; color: var(--purple);
+    background: rgba(188,140,255,0.08); padding: 3px 8px; border-radius: 5px;
+    flex-shrink: 0; min-width: 150px; text-align: center;
+  }
+  .platform-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .platform-desc strong { color: var(--text); font-weight: 500; }
+
+  /* ── What happened grid ── */
+  .flow-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px; margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .875rem; text-align: center;
+  }
+  .flow-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13.5px; color: var(--text-muted);
+    padding: .6rem .875rem; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px; line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px; height: 16px; border: 1.5px solid var(--border-strong);
+    border-radius: 3px; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── Next card ── */
+  .next-card {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.25rem;
+    text-decoration: none; transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); flex-shrink: 0; margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .manifest-branches { flex-direction: column; }
+    .manifest-line-h { width: 1px; height: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 43</span>
+  <span class="nav-badge">Advanced</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 43 &nbsp;·&nbsp; Advanced
+    </div>
+    <h1>Multi-architecture Builds<br><span class="hl">with Buildx</span></h1>
+    <p class="hero-desc">Use <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--purple)">docker buildx</code> to build a single image that runs natively on both <strong>amd64</strong> (Intel/AMD servers) and <strong>arm64</strong> (Apple Silicon, AWS Graviton, Raspberry Pi) — then push a multi-arch manifest so Docker picks the right one automatically.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~20 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker Desktop / Engine
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Docker Hub account
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🏗️</div>
+          <div class="concept-title">Why multi-arch images matter</div>
+        </div>
+        <div class="concept-body">
+          A regular image built on your Intel laptop only runs on <strong>amd64</strong>. Pull it onto an Apple M-series Mac or an AWS Graviton server and Docker emulates it in software — slow and sometimes broken. A multi-arch image ships a <strong>native binary for each platform</strong> under one tag, and Docker picks the right one automatically at pull time.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🔨</div>
+          <div class="concept-title">What is Buildx?</div>
+        </div>
+        <div class="concept-body">
+          <strong>Buildx</strong> is Docker's extended build CLI, bundled with Docker Desktop and Engine since v20.10. It uses <strong>BuildKit</strong> under the hood and adds cross-platform builds, build caching to external registries, and multiple builder instances. The command is <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker buildx build</code>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">🗂️</div>
+          <div class="concept-title">OCI image manifest list</div>
+        </div>
+        <div class="concept-body">
+          A multi-arch image is actually a <strong>manifest list</strong> (also called an image index) stored in the registry. It's a JSON document that maps each <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">os/arch</code> combination to a specific image digest. The tag you push (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">myapp:latest</code>) points at the manifest list, not at any single image.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">⚡</div>
+          <div class="concept-title">QEMU emulation</div>
+        </div>
+        <div class="concept-body">
+          To build an arm64 image on an amd64 machine, BuildKit uses <strong>QEMU</strong> — a CPU emulator registered as a binary format handler in the Linux kernel. Your RUN instructions execute inside an emulated arm64 environment. It's slower than native but produces a correct binary. Docker Desktop sets this up automatically.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🏭</div>
+          <div class="concept-title">Builder instances</div>
+        </div>
+        <div class="concept-body">
+          Buildx uses <strong>builder instances</strong> — named BuildKit daemons that can target different platforms. The default builder only supports your host platform. You need to create a new builder using the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker-container</code> driver, which runs BuildKit inside a container and supports cross-platform builds out of the box.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">📤</div>
+          <div class="concept-title">--push vs. --load</div>
+        </div>
+        <div class="concept-body">
+          Multi-arch images <strong>cannot be loaded into the local Docker daemon</strong> — the local store only holds single-platform images. You must use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--push</code> to write the manifest list directly to a registry. Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--load</code> only when building a single platform for local testing.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: MANIFEST DIAGRAM                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🗺️</span>
+      How a multi-arch manifest works
+    </div>
+
+    <p style="font-size:13.5px;margin-bottom:.75rem;">One tag in the registry points to a manifest list. Docker inspects the pulling machine's <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">os/arch</code> and fetches only the matching image — no extra steps needed by the user.</p>
+
+    <div class="manifest-diagram">
+      <div class="manifest-top">
+        <div class="manifest-top-label">🏷️ &nbsp;manifest list (image index)</div>
+        <div class="manifest-top-name">yourname/myapp:latest</div>
+        <div class="manifest-top-sub">stored once in the registry — one tag, many platforms</div>
+      </div>
+
+      <div class="manifest-branches">
+        <div class="manifest-line-wrap">
+          <div class="manifest-line-top"></div>
+          <div class="manifest-leaf">
+            <div class="manifest-leaf-arch" style="color:var(--blue)">linux/amd64</div>
+            <div style="font-size:12px;color:var(--text-muted);margin:.25rem 0;">Intel · AMD · x86-64 servers</div>
+            <div class="manifest-leaf-hash">sha256:a1b2c3…</div>
+          </div>
+        </div>
+        <div class="manifest-center">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="7" y1="0" x2="7" y2="14" stroke="currentColor" stroke-width="1.2"/></svg>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="3,5 7,9 11,5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="manifest-line-wrap">
+          <div class="manifest-line-top"></div>
+          <div class="manifest-leaf">
+            <div class="manifest-leaf-arch" style="color:var(--green)">linux/arm64</div>
+            <div style="font-size:12px;color:var(--text-muted);margin:.25rem 0;">Apple M · Graviton · Pi</div>
+            <div class="manifest-leaf-hash">sha256:d4e5f6…</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:1rem;">
+        <div style="flex:1;background:var(--surface);border:1px solid rgba(88,166,255,0.2);border-radius:7px;padding:.65rem .875rem;font-family:var(--mono);font-size:11.5px;">
+          <div style="color:var(--text-dim);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.3rem;">pulls on amd64</div>
+          <div style="color:var(--blue);">→ fetches sha256:a1b2c3…</div>
+        </div>
+        <div style="flex:1;background:var(--surface);border:1px solid rgba(63,185,80,0.2);border-radius:7px;padding:.65rem .875rem;font-family:var(--mono);font-size:11.5px;">
+          <div style="color:var(--text-dim);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.3rem;">pulls on arm64</div>
+          <div style="color:var(--green);">→ fetches sha256:d4e5f6…</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      Command anatomy
+    </div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">buildx build</span>
+        <span class="anatomy-part a-flag">--platform</span>
+        <span class="anatomy-part a-val">linux/amd64,linux/arm64</span>
+        <span class="anatomy-part a-flag">-t</span>
+        <span class="anatomy-part a-val">yourname/myapp:latest</span>
+        <span class="anatomy-part a-flag">--push</span>
+        <span class="anatomy-part a-val">.</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker buildx</span>
+          <p>The extended build CLI. Uses BuildKit and supports cross-platform builds, external caches, and multiple builder drivers.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">build</span>
+          <p>Build an image from a Dockerfile and context. Same as <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">docker build</code> but with Buildx capabilities.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--platform</span>
+          <p>Comma-separated list of <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">os/arch</code> targets. BuildKit builds each one, either natively or via QEMU emulation.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-t</span>
+          <p>Tag applied to the manifest list in the registry. Both platform variants live under this single tag.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--push</span>
+          <p>Push the completed manifest list and all platform images directly to the registry. Required for multi-arch — <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">--load</code> only works with a single platform.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-val">.</span>
+          <p>Build context — the current directory sent to BuildKit. The Dockerfile is read from here.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Confirm Buildx is available</div>
+          <div class="step-desc">Buildx ships with Docker Desktop and modern Docker Engine. Verify it's present and check which builder is currently active.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> buildx version
+<span class="cmd">docker</span> buildx ls</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">github.com/docker/buildx v0.14.0 ...</span><br><br>
+<span class="out">NAME/NODE       DRIVER/ENDPOINT   STATUS    BUILDKIT   PLATFORMS</span><br>
+<span class="g">default *       docker            running   v0.13.0    linux/amd64</span><br>
+<span class="out">  default       default           running   v0.13.0    linux/amd64</span>
+            </div>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">The <strong>default</strong> builder only supports your host platform. The next step creates a new builder with the <code style="font-family:var(--mono);font-size:12px">docker-container</code> driver that supports cross-platform builds.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Install QEMU emulators (Linux only)</div>
+          <div class="step-desc">Docker Desktop on Mac and Windows already includes QEMU. On a Linux host, register the QEMU binary handlers with the kernel so it can execute foreign-architecture binaries during builds.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell — Linux hosts only</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">--privileged</span> <span class="flag">--rm</span> \
+  tonistiigi/binfmt <span class="flag">--install</span> all</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">installing: arm64 OK</span><br>
+<span class="g">installing: arm OK</span><br>
+<span class="g">installing: riscv64 OK</span><br>
+<span class="out">... (several more architectures)</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">This registers QEMU interpreters in <code style="font-family:var(--mono);font-size:12px">/proc/sys/fs/binfmt_misc</code>. The registration persists until reboot — you'll need to re-run this after a system restart on Linux.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Create a multi-platform builder instance</div>
+          <div class="step-desc">Create a new named builder using the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker-container</code> driver, which runs BuildKit in a container and supports cross-compilation. Set it as the active builder.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Create a new builder with the container driver</span>
+<span class="cmd">docker</span> buildx create \
+  <span class="flag">--name</span> multiarch \
+  <span class="flag">--driver</span> docker-container \
+  <span class="flag">--bootstrap</span>
+
+<span class="comment"># Set it as the active builder for this session</span>
+<span class="cmd">docker</span> buildx use multiarch
+
+<span class="comment"># Confirm it supports both target platforms</span>
+<span class="cmd">docker</span> buildx inspect <span class="flag">--bootstrap</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (inspect)</div>
+            <div class="output-body">
+<span class="out">Name:   multiarch</span><br>
+<span class="out">Driver: docker-container</span><br>
+<span class="out">Status: running</span><br>
+<span class="out">Platforms: </span><span class="g">linux/amd64, linux/amd64/v2, linux/amd64/v3, linux/arm64, linux/arm/v7, linux/arm/v6 ...</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body"><strong>--bootstrap</strong> starts the BuildKit container immediately so you can inspect it right away, rather than lazily on first build. You only need to create this builder once.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Write a simple app and Dockerfile to build</div>
+          <div class="step-desc">A tiny Go HTTP server is the ideal test — it cross-compiles to native binaries for any platform without QEMU emulation, making builds fast. If you have your own app, use that instead.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">mkdir</span> multiarch-demo && <span class="cmd">cd</span> multiarch-demo</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">main.go</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="kw">package</span> main
+
+<span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"net/http"</span>
+    <span class="str">"runtime"</span>
+)
+
+<span class="kw">func</span> main() {
+    http.HandleFunc(<span class="str">"/"</span>, <span class="kw">func</span>(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintf(w, <span class="str">"arch=%s os=%s\n"</span>, runtime.GOARCH, runtime.GOOS)
+    })
+    http.ListenAndServe(<span class="str">":8080"</span>, nil)
+}</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Dockerfile</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Build stage — Go cross-compiles natively, no QEMU needed</span>
+<span class="kw">FROM</span> <span class="flag">--platform=$BUILDPLATFORM</span> golang:1.22-alpine <span class="kw">AS</span> build
+<span class="kw">WORKDIR</span> /src
+<span class="kw">COPY</span> . .
+<span class="comment"># TARGETOS and TARGETARCH are injected by Buildx automatically</span>
+<span class="kw">ARG</span> TARGETOS TARGETARCH
+<span class="kw">RUN</span> GOOS=$TARGETOS GOARCH=$TARGETARCH go build <span class="flag">-o</span> /app .
+
+<span class="comment"># Runtime stage — runs on the target architecture</span>
+<span class="kw">FROM</span> scratch
+<span class="kw">COPY</span> <span class="flag">--from=</span>build /app /app
+<span class="kw">EXPOSE</span> 8080
+<span class="kw">ENTRYPOINT</span> [<span class="str">"/app"</span>]</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">--platform=$BUILDPLATFORM</code> on the build stage tells Docker to always run the Go compiler on your <em>host</em> architecture — fast native compilation. <code style="font-family:var(--mono);font-size:12px">$TARGETOS</code> and <code style="font-family:var(--mono);font-size:12px">$TARGETARCH</code> are Buildx-injected build args that tell Go which platform to compile for.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Log in to Docker Hub</div>
+          <div class="step-desc">You need to push to a registry — authenticate first. Replace <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">yourname</code> with your actual Docker Hub username throughout this task.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> login</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Use a <strong>Personal Access Token</strong> (PAT) instead of your password — generate one at hub.docker.com → Account Settings → Security. PATs can be scoped to read/write and revoked individually.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Build and push the multi-arch image</div>
+          <div class="step-desc">One command builds both platform variants and pushes the manifest list to Docker Hub. Buildx compiles them in parallel where possible.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> buildx build \
+  <span class="flag">--platform</span> linux/amd64,linux/arm64 \
+  <span class="flag">-t</span> <span class="str">yourname/multiarch-demo:latest</span> \
+  <span class="flag">--push</span> \
+  .</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">[+] Building 18.3s (16/16) FINISHED</span><br>
+<span class="out"> => [linux/amd64] FROM golang:1.22-alpine                     2.1s</span><br>
+<span class="out"> => [linux/arm64] FROM golang:1.22-alpine                     2.1s</span><br>
+<span class="out"> => [linux/amd64] COPY . .                                    0.1s</span><br>
+<span class="out"> => [linux/arm64] COPY . .                                    0.1s</span><br>
+<span class="out"> => [linux/amd64] RUN GOOS=linux GOARCH=amd64 go build ...    4.2s</span><br>
+<span class="out"> => [linux/arm64] RUN GOOS=linux GOARCH=arm64 go build ...    4.8s</span><br>
+<span class="g"> => pushing manifest list: yourname/multiarch-demo:latest     1.3s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">7</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Verify the manifest list in the registry</div>
+          <div class="step-desc">Inspect the pushed tag to confirm it's a manifest list containing both platform digests — not a single-platform image.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> buildx imagetools inspect yourname/multiarch-demo:latest</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">Name:      docker.io/yourname/multiarch-demo:latest</span><br>
+<span class="p">MediaType: application/vnd.oci.image.index.v1+json</span><br>
+<span class="out">Digest:    sha256:abc123...</span><br><br>
+<span class="out">Manifests:</span><br>
+<span class="b">  Name:      docker.io/yourname/multiarch-demo:latest@sha256:a1b2c3...</span><br>
+<span class="b">  MediaType: application/vnd.oci.image.manifest.v1+json</span><br>
+<span class="g">  Platform:  linux/amd64</span><br><br>
+<span class="b">  Name:      docker.io/yourname/multiarch-demo:latest@sha256:d4e5f6...</span><br>
+<span class="b">  MediaType: application/vnd.oci.image.manifest.v1+json</span><br>
+<span class="g">  Platform:  linux/arm64</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body"><strong>MediaType: application/vnd.oci.image.index.v1+json</strong> confirms this is a manifest list, not a plain image. Both <code style="font-family:var(--mono);font-size:12px">linux/amd64</code> and <code style="font-family:var(--mono);font-size:12px">linux/arm64</code> platform entries are present.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">8</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Pull and run — confirm the right arch is selected</div>
+          <div class="step-desc">Pull the image on your local machine. Docker reads your host's architecture and fetches the matching platform variant automatically.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">--rm</span> <span class="flag">-p</span> 8080:8080 <span class="flag">-d</span> <span class="flag">--name</span> test yourname/multiarch-demo:latest
+<span class="cmd">curl</span> http://localhost:8080
+<span class="cmd">docker</span> rm <span class="flag">-f</span> test</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output on an arm64 Mac (Apple Silicon)</div>
+            <div class="output-body"><span class="g">arch=arm64 os=linux</span></div>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output on an amd64 Linux server</div>
+            <div class="output-body"><span class="b">arch=amd64 os=linux</span></div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">To explicitly pull a specific platform — for testing, or when running on a different arch — add <code style="font-family:var(--mono);font-size:12px">--platform linux/amd64</code> to the <code style="font-family:var(--mono);font-size:12px">docker run</code> command.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">9</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Target platforms reference</div>
+          <div class="step-desc">Common platform strings for <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--platform</code>. You can target any subset — start with amd64 and arm64 for the most coverage.</div>
+
+          <div class="platform-table">
+            <div class="platform-row">
+              <span class="platform-tag">linux/amd64</span>
+              <span class="platform-desc"><strong>x86-64.</strong> Standard Intel/AMD — VPS servers, most CI runners, Intel Macs running Rosetta.</span>
+            </div>
+            <div class="platform-row">
+              <span class="platform-tag">linux/arm64</span>
+              <span class="platform-desc"><strong>AArch64.</strong> Apple Silicon (M1–M4), AWS Graviton 2/3, Oracle Ampere, Raspberry Pi 4/5.</span>
+            </div>
+            <div class="platform-row">
+              <span class="platform-tag">linux/arm/v7</span>
+              <span class="platform-desc"><strong>32-bit ARM.</strong> Raspberry Pi 2/3 running 32-bit OS, older embedded boards.</span>
+            </div>
+            <div class="platform-row">
+              <span class="platform-tag">linux/arm/v6</span>
+              <span class="platform-desc"><strong>ARMv6.</strong> Original Raspberry Pi (Pi 1, Pi Zero, Pi Zero W).</span>
+            </div>
+            <div class="platform-row">
+              <span class="platform-tag">linux/riscv64</span>
+              <span class="platform-desc"><strong>RISC-V 64-bit.</strong> Emerging open-source architecture — SiFive, StarFive boards.</span>
+            </div>
+            <div class="platform-row">
+              <span class="platform-tag">linux/s390x</span>
+              <span class="platform-desc"><strong>IBM Z (mainframe).</strong> Required for images published to enterprise registries.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">10</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Push additional tags and version the manifest</div>
+          <div class="step-desc">In production, push a version tag alongside <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">latest</code> so previous manifests are preserved and you can roll back by tag.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Push two tags in one build — latest and a semver</span>
+<span class="cmd">docker</span> buildx build \
+  <span class="flag">--platform</span> linux/amd64,linux/arm64 \
+  <span class="flag">-t</span> <span class="str">yourname/multiarch-demo:latest</span> \
+  <span class="flag">-t</span> <span class="str">yourname/multiarch-demo:1.0.0</span> \
+  <span class="flag">--push</span> \
+  .</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Each additional <code style="font-family:var(--mono);font-size:12px">-t</code> creates a separate manifest list pointing at the same image digests — no extra bytes are stored, just extra pointers. This is free to do and the right production habit.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">11</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Clean up the builder instance</div>
+          <div class="step-desc">When you're done, switch back to the default builder and optionally remove the multiarch one.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Switch back to the default builder</span>
+<span class="cmd">docker</span> buildx use default
+
+<span class="comment"># Remove the multiarch builder (stops its container)</span>
+<span class="cmd">docker</span> buildx rm multiarch</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">In a CI environment, create the builder at the start of the pipeline and let it be torn down with the runner. For local development, keep the <strong>multiarch</strong> builder around — it starts and stops quickly and caches layers between builds.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: WHAT JUST HAPPENED               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">🏭</div>
+        <div class="flow-label">BuildKit spawned</div>
+        <div class="flow-desc">The <code style="font-family:var(--mono);font-size:11px">docker-container</code> driver started a BuildKit daemon in its own container, capable of cross-platform builds.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">⚡</div>
+        <div class="flow-label">Parallel builds</div>
+        <div class="flow-desc">BuildKit ran the amd64 and arm64 build graphs concurrently — shared base layers were pulled once and reused for both.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">🔄</div>
+        <div class="flow-label">Cross-compilation</div>
+        <div class="flow-desc">The build stage ran on the host CPU. GOOS and GOARCH directed the Go compiler to emit binaries for the target platform, not the host.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">📤</div>
+        <div class="flow-label">Layers pushed</div>
+        <div class="flow-desc">Each platform's image layers were pushed to the registry separately, then the manifest list was written pointing to both digests.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🗂️</div>
+        <div class="flow-label">Index written</div>
+        <div class="flow-desc">The registry stored the OCI image index — a JSON document mapping <code style="font-family:var(--mono);font-size:11px">os/arch</code> keys to image digest values.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🎯</div>
+        <div class="flow-label">Auto-selection on pull</div>
+        <div class="flow-desc">Docker's daemon read the host's <code style="font-family:var(--mono);font-size:11px">os/arch</code>, queried the index, and fetched only the matching platform's layers — transparent to the user.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>Why multi-arch images matter — native performance on Apple Silicon, AWS Graviton, and ARM servers without emulation at runtime</li>
+      <li><span class="chk"></span>What a manifest list is and how it maps <code style="font-family:var(--mono);font-size:12px">os/arch</code> to individual image digests in the registry</li>
+      <li><span class="chk"></span>How to create a <code style="font-family:var(--mono);font-size:12px">docker-container</code> builder instance that supports cross-platform builds</li>
+      <li><span class="chk"></span>How to register QEMU emulators on Linux with <code style="font-family:var(--mono);font-size:12px">tonistiigi/binfmt</code></li>
+      <li><span class="chk"></span>How to use <code style="font-family:var(--mono);font-size:12px">--platform $BUILDPLATFORM</code> and <code style="font-family:var(--mono);font-size:12px">$TARGETARCH</code> build args to cross-compile efficiently without QEMU in the build stage</li>
+      <li><span class="chk"></span>Why <code style="font-family:var(--mono);font-size:12px">--push</code> is required for multi-arch builds and <code style="font-family:var(--mono);font-size:12px">--load</code> only works for single-platform images</li>
+      <li><span class="chk"></span>How to verify a pushed manifest list with <code style="font-family:var(--mono);font-size:12px">docker buildx imagetools inspect</code></li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

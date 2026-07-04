@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 28 — Docker Compose for Multi-Container Apps</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --orange: #f0883e;
+    --orange-bg: rgba(240,136,62,0.1);
+    --orange-border: rgba(240,136,62,0.25);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--orange-bg);
+    color: var(--orange);
+    border: 1px solid var(--orange-border);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--orange); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem; }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--orange); background: var(--bg); flex-shrink: 0; z-index: 1;
+  }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin: .6rem 0;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .45rem .875rem; border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .code-filename { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .copy-btn {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    background: transparent; border: none; cursor: pointer; padding: 2px 6px;
+    border-radius: 4px; transition: color .15s, background .15s;
+    display: flex; align-items: center; gap: 4px; letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text);
+  }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .kw      { color: var(--orange); font-weight: 600; }
+  pre .val     { color: var(--green); }
+  pre .num     { color: var(--purple); }
+  pre .key     { color: var(--blue); }
+  pre .anchor  { color: var(--yellow); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0;
+    font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info  { background: var(--blue-bg);   border-color: rgba(88,166,255,0.2); }
+  .callout.tip   { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn  { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.note  { background: var(--orange-bg); border-color: var(--orange-border); }
+
+  /* ── Translation table ── */
+  .translation-table {
+    width: 100%; border-collapse: collapse; font-size: 12.5px;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .75rem 0;
+  }
+  .translation-table th {
+    text-align: left; font-family: var(--mono); font-size: 10px;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim);
+    padding: .5rem .875rem; border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .translation-table td {
+    padding: .6rem .875rem; border-bottom: 1px solid var(--border);
+    vertical-align: top; line-height: 1.5;
+  }
+  .translation-table tr:last-child td { border-bottom: none; }
+  .translation-table tr { background: var(--surface); }
+  .translation-table tr:nth-child(even) { background: var(--surface-2); }
+  .td-manual { font-family: var(--mono); font-size: 11.5px; color: var(--yellow); }
+  .td-compose { font-family: var(--mono); font-size: 11.5px; color: var(--green); }
+  .td-note { color: var(--text-muted); font-size: 12px; }
+
+  /* ── Annotated compose file ── */
+  .compose-annotated {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin: .6rem 0;
+  }
+  .compose-annotated-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .45rem .875rem; border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .compose-annotated-header .code-filename { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .compose-body { display: flex; }
+  .compose-code {
+    flex: 1; padding: .875rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 12.5px; line-height: 2; color: var(--text);
+    border-right: 1px solid var(--border); min-width: 0;
+  }
+  .compose-code .yk  { color: var(--blue); }       /* yaml key */
+  .compose-code .yv  { color: var(--green); }      /* yaml value */
+  .compose-code .ya  { color: var(--orange); }     /* yaml anchor/alias */
+  .compose-code .yc  { color: var(--text-dim); font-style: italic; } /* yaml comment */
+  .compose-code .yn  { color: var(--purple); }     /* yaml number */
+  .compose-code .ys  { color: var(--yellow); font-weight:600; }     /* yaml section key */
+
+  /* ── File tree ── */
+  .file-tree { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .file-tree-header {
+    display: flex; align-items: center; gap: 8px; padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02);
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase;
+  }
+  .file-tree-body { padding: .875rem 1rem; font-family: var(--mono); font-size: 13px; line-height: 2; color: var(--text-muted); }
+  .file-tree-body .dir  { color: var(--blue); }
+  .file-tree-body .file { color: var(--text); }
+  .file-tree-body .new  { color: var(--orange); }
+  .file-tree-body .dim  { color: var(--text-dim); }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header {
+    background: var(--surface); padding: .4rem .875rem;
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border);
+  }
+  .output-body { padding: .875rem 1rem; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: #8b949e; }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .o { color: var(--orange); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .p { color: var(--purple); }
+  .output-body .d { color: var(--text-dim); }
+
+  /* ── Compose CLI reference ── */
+  .cli-grid { display: grid; gap: 8px; margin: .75rem 0; }
+  .cli-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .7rem 1rem;
+  }
+  .cli-cmd { font-family: var(--mono); font-size: 12px; color: var(--blue); flex-shrink: 0; min-width: 260px; }
+  .cli-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Flow grid ── */
+  .flow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 1rem 0; }
+  .flow-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .875rem; text-align: center; }
+  .flow-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc  { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px;
+    color: var(--text-muted); padding: .6rem .875rem;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 7px; line-height: 1.5;
+  }
+  .checklist li .chk { width: 16px; height: 16px; border: 1.5px solid var(--border-strong); border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Next card ── */
+  .next-card {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.25rem; text-decoration: none; transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); flex-shrink: 0; margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  /* ── Before/After split ── */
+  .before-after {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: .75rem 0; align-items: start;
+  }
+  .ba-card { border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .ba-header {
+    padding: .4rem .875rem; font-family: var(--mono); font-size: 10px;
+    letter-spacing: .08em; text-transform: uppercase; border-bottom: 1px solid var(--border);
+  }
+  .ba-header.before { background: rgba(227,179,65,0.08); color: var(--yellow); }
+  .ba-header.after  { background: rgba(63,185,80,0.08);  color: var(--green); }
+  .ba-body { background: var(--surface-2); padding: .75rem 1rem; font-family: var(--mono); font-size: 11.5px; line-height: 1.85; color: var(--text-muted); }
+  .ba-body .hi { color: var(--text); }
+  .ba-body .strike { text-decoration: line-through; opacity: .4; }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .before-after { grid-template-columns: 1fr; }
+    .cli-row { flex-direction: column; gap: 4px; }
+    .cli-cmd { min-width: unset; }
+    .translation-table .td-note { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 28</span>
+  <span class="nav-badge">Intermediate</span>
+</nav>
+
+<div class="page">
+
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 28 &nbsp;·&nbsp; Intermediate
+    </div>
+    <h1>Docker Compose for<br><span class="hl">Multi-Container Apps</span></h1>
+    <p class="hero-desc">Translate every manual command from Task 27 into a single <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--orange)">docker-compose.yml</code> — and bring the entire Node.js + MongoDB stack up with one command.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~20 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Task 27 completed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal + text editor
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: BEFORE / AFTER                   -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">⚖️</span>
+      The problem Compose solves
+    </div>
+
+    <p>Task 27 required six separate commands to stand up two containers. One typo in a network name or env var and nothing works. Compose encodes the entire topology in a single checked-in file.</p>
+
+    <div class="before-after">
+      <div class="ba-card">
+        <div class="ba-header before">Task 27 — 6 manual commands</div>
+        <div class="ba-body">
+          <span class="hi">docker network create app-network</span><br>
+          <span class="hi">docker volume create mongo-data</span><br>
+          <span class="hi">docker run -d --name mongo \</span><br>
+          &nbsp;&nbsp;<span class="hi">--network app-network \</span><br>
+          &nbsp;&nbsp;<span class="hi">-v mongo-data:/data/db mongo:7</span><br>
+          <span class="hi">docker logs -f mongo</span><br>
+          <span class="hi">docker build -t node-mongo-app .</span><br>
+          <span class="hi">docker run -d --name node-app \</span><br>
+          &nbsp;&nbsp;<span class="hi">--network app-network \</span><br>
+          &nbsp;&nbsp;<span class="hi">-p 3000:3000 \</span><br>
+          &nbsp;&nbsp;<span class="hi">-e MONGO_URI=mongodb://… \</span><br>
+          &nbsp;&nbsp;<span class="hi">node-mongo-app</span>
+        </div>
+      </div>
+      <div class="ba-card">
+        <div class="ba-header after">Task 28 — 1 Compose command</div>
+        <div class="ba-body">
+          <br><br><br><br><br>
+          <span class="hi" style="font-size:15px">docker compose up --build</span>
+          <br><br><br><br><br><br>
+          <span style="color:var(--text-dim);font-size:11px">↑ does everything above, in the right order</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(240,136,62,0.1)">📄</div>
+          <div class="concept-title">What is docker-compose.yml?</div>
+        </div>
+        <div class="concept-body">
+          A YAML file that declaratively describes your entire stack — services, networks, volumes, environment variables, port mappings, and build instructions. Docker Compose reads it and translates every key into the Docker API calls you were making by hand. It lives in version control alongside your code.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🌐</div>
+          <div class="concept-title">Automatic networking</div>
+        </div>
+        <div class="concept-body">
+          Compose creates a <strong>default network</strong> named <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">&lt;project&gt;_default</code> automatically, and connects every service to it. Services reach each other by their <strong>service name</strong> — no manual <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker network create</code> required.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🏷️</div>
+          <div class="concept-title">Project name &amp; namespacing</div>
+        </div>
+        <div class="concept-body">
+          Compose prefixes every resource with the <strong>project name</strong> (defaulting to the folder name). A network becomes <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">myapp_default</code>, a volume becomes <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">myapp_mongo-data</code>. This lets multiple stacks coexist on one machine without name collisions.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">⏳</div>
+          <div class="concept-title"><code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">depends_on</code> vs. readiness</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">depends_on</code> controls <strong>start order</strong> — Compose won't start the app service until Mongo's container is running. It does <strong>not</strong> wait for Mongo to be ready to accept connections. That's why the Node app still needs its retry loop (or a healthcheck, covered in Task 34).
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🏗️</div>
+          <div class="concept-title"><code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">build</code> vs. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">image</code></div>
+        </div>
+        <div class="concept-body">
+          A service can either <strong>build</strong> from a local Dockerfile (the Node app) or <strong>pull</strong> a ready-made image from a registry (MongoDB). Compose handles both in the same file — <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">build: .</code> triggers a local build, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">image: mongo:7</code> pulls from Docker Hub.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(240,136,62,0.1)">🔄</div>
+          <div class="concept-title">Idempotency</div>
+        </div>
+        <div class="concept-body">
+          Running <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker compose up</code> multiple times is safe — Compose only creates resources that don't already exist, and only recreates containers whose config has changed. This makes it safe to re-run after editing the compose file.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: MAPPING TABLE                    -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔁</span>
+      Manual commands → Compose keys
+    </div>
+
+    <p>Every flag from Task 27 maps directly to a YAML key. Nothing is lost — it's all still there, just declared instead of imperative.</p>
+
+    <table class="translation-table">
+      <thead>
+        <tr>
+          <th>docker run flag</th>
+          <th>docker-compose.yml key</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-manual">--name mongo</td>
+          <td class="td-compose">services: mongo:</td>
+          <td class="td-note">Service name becomes the container name and DNS hostname</td>
+        </tr>
+        <tr>
+          <td class="td-manual">--network app-network</td>
+          <td class="td-compose">networks: (auto-created)</td>
+          <td class="td-note">Compose creates a default network; all services join it automatically</td>
+        </tr>
+        <tr>
+          <td class="td-manual">-v mongo-data:/data/db</td>
+          <td class="td-compose">volumes: mongo-data:/data/db</td>
+          <td class="td-note">Defined under the service and declared at top-level volumes:</td>
+        </tr>
+        <tr>
+          <td class="td-manual">-p 3000:3000</td>
+          <td class="td-compose">ports: - "3000:3000"</td>
+          <td class="td-note">Same host:container syntax, quoted as a YAML string</td>
+        </tr>
+        <tr>
+          <td class="td-manual">-e MONGO_URI=…</td>
+          <td class="td-compose">environment: MONGO_URI: …</td>
+          <td class="td-note">Can also be a list: - MONGO_URI=… or loaded from .env</td>
+        </tr>
+        <tr>
+          <td class="td-manual">image: mongo:7</td>
+          <td class="td-compose">image: mongo:7</td>
+          <td class="td-note">Identical — pulls from Docker Hub</td>
+        </tr>
+        <tr>
+          <td class="td-manual">docker build -t … .</td>
+          <td class="td-compose">build: .</td>
+          <td class="td-note">Points to the directory containing the Dockerfile</td>
+        </tr>
+        <tr>
+          <td class="td-manual">docker network create</td>
+          <td class="td-compose">networks: app-network: driver: bridge</td>
+          <td class="td-note">Optional — only needed to give the network a custom name</td>
+        </tr>
+        <tr>
+          <td class="td-manual">docker volume create</td>
+          <td class="td-compose">volumes: mongo-data:</td>
+          <td class="td-note">Top-level volumes: block; Compose creates it on first up</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: PROJECT LAYOUT                   -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📁</span>
+      Project layout
+    </div>
+
+    <p>Add <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker-compose.yml</code> to the same folder as your Task 27 app. No other files change.</p>
+
+    <div class="file-tree">
+      <div class="file-tree-header">📁 project layout</div>
+      <div class="file-tree-body">
+<span class="dir">node-mongo-app/</span><br>
+<span class="dim">├── </span><span class="new">docker-compose.yml</span>   <span class="dim">&lt;-- new file</span><br>
+<span class="dim">├── </span><span class="file">Dockerfile</span><br>
+<span class="dim">├── </span><span class="file">package.json</span><br>
+<span class="dim">└── </span><span class="file">server.js</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: THE COMPOSE FILE                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📄</span>
+      The docker-compose.yml file
+    </div>
+
+    <p>Every line below maps to something you typed by hand in Task 27. Comments explain each key as you read.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">docker-compose.yml</span>
+        <button class="copy-btn" onclick="copyCode(this)">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          copy
+        </button>
+      </div>
+<pre><span class="comment"># ── Services ────────────────────────────────────────────────</span>
+<span class="comment"># Each top-level key under 'services' becomes one container.</span>
+<span class="key">services</span>:
+
+  <span class="comment"># ── MongoDB ─────────────────────────────────────────────────</span>
+  <span class="key">mongo</span>:
+    <span class="key">image</span>: <span class="val">mongo:7</span>               <span class="comment"># pull from Docker Hub</span>
+    <span class="key">container_name</span>: <span class="val">mongo</span>        <span class="comment"># fixes the name (optional but nice)</span>
+    <span class="key">restart</span>: <span class="val">unless-stopped</span>      <span class="comment"># restart on crash, not on manual stop</span>
+    <span class="key">environment</span>:
+      MONGO_INITDB_DATABASE: <span class="val">mydb</span>
+    <span class="key">volumes</span>:
+      - <span class="val">mongo-data:/data/db</span>       <span class="comment"># named volume → /data/db inside container</span>
+    <span class="key">networks</span>:
+      - <span class="val">app-network</span>
+
+  <span class="comment"># ── Node.js API ─────────────────────────────────────────────</span>
+  <span class="key">app</span>:
+    <span class="key">build</span>: <span class="val">.</span>                       <span class="comment"># build from Dockerfile in current dir</span>
+    <span class="key">container_name</span>: <span class="val">node-app</span>
+    <span class="key">restart</span>: <span class="val">unless-stopped</span>
+    <span class="key">ports</span>:
+      - <span class="str">"3000:3000"</span>                <span class="comment"># host:container — same as -p 3000:3000</span>
+    <span class="key">environment</span>:
+      PORT: <span class="num">3000</span>
+      MONGO_URI: <span class="val">mongodb://mongo:27017/mydb</span>  <span class="comment"># 'mongo' resolves via Docker DNS</span>
+    <span class="key">depends_on</span>:
+      - <span class="val">mongo</span>                      <span class="comment"># start mongo container first</span>
+    <span class="key">networks</span>:
+      - <span class="val">app-network</span>
+
+<span class="comment"># ── Networks ─────────────────────────────────────────────────</span>
+<span class="comment"># Declaring it explicitly lets you give it a custom name.</span>
+<span class="key">networks</span>:
+  <span class="key">app-network</span>:
+    <span class="key">driver</span>: <span class="val">bridge</span>
+
+<span class="comment"># ── Volumes ──────────────────────────────────────────────────</span>
+<span class="comment"># Top-level declaration creates the volume if it doesn't exist.</span>
+<span class="comment"># Omitting the value ({}) uses Docker's default local driver.</span>
+<span class="key">volumes</span>:
+  <span class="key">mongo-data</span>:</pre>
+    </div>
+
+    <div class="callout note">
+      <span class="callout-icon">📐</span>
+      <div class="callout-body"><strong>YAML indentation is strict.</strong> Use 2 spaces — never tabs. A misaligned key silently moves to the wrong parent and produces confusing errors. Most editors have a YAML plugin that highlights these issues.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Clean up any Task 27 leftovers</div>
+          <div class="step-desc">If containers or the network from Task 27 are still running, remove them first. The named volume can stay — Compose will reuse it and your data will survive.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+<pre><span class="comment"># Stop and remove containers from Task 27 if still running</span>
+<span class="cmd">docker</span> rm <span class="flag">-f</span> node-app mongo
+<span class="cmd">docker</span> network rm app-network
+
+<span class="comment"># Keep the volume — Compose will reuse it</span>
+<span class="comment"># docker volume rm mongo-data  ← skip this</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Create docker-compose.yml</div>
+          <div class="step-desc">Create the file in your <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">node-mongo-app/</code> directory and paste the content from the section above. Verify the file is valid with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker compose config</code>.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+<pre><span class="comment"># Validate the compose file — prints the merged config or errors</span>
+<span class="cmd">docker</span> compose config</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">If <code style="font-family:var(--mono);font-size:12px">docker compose config</code> prints back the merged YAML without errors, the file is syntactically valid. Fix any indentation errors it reports before proceeding.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Bring the stack up</div>
+          <div class="step-desc"><code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--build</code> forces a fresh image build before starting. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-d</code> runs everything in the background. This single command replaces all six manual steps from Task 27.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+<pre><span class="cmd">docker</span> compose up <span class="flag">--build</span> <span class="flag">-d</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="b">[+] Building 11.2s (9/9) FINISHED</span><br>
+<span class="d"> => [app] FROM node:20-alpine</span>                         <span class="d">2.1s</span><br>
+<span class="d"> => [app] RUN npm install --omit=dev</span>                   <span class="d">7.8s</span><br>
+<span class="g"> => [app] exporting to image</span>                            <span class="d">0.3s</span><br>
+<br>
+<span class="b">[+] Running 4/4</span><br>
+<span class="g"> ✔ Network node-mongo-app_app-network   Created</span>         <span class="d">0.1s</span><br>
+<span class="g"> ✔ Volume "node-mongo-app_mongo-data"   Created</span>         <span class="d">0.0s</span><br>
+<span class="g"> ✔ Container mongo                      Started</span>         <span class="d">0.5s</span><br>
+<span class="g"> ✔ Container node-app                   Started</span>         <span class="d">0.8s</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Notice the volume is prefixed: <strong>node-mongo-app_mongo-data</strong>. If you created <code style="font-family:var(--mono);font-size:12px">mongo-data</code> manually in Task 27, Compose creates a new namespaced one — your old data won't appear. See the note at the end of this task on external volumes.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Inspect the running stack</div>
+          <div class="step-desc">Compose has its own <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">ps</code> command that only shows containers belonging to this project.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+<pre><span class="cmd">docker</span> compose ps</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">NAME        IMAGE               COMMAND                  SERVICE   STATUS          PORTS</span><br>
+<span class="g">mongo       mongo:7             "docker-entrypoint.s…"   mongo     Up 30 seconds</span><br>
+<span class="o">node-app    node-mongo-app      "node server.js"         app       Up 28 seconds   0.0.0.0:3000->3000/tcp</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Follow logs from all services</div>
+          <div class="step-desc">Compose multiplexes logs from every container into one stream, colour-coded by service name. Press Ctrl+C to stop following without stopping the containers.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+<pre><span class="comment"># All services</span>
+<span class="cmd">docker</span> compose logs <span class="flag">-f</span>
+
+<span class="comment"># One service only</span>
+<span class="cmd">docker</span> compose logs <span class="flag">-f</span> app</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output — interleaved, colour-coded</div>
+            <div class="output-body">
+<span class="g">mongo    | {"msg":"Waiting for connections","attr":{"port":27017}}</span><br>
+<span class="o">app      | ⏳ Mongo not ready, retrying... (5 left)</span><br>
+<span class="o">app      | ⏳ Mongo not ready, retrying... (4 left)</span><br>
+<span class="g">mongo    | {"msg":"Connection accepted"}</span><br>
+<span class="o">app      | ✅ Connected to MongoDB</span><br>
+<span class="o">app      | 🚀 API on port 3000</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Verify the API is working</div>
+          <div class="step-desc">Hit the health endpoint and create a note — exactly as in Task 27, but this time the whole stack started with one command.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+<pre><span class="cmd">curl</span> http://localhost:3000/health
+
+<span class="cmd">curl</span> <span class="flag">-X</span> POST http://localhost:3000/notes \
+  <span class="flag">-H</span> <span class="str">"Content-Type: application/json"</span> \
+  <span class="flag">-d</span> <span class="str">'{"text":"Written via Compose"}'</span>
+
+<span class="cmd">curl</span> http://localhost:3000/notes</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">{"status":"ok","mongo":1}</span><br>
+<span class="g">{"_id":"…","text":"Written via Compose","createdAt":"…","__v":0}</span><br>
+<span class="g">[{"_id":"…","text":"Written via Compose","createdAt":"…","__v":0}]</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Edit the app and hot-rebuild</div>
+          <div class="step-desc">Make a change to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">server.js</code> — for example, update the health response. Then run <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">up</code> again. Compose rebuilds only the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">app</code> service, leaves Mongo untouched, and swaps in the new container.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+<pre><span class="comment"># After editing server.js, rebuild and restart only the app</span>
+<span class="cmd">docker</span> compose up <span class="flag">--build</span> <span class="flag">-d</span> app</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output — mongo untouched</div>
+            <div class="output-body">
+<span class="b">[+] Building 2.1s (9/9) FINISHED</span>           <span class="d">(layer cache hit on npm install)</span><br>
+<span class="b">[+] Running 1/1</span><br>
+<span class="g"> ✔ Container node-app   Started</span>              <span class="d">0.4s</span>
+            </div>
+          </div>
+          <div class="callout note">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">The <code style="font-family:var(--mono);font-size:12px">npm install</code> layer is served from cache because <code style="font-family:var(--mono);font-size:12px">package.json</code> didn't change — the same caching strategy you set up in Task 14 pays off here.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Tear down the stack</div>
+          <div class="step-desc"><code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">down</code> stops and removes containers and the network. The volume is <strong>kept by default</strong> — your data survives. Add <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-v</code> only if you want to wipe the database.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+<pre><span class="comment"># Stop and remove containers + network (keep volume)</span>
+<span class="cmd">docker</span> compose down
+
+<span class="comment"># Also remove the volume — DESTROYS ALL DATA</span>
+<span class="cmd">docker</span> compose down <span class="flag">-v</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output — docker compose down</div>
+            <div class="output-body">
+<span class="b">[+] Running 3/3</span><br>
+<span class="g"> ✔ Container node-app                    Removed</span>    <span class="d">1.2s</span><br>
+<span class="g"> ✔ Container mongo                        Removed</span>    <span class="d">0.4s</span><br>
+<span class="g"> ✔ Network node-mongo-app_app-network     Removed</span>    <span class="d">0.1s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 7: BONUS — EXTERNAL VOLUMES         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔗</span>
+      Bonus — reuse a volume from Task 27
+    </div>
+
+    <p>Compose namespaces volumes by default. To use the bare <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">mongo-data</code> volume you created manually, declare it as <strong>external</strong>. Compose will use it as-is without prefixing.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">docker-compose.yml — volumes section (external)</span>
+        <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+      </div>
+<pre><span class="key">volumes</span>:
+  <span class="key">mongo-data</span>:
+    <span class="key">external</span>: <span class="val">true</span>   <span class="comment"># use the existing 'mongo-data' volume, don't namespace it</span></pre>
+    </div>
+
+    <div class="callout warn">
+      <span class="callout-icon">⚠️</span>
+      <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">docker compose up</code> will fail with an error if <code style="font-family:var(--mono);font-size:12px">external: true</code> is set and the volume doesn't exist — Compose will not create it. Create it first with <code style="font-family:var(--mono);font-size:12px">docker volume create mongo-data</code>.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 8: COMPOSE CLI REFERENCE            -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📋</span>
+      Essential Compose commands
+    </div>
+
+    <div class="cli-grid">
+      <div class="cli-row">
+        <span class="cli-cmd">docker compose up -d</span>
+        <span class="cli-desc">Start all services in detached mode (build if needed)</span>
+      </div>
+      <div class="cli-row">
+        <span class="cli-cmd">docker compose up --build -d</span>
+        <span class="cli-desc">Force-rebuild images then start — use after code changes</span>
+      </div>
+      <div class="cli-row">
+        <span class="cli-cmd">docker compose down</span>
+        <span class="cli-desc">Stop and remove containers + network; keep volumes</span>
+      </div>
+      <div class="cli-row">
+        <span class="cli-cmd">docker compose down -v</span>
+        <span class="cli-desc">Also remove named volumes — destroys data, use with care</span>
+      </div>
+      <div class="cli-row">
+        <span class="cli-cmd">docker compose ps</span>
+        <span class="cli-desc">List containers belonging to this project only</span>
+      </div>
+      <div class="cli-row">
+        <span class="cli-cmd">docker compose logs -f [service]</span>
+        <span class="cli-desc">Stream logs — all services or one; Ctrl+C detaches safely</span>
+      </div>
+      <div class="cli-row">
+        <span class="cli-cmd">docker compose exec app sh</span>
+        <span class="cli-desc">Open a shell inside a running service container</span>
+      </div>
+      <div class="cli-row">
+        <span class="cli-cmd">docker compose restart app</span>
+        <span class="cli-desc">Restart one service without touching the others</span>
+      </div>
+      <div class="cli-row">
+        <span class="cli-cmd">docker compose config</span>
+        <span class="cli-desc">Validate and print the merged compose config — debug first</span>
+      </div>
+      <div class="cli-row">
+        <span class="cli-cmd">docker compose pull</span>
+        <span class="cli-desc">Pull the latest versions of all images declared in the file</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 9: WHAT HAPPENED UNDER THE HOOD     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">📖</div>
+        <div class="flow-label">File parsed</div>
+        <div class="flow-desc">Compose read the YAML, resolved defaults, and built an internal dependency graph.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">🌐</div>
+        <div class="flow-label">Network created</div>
+        <div class="flow-desc">The bridge network was created and registered with Docker's embedded DNS server.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">💾</div>
+        <div class="flow-label">Volume created</div>
+        <div class="flow-desc">The named volume was created (or reused) before any container started.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🏗️</div>
+        <div class="flow-label">Image built</div>
+        <div class="flow-desc">Compose ran <code style="font-family:var(--mono);font-size:11px">docker build</code> on the app's Dockerfile, using layer cache where possible.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">📦</div>
+        <div class="flow-label">Containers started</div>
+        <div class="flow-desc">Mongo started first (depends_on), then the app — both attached to the network.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🔗</div>
+        <div class="flow-label">DNS wired up</div>
+        <div class="flow-desc">The hostname <code style="font-family:var(--mono);font-size:11px">mongo</code> resolved to the Mongo container's IP inside the shared network.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 10: WHAT YOU LEARNED                -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How every <code style="font-family:var(--mono);font-size:12px">docker run</code> flag from Task 27 maps to a key in <code style="font-family:var(--mono);font-size:12px">docker-compose.yml</code></li>
+      <li><span class="chk"></span>How Compose automatically creates a network and wires DNS so services reach each other by name</li>
+      <li><span class="chk"></span>The difference between <code style="font-family:var(--mono);font-size:12px">depends_on</code> (start order) and actual readiness — and why the app still needs retry logic</li>
+      <li><span class="chk"></span>How <code style="font-family:var(--mono);font-size:12px">docker compose up --build -d</code> rebuilds only changed services, leaving stable ones untouched</li>
+      <li><span class="chk"></span>How <code style="font-family:var(--mono);font-size:12px">docker compose down</code> preserves volumes by default, and <code style="font-family:var(--mono);font-size:12px">-v</code> destroys them</li>
+      <li><span class="chk"></span>How Compose namespaces resources with the project name, and how <code style="font-family:var(--mono);font-size:12px">external: true</code> opts out of that</li>
+    </ul>
+  </section>
+
+</div>
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

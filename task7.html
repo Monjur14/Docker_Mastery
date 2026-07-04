@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 7 — Container Removal & Cleanup</title>
+<link rel="icon" type="image/png" href="/assets/docker.png" >
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.1);
+    --red-border: rgba(248,81,73,0.25);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green-border);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--green); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-label .icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: .6rem;
+  }
+  .concept-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Resource map ── */
+  .resource-map {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 8px;
+    margin: 1rem 0;
+  }
+  .resource-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: .9rem 1rem;
+  }
+  .resource-card-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: .5rem;
+  }
+  .resource-icon { font-size: 16px; }
+  .resource-name { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--text); }
+  .resource-desc { font-size: 12px; color: var(--text-muted); line-height: 1.55; margin-bottom: .5rem; }
+  .resource-cmd {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--blue);
+    background: rgba(88,166,255,0.08);
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .resource-cmd.danger { color: var(--red); background: var(--red-bg); }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--green);
+    background: var(--bg);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .step-line {
+    width: 1px;
+    flex: 1;
+    background: var(--border);
+    margin: 4px 0;
+    min-height: 16px;
+  }
+  .step:last-child .step-line { display: none; }
+  .step-content {
+    padding: 0 0 2rem 1rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .step-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: .35rem;
+    padding-top: 3px;
+  }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color .15s, background .15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  pre .cmd    { color: var(--blue); }
+  pre .flag   { color: var(--yellow); }
+  pre .str    { color: var(--green); }
+  pre .comment{ color: var(--text-dim); font-style: italic; }
+  pre .hl     { color: var(--purple); }
+  pre .danger { color: var(--red); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px;
+    padding: .875rem 1rem;
+    margin: .75rem 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    border: 1px solid;
+    display: flex;
+    gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info   { background: var(--blue-bg);   border-color: rgba(88,166,255,0.2); }
+  .callout.tip    { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn   { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.danger { background: var(--red-bg);    border-color: var(--red-border); }
+
+  /* ── Output preview ── */
+  .output-preview {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .output-header {
+    background: var(--surface);
+    padding: .4rem .875rem;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .r { color: var(--red); }
+  .output-body .y { color: var(--yellow); }
+
+  /* ── Command anatomy ── */
+  .anatomy {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 14px;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    line-height: 2;
+    gap: 0;
+  }
+  .anatomy-part {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    margin: 2px 2px;
+  }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-flag { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .a-tgt  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row  { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag  {
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    flex-shrink: 0;
+    min-width: 52px;
+    text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--purple); background: rgba(188,140,255,0.1); }
+  .anatomy-row .anatomy-tag.a-tgt  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Prune comparison table ── */
+  .cmp-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 13px;
+  }
+  .cmp-table th {
+    text-align: left;
+    padding: .7rem .9rem;
+    background: rgba(255,255,255,0.03);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  .cmp-table td {
+    padding: .7rem .9rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    vertical-align: top;
+    line-height: 1.55;
+  }
+  .cmp-table tr:last-child td { border-bottom: none; }
+  .cmp-table td.cmd-cell { font-family: var(--mono); font-size: 12px; color: var(--blue); white-space: nowrap; }
+  .cmp-table td strong { color: var(--text); font-weight: 500; }
+  .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+  .badge.safe   { color: var(--green);  background: var(--green-bg);  border-color: var(--green-border); }
+  .badge.risky  { color: var(--red);    background: var(--red-bg);    border-color: var(--red-border); }
+  .badge.medium { color: var(--yellow); background: var(--yellow-bg); border-color: var(--yellow-border); }
+
+  /* ── Flow grid ── */
+  .flow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .875rem;
+    text-align: center;
+  }
+  .flow-num  { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label{ font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    padding: .6rem .875rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── Next task ── */
+  .next-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    text-decoration: none;
+    transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav  { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .cmp-table { display: block; overflow-x: auto; }
+    .resource-map { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 7</span>
+  <span class="nav-badge">Beginner</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 07 &nbsp;·&nbsp; Beginner
+    </div>
+    <h1>Container Removal<br><span class="hl">&amp; Cleanup</span></h1>
+    <p class="hero-desc">Stop a container, delete it, and reclaim disk space by pruning dangling images, unused volumes, and other leftover resources. Keep your Docker environment lean.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~10 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker installed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal / Shell
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(248,81,73,0.1)">🗑️</div>
+          <div class="concept-title">Stop before you remove</div>
+        </div>
+        <div class="concept-body">
+          You cannot remove a <strong>running</strong> container with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker rm</code> — it will error. You must stop it first, or pass <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-f</code> (force) to stop and remove in one go.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">🪣</div>
+          <div class="concept-title">What "dangling" means</div>
+        </div>
+        <div class="concept-body">
+          A <strong>dangling image</strong> is one with no tag and no container referencing it — typically left behind when you rebuild an image with the same tag. It shows up as <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">&lt;none&gt;:&lt;none&gt;</code> in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker images</code>. They're safe to delete.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🧹</div>
+          <div class="concept-title">Prune vs. remove</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker rm</code> targets <strong>specific</strong> containers by name or ID. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">prune</code> commands bulk-delete <strong>all</strong> resources of a given type that are safe to remove — faster for cleanups, but less surgical.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">💽</div>
+          <div class="concept-title">Volumes are independent</div>
+        </div>
+        <div class="concept-body">
+          Volumes are <strong>not deleted when a container is removed</strong> — by design. Data persists even after the container is gone. You have to explicitly prune volumes, or they accumulate indefinitely on disk.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">☢️</div>
+          <div class="concept-title">docker system prune is aggressive</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker system prune</code> removes all stopped containers, dangling images, unused networks, and build cache in one shot. Adding <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-a</code> also deletes <strong>all unused images</strong>, not just dangling ones — use with care on dev machines.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">📊</div>
+          <div class="concept-title">Check disk usage first</div>
+        </div>
+        <div class="concept-body">
+          Before pruning blindly, run <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker system df</code> to see exactly how much space containers, images, volumes, and build cache are consuming — and how much is reclaimable.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: RESOURCE MAP                     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🗺️</span>
+      What can be cleaned up
+    </div>
+
+    <div class="resource-map">
+      <div class="resource-card">
+        <div class="resource-card-top">
+          <span class="resource-icon">📦</span>
+          <span class="resource-name">Containers</span>
+        </div>
+        <div class="resource-desc">Stopped containers sitting on disk, using no CPU but still consuming filesystem space.</div>
+        <span class="resource-cmd">docker container prune</span>
+      </div>
+      <div class="resource-card">
+        <div class="resource-card-top">
+          <span class="resource-icon">🖼️</span>
+          <span class="resource-name">Images</span>
+        </div>
+        <div class="resource-desc">Dangling <code style="font-family:var(--mono);font-size:11px">&lt;none&gt;</code> images and old tagged images no longer referenced by any container.</div>
+        <span class="resource-cmd">docker image prune</span>
+      </div>
+      <div class="resource-card">
+        <div class="resource-card-top">
+          <span class="resource-icon">💾</span>
+          <span class="resource-name">Volumes</span>
+        </div>
+        <div class="resource-desc">Named volumes not attached to any container. Can hold gigabytes of old database data.</div>
+        <span class="resource-cmd danger">docker volume prune</span>
+      </div>
+      <div class="resource-card">
+        <div class="resource-card-top">
+          <span class="resource-icon">🌐</span>
+          <span class="resource-name">Networks</span>
+        </div>
+        <div class="resource-desc">Custom networks not connected to any running container — typically left from removed Compose projects.</div>
+        <span class="resource-cmd">docker network prune</span>
+      </div>
+      <div class="resource-card">
+        <div class="resource-card-top">
+          <span class="resource-icon">⚡</span>
+          <span class="resource-name">Build cache</span>
+        </div>
+        <div class="resource-desc">Cached layers from <code style="font-family:var(--mono);font-size:11px">docker build</code>. Often the biggest consumer of space on active dev machines.</div>
+        <span class="resource-cmd">docker builder prune</span>
+      </div>
+      <div class="resource-card">
+        <div class="resource-card-top">
+          <span class="resource-icon">☢️</span>
+          <span class="resource-name">Everything</span>
+        </div>
+        <div class="resource-desc">All of the above at once (except volumes unless <code style="font-family:var(--mono);font-size:11px">--volumes</code> is passed).</div>
+        <span class="resource-cmd danger">docker system prune</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      Command anatomy
+    </div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">rm</span>
+        <span class="anatomy-part a-flag">-f</span>
+        <span class="anatomy-part a-tgt">my-container</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker</span>
+          <p>The CLI binary — passes the command to the Docker daemon.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">rm</span>
+          <p>Remove a container. Shorthand for <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">docker container rm</code>. The container must be stopped unless <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">-f</code> is used.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-f</span>
+          <p>Force — stops the container first if it's running, then removes it. Without this flag, removing a running container is an error.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-tgt">name / ID</span>
+          <p>The container to target — by name (e.g. <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">web</code>) or full/short container ID. You can pass multiple separated by spaces.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Spin up some containers to clean up</div>
+          <div class="step-desc">Create a few containers so we have something to work with. One runs in the background; two are one-off jobs that exit immediately.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+            <pre><span class="comment"># Long-running container</span>
+<span class="cmd">docker</span> run <span class="flag">-d</span> <span class="flag">--name</span> <span class="str">web</span> nginx
+
+<span class="comment"># Two one-off containers (exit immediately)</span>
+<span class="cmd">docker</span> run <span class="flag">--name</span> <span class="str">job1</span> alpine echo "done"
+<span class="cmd">docker</span> run <span class="flag">--name</span> <span class="str">job2</span> alpine echo "done"</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Inspect disk usage before cleanup</div>
+          <div class="step-desc">Get a clear picture of what's consuming space and what's reclaimable before touching anything.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+            <pre><span class="cmd">docker</span> system df</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="w">TYPE            TOTAL   ACTIVE   SIZE      RECLAIMABLE</span><br>
+<span class="b">Images          3       1        197.7MB   184.3MB (93%)</span><br>
+<span class="b">Containers      3       1        0B        0B</span><br>
+<span class="b">Local Volumes   0       0        0B        0B</span><br>
+<span class="b">Build Cache     0       0        0B        0B</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Add <code style="font-family:var(--mono);font-size:12px">-v</code> for a verbose breakdown listing each image and container individually — useful for identifying the biggest offenders.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Remove a specific stopped container</div>
+          <div class="step-desc">Target a single container by name. This only works if the container is already stopped.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+            <pre><span class="cmd">docker</span> rm <span class="str">job1</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body"><span class="w">job1</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Force-remove a running container</div>
+          <div class="step-desc">The <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-f</code> flag stops the container first (with SIGKILL, no grace period) then deletes it — all in one command.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+            <pre><span class="cmd">docker</span> rm <span class="flag">-f</span> <span class="str">web</span></pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><strong>-f uses SIGKILL immediately</strong> — no graceful shutdown. If <code style="font-family:var(--mono);font-size:12px">web</code> were a database, this could corrupt in-flight writes. In production, prefer <code style="font-family:var(--mono);font-size:12px">docker stop</code> first, then <code style="font-family:var(--mono);font-size:12px">docker rm</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Prune all stopped containers at once</div>
+          <div class="step-desc">Instead of removing containers one by one, bulk-delete every stopped container in a single command. Great for clearing out accumulated job containers.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+            <pre><span class="cmd">docker</span> container prune</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="y">WARNING! This will remove all stopped containers.</span><br>
+<span class="y">Are you sure you want to continue? [y/N]</span> <span class="w">y</span><br>
+<span class="g">Deleted Containers:</span><br>
+<span class="g">a1b2c3d4e5f6789012345678901234567890abcd</span><br>
+<br>
+<span class="w">Total reclaimed space: 0B</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Docker always prompts for confirmation before pruning. Add <code style="font-family:var(--mono);font-size:12px">-f</code> to skip the prompt in scripts: <code style="font-family:var(--mono);font-size:12px">docker container prune -f</code></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Remove dangling images</div>
+          <div class="step-desc">Pull a fresh image and rebuild to manufacture a dangling layer, then clean it up.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+            <pre><span class="comment"># See any dangling images (&lt;none&gt;:&lt;none&gt;)</span>
+<span class="cmd">docker</span> images <span class="flag">-f</span> <span class="str">"dangling=true"</span>
+
+<span class="comment"># Remove only dangling images (safe — no containers use them)</span>
+<span class="cmd">docker</span> image prune
+
+<span class="comment"># Remove ALL unused images (not just dangling)</span>
+<span class="cmd">docker</span> image prune <span class="flag">-a</span></pre>
+          </div>
+          <div class="callout danger">
+            <span class="callout-icon">🚨</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">image prune -a</code> deletes every image not currently used by a running container — including ones you might want to reuse soon. Only run this if you're intentionally freeing up space.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Remove a specific image by name or ID</div>
+          <div class="step-desc">Target individual images with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker rmi</code> when you know exactly what you want gone. You can pass multiple image names or IDs at once.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+            <pre><span class="comment"># Remove by name and tag</span>
+<span class="cmd">docker</span> rmi <span class="str">nginx:latest</span>
+
+<span class="comment"># Remove multiple at once</span>
+<span class="cmd">docker</span> rmi <span class="str">nginx:latest</span> <span class="str">alpine:latest</span></pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Docker will refuse to delete an image that's in use by any container — even a stopped one. Remove the container first, then the image.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Prune unused volumes</div>
+          <div class="step-desc">Volumes persist after container removal by design. List orphaned volumes, then prune the ones you no longer need.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+            <pre><span class="comment"># List all volumes</span>
+<span class="cmd">docker</span> volume ls
+
+<span class="comment"># Remove all volumes not attached to a container</span>
+<span class="cmd">docker</span> volume prune
+
+<span class="comment"># Remove a specific volume by name</span>
+<span class="cmd">docker</span> volume rm <span class="str">my-db-data</span></pre>
+          </div>
+          <div class="callout danger">
+            <span class="callout-icon">🚨</span>
+            <div class="callout-body"><strong>Volume data is permanent once deleted.</strong> This includes database files, uploaded files, and any other data that wasn't stored elsewhere. Always verify the volume contents or back up before pruning.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">The nuclear option — system prune</div>
+          <div class="step-desc">When you want to reclaim everything at once: stopped containers, dangling images, unused networks, and build cache.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+            <pre><span class="comment"># Remove everything unused (prompts for confirmation)</span>
+<span class="cmd">docker</span> system prune
+
+<span class="comment"># Also include all unused images, not just dangling</span>
+<span class="cmd">docker</span> system prune <span class="flag">-a</span>
+
+<span class="comment"># Include volumes too (use with extreme caution)</span>
+<span class="cmd">docker</span> system prune <span class="flag">-a</span> <span class="flag">--volumes</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="y">WARNING! This will remove:</span><br>
+<span class="y">  - all stopped containers</span><br>
+<span class="y">  - all networks not used by at least one container</span><br>
+<span class="y">  - all dangling images</span><br>
+<span class="y">  - all dangling build cache</span><br>
+<span class="y">Are you sure you want to continue? [y/N]</span> <span class="w">y</span><br>
+<br>
+<span class="g">Deleted Containers: ...</span><br>
+<span class="g">Deleted Images: ...</span><br>
+<span class="g">Total reclaimed space: 1.42GB</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">10</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Verify the cleanup</div>
+          <div class="step-desc">Run <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker system df</code> again to confirm the reclaimable space is now zero.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy</button>
+            </div>
+            <pre><span class="cmd">docker</span> system df</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (after full cleanup)</div>
+            <div class="output-body">
+<span class="w">TYPE            TOTAL   ACTIVE   SIZE   RECLAIMABLE</span><br>
+<span class="g">Images          0       0        0B     0B</span><br>
+<span class="g">Containers      0       0        0B     0B</span><br>
+<span class="g">Local Volumes   0       0        0B     0B</span><br>
+<span class="g">Build Cache     0       0        0B     0B</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: PRUNE CHEAT SHEET                -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📋</span>
+      Prune command reference
+    </div>
+
+    <table class="cmp-table">
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>What it removes</th>
+          <th>Risk</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="cmd-cell">docker container prune</td>
+          <td>All <strong>stopped</strong> containers</td>
+          <td><span class="badge safe">safe</span></td>
+        </tr>
+        <tr>
+          <td class="cmd-cell">docker image prune</td>
+          <td>Only <strong>dangling</strong> images (<code style="font-family:var(--mono);font-size:11px">&lt;none&gt;:&lt;none&gt;</code>)</td>
+          <td><span class="badge safe">safe</span></td>
+        </tr>
+        <tr>
+          <td class="cmd-cell">docker image prune -a</td>
+          <td>All images <strong>not used</strong> by any container</td>
+          <td><span class="badge medium">caution</span></td>
+        </tr>
+        <tr>
+          <td class="cmd-cell">docker volume prune</td>
+          <td>All volumes <strong>not attached</strong> to a container</td>
+          <td><span class="badge risky">data loss</span></td>
+        </tr>
+        <tr>
+          <td class="cmd-cell">docker network prune</td>
+          <td>All networks <strong>not used</strong> by any container</td>
+          <td><span class="badge safe">safe</span></td>
+        </tr>
+        <tr>
+          <td class="cmd-cell">docker builder prune</td>
+          <td>All unused <strong>build cache</strong> layers</td>
+          <td><span class="badge safe">safe</span></td>
+        </tr>
+        <tr>
+          <td class="cmd-cell">docker system prune</td>
+          <td>Containers + dangling images + networks + build cache</td>
+          <td><span class="badge medium">caution</span></td>
+        </tr>
+        <tr>
+          <td class="cmd-cell">docker system prune -a --volumes</td>
+          <td><strong>Everything</strong> — all unused resources including volumes</td>
+          <td><span class="badge risky">data loss</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: WHAT HAPPENED UNDER THE HOOD     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happens under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">🛑</div>
+        <div class="flow-label">Process killed</div>
+        <div class="flow-desc">On <code style="font-family:var(--mono);font-size:11px">docker rm -f</code>, the container's PID 1 receives SIGKILL immediately.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">🗂️</div>
+        <div class="flow-label">Writable layer deleted</div>
+        <div class="flow-desc">The container's unique writable filesystem layer is removed from the storage driver.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">🌐</div>
+        <div class="flow-label">Network detached</div>
+        <div class="flow-desc">Virtual Ethernet interfaces and IP allocations for the container are released.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">📋</div>
+        <div class="flow-label">Metadata removed</div>
+        <div class="flow-desc">Container ID, name, config, and log files are deleted from Docker's internal database.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">💾</div>
+        <div class="flow-label">Volumes persist</div>
+        <div class="flow-desc">Named and anonymous volumes survive untouched — they must be pruned separately.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🖼️</div>
+        <div class="flow-label">Image stays cached</div>
+        <div class="flow-desc">The underlying image layers remain on disk and can be reused instantly for the next container.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 7: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How to remove a specific container with <code style="font-family:var(--mono);font-size:12px">docker rm</code>, and force-remove a running one with <code style="font-family:var(--mono);font-size:12px">-f</code></li>
+      <li><span class="chk"></span>How to bulk-delete all stopped containers at once using <code style="font-family:var(--mono);font-size:12px">docker container prune</code></li>
+      <li><span class="chk"></span>What dangling images are and how to safely remove them with <code style="font-family:var(--mono);font-size:12px">docker image prune</code></li>
+      <li><span class="chk"></span>That volumes survive container removal and must be pruned separately — with care, since data is permanent</li>
+      <li><span class="chk"></span>How to inspect disk usage before and after with <code style="font-family:var(--mono);font-size:12px">docker system df</code></li>
+      <li><span class="chk"></span>The difference in scope and risk between targeted <code style="font-family:var(--mono);font-size:12px">prune</code> commands and <code style="font-family:var(--mono);font-size:12px">docker system prune</code></li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

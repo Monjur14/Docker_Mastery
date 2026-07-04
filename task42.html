@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 42 — Deploy a Container on a VPS</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.08);
+    --red-border: rgba(248,81,73,0.2);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px;
+    color: var(--text-muted); text-decoration: none; transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 10px; padding: 3px 10px;
+    border-radius: 999px; background: var(--purple-bg); color: var(--purple);
+    border: 1px solid rgba(188,140,255,0.25); letter-spacing: .04em; text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700;
+    letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--purple); }
+  .hero-desc {
+    font-size: 16px; color: var(--text-muted); line-height: 1.65;
+    max-width: 560px; margin-bottom: 1.75rem;
+  }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 12px; color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon {
+    width: 22px; height: 22px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--purple); background: var(--bg); flex-shrink: 0; z-index: 1;
+  }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin: .6rem 0;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .45rem .875rem; border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    background: transparent; border: none; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s;
+    display: flex; align-items: center; gap: 4px; letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text);
+  }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .hl      { color: var(--purple); }
+  pre .kw      { color: var(--blue); }
+  pre .host    { color: var(--yellow); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0;
+    font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info  { background: var(--blue-bg);   border-color: rgba(88,166,255,0.2); }
+  .callout.tip   { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn  { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.bad   { background: var(--red-bg);    border-color: var(--red-border); }
+
+  /* ── Anatomy ── */
+  .anatomy {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 14px; display: flex; align-items: baseline;
+    flex-wrap: wrap; margin-bottom: 1.25rem; line-height: 2;
+  }
+  .anatomy-part { padding: 2px 6px; border-radius: 4px; font-size: 13px; margin: 2px 2px; }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-flag { background: rgba(188,140,255,0.14); color: var(--purple); }
+  .a-val  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-img  { background: rgba(88,166,255,0.10);  color: var(--blue); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag {
+    padding: 1px 8px; border-radius: 3px; font-size: 11px;
+    flex-shrink: 0; min-width: 72px; text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--purple); background: rgba(188,140,255,0.12); }
+  .anatomy-row .anatomy-tag.a-val  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .anatomy-tag.a-img  { color: var(--blue);   background: rgba(88,166,255,0.10); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header {
+    background: var(--surface); padding: .4rem .875rem;
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem; font-family: var(--mono);
+    font-size: 12.5px; line-height: 1.7; color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .p { color: var(--purple); }
+  .output-body .r { color: var(--red); }
+
+  /* ── Architecture diagram ── */
+  .arch-diagram {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.5rem; margin: .75rem 0;
+    font-family: var(--mono); font-size: 12.5px;
+  }
+  .arch-row { display: flex; align-items: center; gap: 0; }
+  .arch-box {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .875rem 1rem;
+  }
+  .arch-box-label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: .4rem; }
+  .arch-box-name  { font-size: 13px; font-weight: 600; margin-bottom: .3rem; }
+  .arch-box-sub   { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+  .arch-connector {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 0 1rem; gap: 3px; flex-shrink: 0;
+  }
+  .arch-connector svg { color: var(--purple); }
+  .arch-connector span { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+  .arch-stack {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; margin-top: .75rem;
+  }
+  .arch-stack-header {
+    padding: .4rem .875rem; font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-dim);
+    border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02);
+  }
+  .arch-stack-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: .5rem .875rem; border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .arch-stack-row:last-child { border-bottom: none; }
+  .arch-stack-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .arch-stack-name { color: var(--text); flex: 1; }
+  .arch-stack-port { color: var(--text-dim); font-size: 11px; }
+
+  /* ── Provider comparison ── */
+  .provider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: .75rem 0; }
+  .provider-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .875rem; text-align: center;
+  }
+  .provider-icon { font-size: 1.4rem; margin-bottom: .35rem; }
+  .provider-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: .25rem; }
+  .provider-spec { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+  .provider-cost { font-family: var(--mono); font-size: 11px; color: var(--green); margin-top: .3rem; }
+
+  /* ── What happened grid ── */
+  .flow-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px; margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .875rem; text-align: center;
+  }
+  .flow-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13.5px; color: var(--text-muted);
+    padding: .6rem .875rem; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px; line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px; height: 16px; border: 1.5px solid var(--border-strong);
+    border-radius: 3px; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── Next card ── */
+  .next-card {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.25rem;
+    text-decoration: none; transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); flex-shrink: 0; margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .arch-row { flex-direction: column; }
+    .arch-connector { flex-direction: row; padding: .5rem 0; }
+    .provider-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 42</span>
+  <span class="nav-badge">Advanced</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 42 &nbsp;·&nbsp; Advanced
+    </div>
+    <h1>Deploy a Container<br><span class="hl">on a VPS</span></h1>
+    <p class="hero-desc">SSH into a cloud server, install Docker, and deploy your stack in production with <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--purple)">docker compose up -d</code>. Go from a blank Ubuntu server to a live, public-facing app.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~45 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        VPS + SSH key
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal / Shell
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🖥️</div>
+          <div class="concept-title">What is a VPS?</div>
+        </div>
+        <div class="concept-body">
+          A <strong>Virtual Private Server</strong> is a rented Linux machine in the cloud with a public IP address. Providers like DigitalOcean, Hetzner, Linode, and Vultr offer 1-CPU/1 GB RAM instances for $4–6/month — enough to host side projects, APIs, and small web apps.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🔑</div>
+          <div class="concept-title">SSH key authentication</div>
+        </div>
+        <div class="concept-body">
+          SSH keys replace passwords for server login. You generate a key pair — private key stays on your machine, public key goes onto the server. Every provider lets you paste your public key at VPS creation so you can log in immediately without a password.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">🚀</div>
+          <div class="concept-title">docker compose up -d</div>
+        </div>
+        <div class="concept-body">
+          The <strong>-d flag</strong> (detached) starts all services in the background and returns your shell immediately. The containers keep running after you close the SSH session. This is the standard production launch command for a Compose stack.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🔁</div>
+          <div class="concept-title">restart: unless-stopped</div>
+        </div>
+        <div class="concept-body">
+          Adding <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">restart: unless-stopped</code> to a Compose service tells Docker to automatically restart it after crashes or server reboots — until you explicitly stop it with <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker compose down</code>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🛡️</div>
+          <div class="concept-title">Firewall basics — ufw</div>
+        </div>
+        <div class="concept-body">
+          A fresh VPS has all ports open by default. <strong>ufw</strong> (Uncomplicated Firewall) lets you close everything and whitelist only what you need — typically port 22 (SSH), 80 (HTTP), and 443 (HTTPS). Anything else is blocked at the OS level.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🔄</div>
+          <div class="concept-title">Updating a running stack</div>
+        </div>
+        <div class="concept-body">
+          The production update workflow is: pull new code or images on the server, then run <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker compose pull && docker compose up -d</code>. Compose replaces only the containers whose image or config changed, keeping the rest running.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: ARCHITECTURE                     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🗺️</span>
+      What you're building
+    </div>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-box">
+          <div class="arch-box-label">🌐 &nbsp;Internet</div>
+          <div class="arch-box-name" style="color:var(--blue)">Browser / curl</div>
+          <div class="arch-box-sub">HTTP request to<br>your server's IP</div>
+        </div>
+        <div class="arch-connector">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 10h14M11 4l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>port 80</span>
+        </div>
+        <div class="arch-box">
+          <div class="arch-box-label">☁️ &nbsp;VPS (Ubuntu 24.04)</div>
+          <div class="arch-box-name" style="color:var(--purple)">your-server-ip</div>
+          <div class="arch-box-sub">Docker + Compose<br>installed & running</div>
+        </div>
+      </div>
+
+      <div class="arch-stack">
+        <div class="arch-stack-header">containers running on the VPS</div>
+        <div class="arch-stack-row">
+          <div class="arch-stack-dot" style="background:var(--green)"></div>
+          <span class="arch-stack-name">nginx (reverse proxy)</span>
+          <span class="arch-stack-port">0.0.0.0:80 → container:80</span>
+        </div>
+        <div class="arch-stack-row">
+          <div class="arch-stack-dot" style="background:var(--blue)"></div>
+          <span class="arch-stack-name">app (your Node.js / Python app)</span>
+          <span class="arch-stack-port">internal :3000</span>
+        </div>
+        <div class="arch-stack-row">
+          <div class="arch-stack-dot" style="background:var(--purple)"></div>
+          <span class="arch-stack-name">postgres (database)</span>
+          <span class="arch-stack-port">internal :5432 · volume: pgdata</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: CHOOSE A PROVIDER                -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">☁️</span>
+      Choose a VPS provider
+    </div>
+
+    <div class="provider-grid">
+      <div class="provider-card">
+        <div class="provider-icon">🌊</div>
+        <div class="provider-name">DigitalOcean</div>
+        <div class="provider-spec">1 vCPU · 1 GB RAM<br>25 GB SSD · Ubuntu</div>
+        <div class="provider-cost">~$6 / month</div>
+      </div>
+      <div class="provider-card">
+        <div class="provider-icon">🇩🇪</div>
+        <div class="provider-name">Hetzner</div>
+        <div class="provider-spec">2 vCPU · 2 GB RAM<br>40 GB SSD · Ubuntu</div>
+        <div class="provider-cost">~$4 / month</div>
+      </div>
+      <div class="provider-card">
+        <div class="provider-icon">🟠</div>
+        <div class="provider-name">Linode / Akamai</div>
+        <div class="provider-spec">1 vCPU · 1 GB RAM<br>25 GB SSD · Ubuntu</div>
+        <div class="provider-cost">~$5 / month</div>
+      </div>
+      <div class="provider-card">
+        <div class="provider-icon">🔥</div>
+        <div class="provider-name">Vultr</div>
+        <div class="provider-spec">1 vCPU · 1 GB RAM<br>25 GB SSD · Ubuntu</div>
+        <div class="provider-cost">~$6 / month</div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body">All providers support <strong>Ubuntu 24.04 LTS</strong> and SSH key upload at creation time. This task uses Ubuntu — commands are identical across providers. Always add your SSH public key during provisioning, not after.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      Command anatomy
+    </div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">compose</span>
+        <span class="anatomy-part a-flag">-f</span>
+        <span class="anatomy-part a-val">compose.yml</span>
+        <span class="anatomy-part a-sub">up</span>
+        <span class="anatomy-part a-flag">-d</span>
+        <span class="anatomy-part a-flag">--pull</span>
+        <span class="anatomy-part a-val">always</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker compose</span>
+          <p>The Compose CLI — orchestrates multi-container applications from a YAML definition file.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-f compose.yml</span>
+          <p>Explicit file path. Optional if the file is named <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">compose.yml</code> or <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">docker-compose.yml</code> in the current directory.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">up</span>
+          <p>Create and start all services defined in the file. Recreates containers whose config has changed.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-d</span>
+          <p>Detached — run everything in the background. Your SSH session can close without stopping the stack.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">--pull always</span>
+          <p>Pull the latest version of every image before starting, even if a local copy exists. Ensures production runs current code.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Generate an SSH key pair (if you don't have one)</div>
+          <div class="step-desc">Run this on your local machine. The public key is what you upload to the VPS provider — the private key never leaves your laptop.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">local machine</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Generate a modern ed25519 key pair</span>
+<span class="cmd">ssh-keygen</span> <span class="flag">-t</span> ed25519 <span class="flag">-C</span> <span class="str">"deploy@myapp"</span> <span class="flag">-f</span> ~/.ssh/vps_deploy
+
+<span class="comment"># Print the public key — paste this into your VPS provider's SSH key field</span>
+<span class="cmd">cat</span> ~/.ssh/vps_deploy.pub</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">If you already have an <code style="font-family:var(--mono);font-size:12px">~/.ssh/id_ed25519.pub</code> or <code style="font-family:var(--mono);font-size:12px">~/.ssh/id_rsa.pub</code>, use that — no need to generate a new one.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Provision the VPS and SSH in</div>
+          <div class="step-desc">Create an Ubuntu 24.04 droplet/instance at your provider with your SSH public key attached. Once it's running, connect from your local terminal.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">local machine</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Replace with your server's actual IP address</span>
+<span class="cmd">ssh</span> <span class="flag">-i</span> ~/.ssh/vps_deploy root@<span class="host">YOUR_SERVER_IP</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">Welcome to Ubuntu 24.04 LTS (GNU/Linux 6.8.0-31-generic x86_64)</span><br>
+<span class="g">root@ubuntu-vps:~#</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Some providers use <strong>ubuntu</strong> instead of <strong>root</strong> as the default username — check your provider's documentation. The prompt you see confirms you're on the server.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Update the system and lock down the firewall</div>
+          <div class="step-desc">All commands from here run <strong>on the server</strong>. Update packages and configure ufw to only allow SSH, HTTP, and HTTPS.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">server — root@vps</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Update all system packages</span>
+<span class="cmd">apt-get</span> update <span class="flag">-y</span> && apt-get upgrade <span class="flag">-y</span>
+
+<span class="comment"># Configure the firewall</span>
+<span class="cmd">ufw</span> default deny incoming
+<span class="cmd">ufw</span> default allow outgoing
+<span class="cmd">ufw</span> allow 22/tcp    <span class="comment"># SSH — do this BEFORE enabling or you'll lock yourself out</span>
+<span class="cmd">ufw</span> allow 80/tcp    <span class="comment"># HTTP</span>
+<span class="cmd">ufw</span> allow 443/tcp   <span class="comment"># HTTPS</span>
+<span class="cmd">ufw</span> <span class="flag">--force</span> enable
+
+<span class="comment"># Confirm status</span>
+<span class="cmd">ufw</span> status</pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><strong>Always allow port 22 before enabling ufw.</strong> If you enable the firewall first without the SSH rule, you will be permanently locked out of the server.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Install Docker and Docker Compose</div>
+          <div class="step-desc">Use Docker's official install script — the fastest and most reliable method for Ubuntu. It installs the engine, CLI, and Compose plugin in one go.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">server — root@vps</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Download and run Docker's official install script</span>
+<span class="cmd">curl</span> <span class="flag">-fsSL</span> https://get.docker.com | sh
+
+<span class="comment"># Verify the installation</span>
+<span class="cmd">docker</span> version
+<span class="cmd">docker</span> compose version</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output (compose version)</div>
+            <div class="output-body">
+<span class="g">Docker Compose version v2.27.0</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">The install script adds the Docker apt repository and installs the latest stable release. On subsequent visits, <code style="font-family:var(--mono);font-size:12px">apt-get upgrade</code> will keep Docker up to date automatically.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Create a deploy directory and write the Compose file</div>
+          <div class="step-desc">Set up a directory for your project on the server, then create the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">compose.yml</code>. This example deploys nginx as a stand-in — swap it for your actual app image.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">server — root@vps</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">mkdir</span> <span class="flag">-p</span> /opt/myapp && <span class="cmd">cd</span> /opt/myapp</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">/opt/myapp/compose.yml</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre>services:
+  web:
+    image: nginx:alpine
+    ports:
+      - <span class="str">"80:80"</span>
+    volumes:
+      - <span class="str">./html:/usr/share/nginx/html:ro</span>
+    <span class="hl">restart</span>: unless-stopped
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: <span class="str">"${DB_PASSWORD}"</span>
+      POSTGRES_DB: myapp
+    volumes:
+      - <span class="str">pgdata:/var/lib/postgresql/data</span>
+    <span class="hl">restart</span>: unless-stopped
+
+volumes:
+  pgdata:</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">server — create a test HTML page</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">mkdir</span> html
+<span class="cmd">echo</span> <span class="str">'&lt;h1&gt;Deployed with Docker 🐳&lt;/h1&gt;'</span> > html/index.html</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Create the .env file for secrets</div>
+          <div class="step-desc">Store sensitive values in a <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.env</code> file that Compose reads automatically — never hardcode secrets in the Compose file itself.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">server — root@vps</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">cat</span> > /opt/myapp/.env <span class="str">&lt;&lt;'EOF'
+DB_PASSWORD=your-strong-password-here
+EOF</span>
+
+<span class="comment"># Lock it down so only root can read it</span>
+<span class="cmd">chmod</span> 600 /opt/myapp/.env</pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">Add <strong>.env</strong> to your <code style="font-family:var(--mono);font-size:12px">.gitignore</code> — never commit secrets to version control. On the server, <code style="font-family:var(--mono);font-size:12px">chmod 600</code> ensures only root can read the file.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">7</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Deploy — bring the stack up in detached mode</div>
+          <div class="step-desc">Pull the images and start all services in the background. Docker Compose reads the <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.env</code> file automatically.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">server — root@vps</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">cd</span> /opt/myapp
+<span class="cmd">docker</span> compose up <span class="flag">-d</span> <span class="flag">--pull</span> always</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">[+] Pulling 2/2</span><br>
+<span class="out"> ✔ web Pulled                                         3.2s</span><br>
+<span class="out"> ✔ db  Pulled                                         8.1s</span><br>
+<span class="out">[+] Running 3/3</span><br>
+<span class="g"> ✔ Volume "myapp_pgdata"  Created</span><br>
+<span class="g"> ✔ Container myapp-db-1   Started</span><br>
+<span class="g"> ✔ Container myapp-web-1  Started</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">8</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Verify the stack is running and accessible</div>
+          <div class="step-desc">Check that containers are up on the server, then hit the public IP from your local machine to confirm the app is reachable from the internet.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">server — root@vps</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Check all containers are Up</span>
+<span class="cmd">docker</span> compose ps
+
+<span class="comment"># Quick local test on the server itself</span>
+<span class="cmd">curl</span> http://localhost</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output — compose ps</div>
+            <div class="output-body">
+<span class="out">NAME              IMAGE           STATUS          PORTS</span><br>
+<span class="g">myapp-web-1       nginx:alpine    Up 12 seconds   0.0.0.0:80->80/tcp</span><br>
+<span class="g">myapp-db-1        postgres:16     Up 12 seconds</span>
+            </div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">local machine — test from the internet</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">curl</span> http://<span class="host">YOUR_SERVER_IP</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="g">&lt;h1&gt;Deployed with Docker 🐳&lt;/h1&gt;</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">Your container is now serving traffic from the internet. Any browser hitting <strong>http://YOUR_SERVER_IP</strong> will reach the nginx container running on your VPS.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">9</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Ship updates to production</div>
+          <div class="step-desc">The standard update cycle — edit your Compose file or push a new image tag, then pull and redeploy. Only changed containers restart.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">local machine — copy updated files to server</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Copy updated compose.yml or app files to the server</span>
+<span class="cmd">scp</span> <span class="flag">-i</span> ~/.ssh/vps_deploy compose.yml root@<span class="host">YOUR_SERVER_IP</span>:/opt/myapp/</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">server — pull new images and redeploy</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">cd</span> /opt/myapp
+<span class="cmd">docker</span> compose pull           <span class="comment"># fetch latest image versions</span>
+<span class="cmd">docker</span> compose up <span class="flag">-d</span>         <span class="comment"># recreate only changed containers</span>
+<span class="cmd">docker</span> image prune <span class="flag">-f</span>        <span class="comment"># remove old image versions to free disk</span></pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Compose is smart about restarts — if only the <strong>web</strong> image changed, only that container is recreated. The <strong>db</strong> container and its volume are left completely untouched.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">10</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Essential production operations</div>
+          <div class="step-desc">The commands you'll reach for every time you SSH into a production server.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">server — day-to-day operations</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># See what's running and its health</span>
+<span class="cmd">docker</span> compose ps
+
+<span class="comment"># Follow logs for all services (Ctrl+C to stop)</span>
+<span class="cmd">docker</span> compose logs <span class="flag">-f</span>
+
+<span class="comment"># Follow logs for a specific service only</span>
+<span class="cmd">docker</span> compose logs <span class="flag">-f</span> web
+
+<span class="comment"># Live resource usage</span>
+<span class="cmd">docker</span> stats
+
+<span class="comment"># Stop everything (containers removed, volumes kept)</span>
+<span class="cmd">docker</span> compose down
+
+<span class="comment"># Stop and wipe volumes — DESTRUCTIVE, loses all DB data</span>
+<span class="cmd">docker</span> compose down <span class="flag">-v</span></pre>
+          </div>
+          <div class="callout bad">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body"><strong>docker compose down -v</strong> deletes all named volumes including your database. In production, only run this when you deliberately want to wipe persistent data. Most of the time, plain <code style="font-family:var(--mono);font-size:12px">docker compose down</code> is what you want.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">11</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Confirm auto-restart survives a reboot</div>
+          <div class="step-desc">Verify that <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">restart: unless-stopped</code> works — reboot the server and confirm containers come back automatically.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">server — root@vps</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="comment"># Reboot the server</span>
+<span class="cmd">reboot</span>
+
+<span class="comment"># Wait ~30 seconds, then SSH back in and check</span>
+<span class="cmd">docker</span> compose <span class="flag">-f</span> /opt/myapp/compose.yml ps</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output after reboot</div>
+            <div class="output-body">
+<span class="g">myapp-web-1    Up 18 seconds   0.0.0.0:80->80/tcp</span><br>
+<span class="g">myapp-db-1     Up 18 seconds</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">Containers restarted automatically — the Docker daemon starts on boot and relaunches any container with a <code style="font-family:var(--mono);font-size:12px">restart</code> policy set. No cron jobs or systemd units needed.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: WHAT JUST HAPPENED               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">🔑</div>
+        <div class="flow-label">SSH handshake</div>
+        <div class="flow-desc">Your private key proved identity to the server's authorized_keys file — no password ever transmitted.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">🛡️</div>
+        <div class="flow-label">ufw configured</div>
+        <div class="flow-desc">Netfilter rules were written to the kernel — all inbound packets except SSH/HTTP/HTTPS are dropped before reaching any process.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">⬇️</div>
+        <div class="flow-label">Images pulled</div>
+        <div class="flow-desc">Docker pulled nginx and postgres layers from Docker Hub and cached them locally on the VPS disk.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🌐</div>
+        <div class="flow-label">Port bound to host</div>
+        <div class="flow-desc"><code style="font-family:var(--mono);font-size:11px">80:80</code> told Docker to bind the VPS's public network interface to the container — internet traffic reaches nginx directly.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🔁</div>
+        <div class="flow-label">Restart policy set</div>
+        <div class="flow-desc">Docker registered each container's restart policy in its metadata — the daemon re-reads this on boot and relaunches the container automatically.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">📦</div>
+        <div class="flow-label">Volume persists data</div>
+        <div class="flow-desc">Postgres writes to the named volume on VPS disk — survived the reboot and will survive any future container recreation.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 7: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How to generate an SSH key pair and use it to authenticate with a cloud server without a password</li>
+      <li><span class="chk"></span>How to harden a fresh VPS with ufw — denying all inbound traffic except SSH, HTTP, and HTTPS</li>
+      <li><span class="chk"></span>How to install Docker and Compose on Ubuntu using the official install script</li>
+      <li><span class="chk"></span>How to write a production-ready <code style="font-family:var(--mono);font-size:12px">compose.yml</code> with <code style="font-family:var(--mono);font-size:12px">restart: unless-stopped</code> and an env file for secrets</li>
+      <li><span class="chk"></span>How to deploy and verify a live stack with <code style="font-family:var(--mono);font-size:12px">docker compose up -d --pull always</code></li>
+      <li><span class="chk"></span>The production update cycle — pull, up, prune — and how Compose restarts only changed containers</li>
+      <li><span class="chk"></span>How <code style="font-family:var(--mono);font-size:12px">restart: unless-stopped</code> survives server reboots with no extra configuration</li>
+    </ul>
+  </section>
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

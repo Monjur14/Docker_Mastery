@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 20 — Local Directory Bind Mounts</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    border-bottom: 1px solid var(--border);
+    padding: .875rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--yellow-bg);
+    color: var(--yellow);
+    border: 1px solid var(--yellow-border);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); }
+  .hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .hl { color: var(--yellow); }
+  .hero-desc {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 560px;
+    margin-bottom: 1.75rem;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-label .icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  h2 { font-size: 1.2rem; font-weight: 600; letter-spacing: -0.01em; margin-bottom: .5rem; color: var(--text); }
+  h3 { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: .4rem; }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--yellow); background: var(--bg); flex-shrink: 0; z-index: 1;
+  }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: .6rem 0;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .45rem .875rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    background: transparent; border: none; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px;
+    transition: color .15s, background .15s;
+    display: flex; align-items: center; gap: 4px; letter-spacing: .04em;
+  }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre {
+    padding: .875rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text);
+  }
+  pre .cmd   { color: var(--blue); }
+  pre .flag  { color: var(--yellow); }
+  pre .str   { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .out   { color: var(--text-muted); }
+  pre .hl    { color: var(--purple); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0;
+    font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px;
+  }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info { background: var(--blue-bg); border-color: rgba(88,166,255,0.2); }
+  .callout.tip  { background: var(--green-bg); border-color: var(--green-border); }
+  .callout.warn { background: var(--yellow-bg); border-color: var(--yellow-border); }
+
+  /* ── Anatomy diagram ── */
+  .anatomy {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono);
+  }
+  .anatomy-cmd {
+    font-size: 14px; display: flex; align-items: baseline;
+    flex-wrap: wrap; margin-bottom: 1.25rem; line-height: 2;
+  }
+  .anatomy-part { padding: 2px 6px; border-radius: 4px; font-size: 13px; margin: 2px 2px; }
+  .a-bin  { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-sub  { background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-flag { background: rgba(188,140,255,0.14); color: var(--purple); }
+  .a-val  { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-img  { background: rgba(88,166,255,0.10);  color: var(--blue); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag {
+    padding: 1px 8px; border-radius: 3px; font-size: 11px;
+    flex-shrink: 0; min-width: 52px; text-align: center;
+  }
+  .anatomy-row .anatomy-tag.a-bin  { color: var(--blue);   background: rgba(88,166,255,0.12); }
+  .anatomy-row .anatomy-tag.a-sub  { color: var(--yellow); background: rgba(227,179,65,0.1); }
+  .anatomy-row .anatomy-tag.a-flag { color: var(--purple); background: rgba(188,140,255,0.12); }
+  .anatomy-row .anatomy-tag.a-val  { color: var(--green);  background: rgba(63,185,80,0.1); }
+  .anatomy-row .anatomy-tag.a-img  { color: var(--blue);   background: rgba(88,166,255,0.10); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .output-header {
+    background: var(--surface); padding: .4rem .875rem;
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border);
+  }
+  .output-body {
+    padding: .875rem 1rem; font-family: var(--mono);
+    font-size: 12.5px; line-height: 1.7; color: #8b949e;
+  }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .p { color: var(--purple); }
+
+  /* ── Bind-mount diagram ── */
+  .mount-diagram {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.5rem; margin: 1rem 0;
+    display: flex; align-items: stretch; gap: 0;
+    font-family: var(--mono); font-size: 12.5px;
+  }
+  .mount-side {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1rem;
+  }
+  .mount-label {
+    font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: .75rem;
+  }
+  .mount-path {
+    font-size: 12px; color: var(--green); margin-bottom: .35rem; line-height: 1.6;
+  }
+  .mount-file {
+    font-size: 11.5px; color: var(--text-muted); padding-left: .75rem; line-height: 1.8;
+  }
+  .mount-arrow {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 0 1.25rem; gap: 4px;
+  }
+  .mount-arrow svg { color: var(--yellow); }
+  .mount-arrow span { font-size: 10px; color: var(--text-dim); letter-spacing: .04em; white-space: nowrap; }
+
+  /* ── Flag reference ── */
+  .flag-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .flag-row { display: flex; align-items: center; gap: 14px; padding: .75rem 1rem; border-bottom: 1px solid var(--border); }
+  .flag-row:last-child { border-bottom: none; }
+  .flag-code {
+    font-family: var(--mono); font-size: 12.5px; color: var(--purple);
+    background: rgba(188,140,255,0.08); padding: 3px 8px; border-radius: 5px;
+    flex-shrink: 0; min-width: 110px; text-align: center;
+  }
+  .flag-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── What happened grid ── */
+  .flow-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px; margin: 1rem 0;
+  }
+  .flow-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .875rem; text-align: center;
+  }
+  .flow-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13.5px; color: var(--text-muted);
+    padding: .6rem .875rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 7px; line-height: 1.5;
+  }
+  .checklist li .chk {
+    width: 16px; height: 16px; border: 1.5px solid var(--border-strong);
+    border-radius: 3px; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── Next card ── */
+  .next-card {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.25rem;
+    text-decoration: none; transition: border-color .15s;
+  }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-arrow {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); flex-shrink: 0; margin-left: auto;
+  }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .mount-diagram { flex-direction: column; }
+    .mount-arrow { flex-direction: row; padding: .75rem 0; }
+    .flag-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 20</span>
+  <span class="nav-badge">Intermediate</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 20 &nbsp;·&nbsp; Intermediate
+    </div>
+    <h1>Local Directory<br><span class="hl">Bind Mounts</span></h1>
+    <p class="hero-desc">Mount a host source-code directory into a container using <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--yellow)">--mount</code> or <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--yellow)">-v</code> to enable live-reload during development — edit a file on your host and see it reflected instantly inside the container.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~15 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Docker installed
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Terminal / Shell
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">📖</span>
+      Required concepts
+    </div>
+
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🔗</div>
+          <div class="concept-title">What is a bind mount?</div>
+        </div>
+        <div class="concept-body">
+          A bind mount maps a <strong>specific path on the host</strong> directly into a path inside the container. Unlike a named volume (which Docker manages), a bind mount points at a real directory <em>you</em> own — so any file you edit on your laptop immediately appears inside the running container, and vice-versa.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🆚</div>
+          <div class="concept-title">Bind mounts vs. named volumes</div>
+        </div>
+        <div class="concept-body">
+          <strong>Bind mounts</strong> reference a host path you provide — great for source code. <strong>Named volumes</strong> are fully managed by Docker, stored in Docker's storage area, and portable across machines — better for database data. Both use the same <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-v</code> / <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--mount</code> flags.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">⚡</div>
+          <div class="concept-title">Live reload in development</div>
+        </div>
+        <div class="concept-body">
+          Tools like <strong>nodemon</strong>, <strong>uvicorn --reload</strong>, or <strong>webpack-dev-server</strong> watch the filesystem for changes and restart the server automatically. When your source directory is bind-mounted, those watchers see your edits <strong>immediately</strong> — no rebuild, no container restart needed.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">📌</div>
+          <div class="concept-title">Absolute paths required</div>
+        </div>
+        <div class="concept-body">
+          Docker requires the host path to be <strong>absolute</strong>. Use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">$(pwd)</code> in bash/zsh to resolve the current directory at runtime, so your command works wherever you've <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">cd</code>'d to. On Windows PowerShell use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">${PWD}</code>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🔒</div>
+          <div class="concept-title">Read-only mounts</div>
+        </div>
+        <div class="concept-body">
+          Appending <strong>:ro</strong> to the mount makes it read-only inside the container — the process can read your files but cannot modify them. Useful for config files or secrets you don't want a buggy container to overwrite on your host.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">🪄</div>
+          <div class="concept-title">--mount vs. -v syntax</div>
+        </div>
+        <div class="concept-body">
+          <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">-v /host:/container</code> is the older, terse shorthand. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--mount type=bind,source=…,target=…</code> is newer, more explicit, and gives better error messages. Both do the same thing — this task uses both so you recognise either.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: COMMAND ANATOMY                  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔬</span>
+      Command anatomy
+    </div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd">
+        <span class="anatomy-part a-bin">docker</span>
+        <span class="anatomy-part a-sub">run</span>
+        <span class="anatomy-part a-flag">-v</span>
+        <span class="anatomy-part a-val">$(pwd)/app:/app</span>
+        <span class="anatomy-part a-flag">-p</span>
+        <span class="anatomy-part a-val">3000:3000</span>
+        <span class="anatomy-part a-img">node:20-alpine</span>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-bin">docker</span>
+          <p>The CLI binary — how you talk to the Docker daemon from your terminal.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sub">run</span>
+          <p>Create and start a new container from the specified image.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-flag">-v</span>
+          <p>Short form of <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">--volume</code>. Declares a bind mount in <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">host_path:container_path</code> format.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-val">$(pwd)/app:/app</span>
+          <p>The host-side path left of the colon, the container-side path right. Docker mirrors them in real time.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-img">node:20-alpine</span>
+          <p>The image to run — a lightweight Node.js 20 image used in this task's live-reload demo.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🪜</span>
+      Step-by-step guide
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Create a small project directory on your host</div>
+          <div class="step-desc">Set up a minimal Node.js HTTP server — this is the code you'll edit live without rebuilding any image.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">mkdir</span> bind-demo && <span class="cmd">cd</span> bind-demo
+<span class="cmd">mkdir</span> app</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">app/server.js</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="hl">const</span> http = require(<span class="str">'http'</span>);
+<span class="hl">const</span> server = http.createServer((req, res) => {
+  res.end(<span class="str">'Hello from v1!\n'</span>);
+});
+server.listen(<span class="hl">3000</span>, () => console.log(<span class="str">'Listening on :3000'</span>));</pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">app/package.json</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre>{
+  <span class="str">"name"</span>: <span class="str">"bind-demo"</span>,
+  <span class="str">"scripts"</span>: {
+    <span class="str">"start"</span>: <span class="str">"nodemon server.js"</span>
+  },
+  <span class="str">"dependencies"</span>: {
+    <span class="str">"nodemon"</span>: <span class="str">"^3.0.0"</span>
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Understand what the mount will look like</div>
+          <div class="step-desc">Before running, visualise how your host directory maps to the container filesystem.</div>
+          <div class="mount-diagram">
+            <div class="mount-side">
+              <div class="mount-label">🖥️ &nbsp;Host (your machine)</div>
+              <div class="mount-path">$(pwd)/app/</div>
+              <div class="mount-file">├── server.js<br>└── package.json</div>
+            </div>
+            <div class="mount-arrow">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11h14M13 5l6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>bind mount</span>
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11h14M13 5l6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="mount-side">
+              <div class="mount-label">📦 &nbsp;Container</div>
+              <div class="mount-path">/app/</div>
+              <div class="mount-file">├── server.js<br>└── package.json</div>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Changes flow <strong>both ways</strong> in real time. Edit <code style="font-family:var(--mono);font-size:12px">server.js</code> on your host → the container sees it immediately. A container writing to <code style="font-family:var(--mono);font-size:12px">/app</code> → files appear on your host. This is why bind mounts are powerful — and why you should be careful with write access.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Run the container with a bind mount (-v shorthand)</div>
+          <div class="step-desc">Mount <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">./app</code> into <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/app</code> in the container, install dependencies, then start nodemon — all in one command.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-it</span> <span class="flag">--name</span> <span class="str">live-server</span> \
+  <span class="flag">-v</span> <span class="str">"$(pwd)/app:/app"</span> \
+  <span class="flag">-p</span> <span class="str">3000:3000</span> \
+  <span class="flag">-w</span> <span class="str">/app</span> \
+  node:20-alpine \
+  sh <span class="flag">-c</span> <span class="str">"npm install && npm start"</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">added 31 packages in 4s</span><br>
+<span class="g">[nodemon] 3.0.2</span><br>
+<span class="g">[nodemon] watching path(s): *.*</span><br>
+<span class="g">[nodemon] starting `node server.js`</span><br>
+<span class="w">Listening on :3000</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body"><strong>-w /app</strong> sets the working directory inside the container so npm install and npm start run in the right place. Always quote the <code style="font-family:var(--mono);font-size:12px">-v</code> value to handle paths with spaces.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Test the server is live</div>
+          <div class="step-desc">Open a new terminal tab and hit the port mapped to your host.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell — new terminal tab</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">curl</span> http://localhost:3000</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body"><span class="w">Hello from v1!</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Edit the file on your host — watch it reload live</div>
+          <div class="step-desc">Without stopping the container, open <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">app/server.js</code> in your editor and change the response text.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">app/server.js — edited line</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre>  res.end(<span class="str">'Hello from v2 — live reload works!\n'</span>);</pre>
+          </div>
+          <p style="font-size:13.5px;margin:.5rem 0;">Save the file. In the container's terminal you'll see nodemon restart automatically:</p>
+          <div class="output-preview">
+            <div class="output-header">container terminal (automatic)</div>
+            <div class="output-body">
+<span class="y">[nodemon] restarting due to changes...</span><br>
+<span class="g">[nodemon] starting `node server.js`</span><br>
+<span class="w">Listening on :3000</span>
+            </div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell — new terminal tab</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">curl</span> http://localhost:3000</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body"><span class="g">Hello from v2 — live reload works!</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Same mount with the explicit --mount syntax</div>
+          <div class="step-desc">The newer <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--mount</code> flag is more verbose but clearer — you'll see it in production Compose files and documentation.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> run <span class="flag">-it</span> <span class="flag">--rm</span> \
+  <span class="flag">--mount</span> <span class="str">type=bind,source="$(pwd)/app",target=/app</span> \
+  <span class="flag">-p</span> <span class="str">3000:3000</span> \
+  <span class="flag">-w</span> <span class="str">/app</span> \
+  node:20-alpine \
+  sh <span class="flag">-c</span> <span class="str">"npm install && npm start"</span></pre>
+          </div>
+          <div class="flag-table">
+            <div class="flag-row">
+              <span class="flag-code">type=bind</span>
+              <span class="flag-desc">Tells Docker this is a bind mount (as opposed to <code style="font-family:var(--mono);font-size:11px">volume</code> or <code style="font-family:var(--mono);font-size:11px">tmpfs</code>).</span>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">source=…</span>
+              <span class="flag-desc">Absolute path on the host. The directory must already exist or Docker will error.</span>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">target=…</span>
+              <span class="flag-desc">The path inside the container where the host directory will be mounted.</span>
+            </div>
+            <div class="flag-row">
+              <span class="flag-code">readonly</span>
+              <span class="flag-desc">Optional — add <code style="font-family:var(--mono);font-size:11px">,readonly</code> at the end to prevent the container from writing to your host.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">7</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Confirm the mount with docker inspect</div>
+          <div class="step-desc">Verify the bind mount is correctly registered in the container's metadata.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell — new terminal tab</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> inspect live-server <span class="flag">--format</span> <span class="str">'{{json .Mounts}}'</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="out">[{</span><br>
+<span class="out">  </span><span class="b">"Type"</span><span class="out">:        </span><span class="g">"bind"</span><span class="out">,</span><br>
+<span class="out">  </span><span class="b">"Source"</span><span class="out">:      </span><span class="g">"/home/user/bind-demo/app"</span><span class="out">,</span><br>
+<span class="out">  </span><span class="b">"Destination"</span><span class="out">: </span><span class="g">"/app"</span><span class="out">,</span><br>
+<span class="out">  </span><span class="b">"Mode"</span><span class="out">:        </span><span class="g">""</span><span class="out">,</span><br>
+<span class="out">  </span><span class="b">"RW"</span><span class="out">:          </span><span class="y">true</span><br>
+<span class="out">}]</span>
+            </div>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><strong>RW: true</strong> confirms the mount is read-write. If you had added <code style="font-family:var(--mono);font-size:12px">:ro</code> or <code style="font-family:var(--mono);font-size:12px">,readonly</code> you'd see <strong>RW: false</strong> here instead.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">8</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Clean up</div>
+          <div class="step-desc">Stop and remove the container. Your source files on the host are untouched — the bind mount doesn't own them.</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">shell</span>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                copy
+              </button>
+            </div>
+            <pre><span class="cmd">docker</span> rm <span class="flag">-f</span> live-server</pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">Your <code style="font-family:var(--mono);font-size:12px">bind-demo/app/</code> directory and all source files remain exactly as you left them. Removing the container has <strong>no effect</strong> on host files — that's the whole point of a bind mount.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: WHAT JUST HAPPENED               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🔍</span>
+      What happened under the hood
+    </div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">📂</div>
+        <div class="flow-label">Host path resolved</div>
+        <div class="flow-desc">Docker resolved <code style="font-family:var(--mono);font-size:11px">$(pwd)/app</code> to an absolute path and registered the mount in the container config.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">🔗</div>
+        <div class="flow-label">Kernel bind mount</div>
+        <div class="flow-desc">The Linux kernel's <code style="font-family:var(--mono);font-size:11px">mount --bind</code> syscall wired the host directory into the container's filesystem namespace.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">👁️</div>
+        <div class="flow-label">Shared inode table</div>
+        <div class="flow-desc">Both sides share the same inodes — no copying. A file write on either side is immediately visible to the other.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🔔</div>
+        <div class="flow-label">Filesystem events</div>
+        <div class="flow-desc">Nodemon received inotify events when you saved — the same events the host OS would fire — and restarted the process.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">🗑️</div>
+        <div class="flow-label">Unmount on stop</div>
+        <div class="flow-desc">When the container stopped, Docker unmounted the bind path from the container namespace. The host directory was never touched.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🏠</div>
+        <div class="flow-label">Host files intact</div>
+        <div class="flow-desc">Deleting the container only removes the container layer — bind-mounted host files are never managed or deleted by Docker.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label">
+      <span class="icon">🎯</span>
+      What you learned
+    </div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How a bind mount maps a specific host path directly into a container's filesystem</li>
+      <li><span class="chk"></span>The difference between bind mounts (host-managed) and named volumes (Docker-managed)</li>
+      <li><span class="chk"></span>How to use both <code style="font-family:var(--mono);font-size:12px">-v host:container</code> shorthand and the explicit <code style="font-family:var(--mono);font-size:12px">--mount type=bind,…</code> syntax</li>
+      <li><span class="chk"></span>How file edits on the host propagate instantly inside the container for live reload</li>
+      <li><span class="chk"></span>How to make a mount read-only with <code style="font-family:var(--mono);font-size:12px">:ro</code> or <code style="font-family:var(--mono);font-size:12px">,readonly</code></li>
+      <li><span class="chk"></span>How to verify mounts with <code style="font-family:var(--mono);font-size:12px">docker inspect</code> and confirm the Type, Source, and RW fields</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

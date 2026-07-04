@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 36 — Secure Secret Management</title>
+<link rel="icon" type="image/png" href="/assets/docker.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --blue-border: rgba(88,166,255,0.2);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --purple-border: rgba(188,140,255,0.2);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.08);
+    --red-border: rgba(248,81,73,0.2);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  /* ── Nav ── */
+  .nav { border-bottom: 1px solid var(--border); padding: .875rem 2rem; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; background: rgba(13,17,23,0.92); backdrop-filter: blur(8px); z-index: 100; }
+  .nav-back { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); text-decoration: none; transition: color .15s; }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge { margin-left: auto; font-family: var(--mono); font-size: 10px; padding: 3px 10px; border-radius: 999px; background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); letter-spacing: .04em; text-transform: uppercase; }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero { padding: 3.5rem 0 3rem; border-bottom: 1px solid var(--border); margin-bottom: 3rem; }
+  .hero-eyebrow { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+  .hero h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem; }
+  .hero h1 .hl { color: var(--purple); }
+  .hero-desc { font-size: 16px; color: var(--text-muted); line-height: 1.65; max-width: 560px; margin-bottom: 1.75rem; }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 3rem; }
+  .section-label { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem; }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Comparison table ── */
+  .compare-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 1rem 0; }
+  .compare-header { display: grid; grid-template-columns: 1.4fr 1fr 1fr; padding: .5rem 1rem; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .compare-header span { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .08em; text-transform: uppercase; }
+  .compare-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; padding: .6rem 1rem; border-bottom: 1px solid var(--border); align-items: center; gap: 8px; }
+  .compare-row:last-child { border-bottom: none; }
+  .compare-prop { font-size: 13px; color: var(--text-muted); }
+  .compare-cell { font-size: 12.5px; text-align: center; }
+  .c-bad  { color: var(--red); }
+  .c-warn { color: var(--yellow); }
+  .c-good { color: var(--green); }
+
+  /* ── Anatomy diagram ── */
+  .anatomy { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono); }
+  .anatomy-cmd { font-size: 14px; display: flex; align-items: baseline; flex-wrap: wrap; margin-bottom: 1.25rem; line-height: 2; }
+  .anatomy-part { padding: 2px 6px; border-radius: 4px; font-size: 13px; margin: 2px 2px; }
+  .a-key { background: rgba(88,166,255,0.15);  color: var(--blue); }
+  .a-val { background: rgba(63,185,80,0.12);   color: var(--green); }
+  .a-sec { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .a-path{ background: rgba(227,179,65,0.12);  color: var(--yellow); }
+  .a-svc { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag { padding: 1px 8px; border-radius: 3px; font-size: 11px; flex-shrink: 0; min-width: 64px; text-align: center; }
+  .anatomy-row .a-key  { color: var(--blue);        background: rgba(88,166,255,0.12); }
+  .anatomy-row .a-val  { color: var(--green);        background: rgba(63,185,80,0.1); }
+  .anatomy-row .a-sec  { color: var(--purple);       background: rgba(188,140,255,0.08); }
+  .anatomy-row .a-path { color: var(--yellow);       background: rgba(227,179,65,0.1); }
+  .anatomy-row .a-svc  { color: var(--text-muted);   background: rgba(255,255,255,0.04); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Secret flow diagram ── */
+  .secret-flow { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; }
+  .sf-row { display: flex; align-items: center; gap: 0; justify-content: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .sf-box { border-radius: 8px; padding: .55rem 1rem; text-align: center; border: 1px solid; font-family: var(--mono); font-size: 12px; font-weight: 600; line-height: 1.4; }
+  .sf-box.file   { background: rgba(63,185,80,0.1);   border-color: var(--green-border); color: var(--green); }
+  .sf-box.docker { background: rgba(88,166,255,0.08); border-color: var(--blue-border);  color: var(--blue); }
+  .sf-box.mount  { background: rgba(188,140,255,0.08);border-color: var(--purple-border);color: var(--purple); }
+  .sf-box.proc   { background: rgba(255,255,255,0.05);border-color: var(--border-strong); color: var(--text-muted); }
+  .sf-arrow { color: var(--text-dim); font-size: 20px; padding: 0 .75rem; flex-shrink: 0; }
+  .sf-note { font-family: var(--mono); font-size: 11px; color: var(--text-dim); text-align: center; line-height: 1.65; }
+  .sf-note span { color: var(--purple); }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--purple); background: var(--bg); flex-shrink: 0; z-index: 1; }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .code-header { display: flex; align-items: center; justify-content: space-between; padding: .45rem .875rem; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn { font-family: var(--mono); font-size: 10px; color: var(--text-dim); background: transparent; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s; display: flex; align-items: center; gap: 4px; letter-spacing: .04em; }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre { padding: .875rem 1rem; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text); }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .key     { color: var(--blue); }
+  pre .val     { color: var(--green); }
+  pre .sec     { color: var(--purple); }
+  pre .num     { color: var(--purple); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .dim     { color: var(--text-dim); }
+  pre .err     { color: var(--red); }
+  pre .warn    { color: var(--yellow); }
+
+  /* ── Callouts ── */
+  .callout { border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0; font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px; }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info   { background: var(--blue-bg);   border-color: var(--blue-border); }
+  .callout.tip    { background: var(--green-bg);  border-color: var(--green-border); }
+  .callout.warn   { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .callout.danger { background: var(--red-bg);    border-color: var(--red-border); }
+  .callout.secret { background: var(--purple-bg); border-color: var(--purple-border); }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header { background: var(--surface); padding: .4rem .875rem; font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .output-body { padding: .875rem 1rem; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: #8b949e; }
+  .output-body .g { color: var(--green); }
+  .output-body .b { color: var(--blue); }
+  .output-body .w { color: var(--text); }
+  .output-body .p { color: var(--purple); }
+  .output-body .y { color: var(--yellow); }
+  .output-body .r { color: var(--red); }
+  .output-body .d { color: var(--text-dim); }
+
+  /* ── File tree ── */
+  .file-tree { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: .875rem 1rem; font-family: var(--mono); font-size: 13px; line-height: 1.8; }
+  .ft-dir  { color: var(--blue); }
+  .ft-file { color: var(--text-muted); }
+  .ft-secret { color: var(--purple); }
+  .ft-ignore { color: var(--text-dim); }
+  .ft-note { color: var(--text-dim); font-style: italic; font-size: 11.5px; }
+
+  /* ── Feature grid ── */
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 1rem 0; }
+  .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .875rem 1rem; }
+  .feature-icon { font-size: 1.25rem; margin-bottom: .35rem; }
+  .feature-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: .25rem; }
+  .feature-desc  { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; }
+
+  /* ── Flow grid ── */
+  .flow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 1rem 0; }
+  .flow-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .875rem; text-align: center; }
+  .flow-num  { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label{ font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--text-muted); padding: .6rem .875rem; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; line-height: 1.5; }
+  .checklist li .chk { width: 16px; height: 16px; border: 1.5px solid var(--border-strong); border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Task nav ── */
+  .task-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .prev-card, .next-card { display: flex; align-items: center; gap: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; text-decoration: none; transition: border-color .15s; }
+  .prev-card:hover, .next-card:hover { border-color: var(--border-strong); }
+  .nav-arrow { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center; color: var(--text-muted); flex-shrink: 0; }
+  .next-card .nav-arrow { margin-left: auto; }
+  .nav-card-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .nav-card-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .compare-header, .compare-row { grid-template-columns: 1.2fr 1fr 1fr; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .task-nav { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 36</span>
+  <span class="nav-badge">Advanced</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 36 &nbsp;·&nbsp; Advanced
+    </div>
+    <h1>Secure Secret<br><span class="hl">Management</span></h1>
+    <p class="hero-desc">Inject API keys and TLS certificates using Docker Compose <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--purple)">secrets:</code> so they are never visible in environment variables, image layers, <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--purple)">docker inspect</code> output, or process listings.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~20 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Completed Task 30 (env vars)
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Docker Compose v2
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">📖</span>Required concepts</div>
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--purple-bg)">🔐</div>
+          <div class="concept-title">What is a Docker Secret?</div>
+        </div>
+        <div class="concept-body">
+          A Docker secret is a blob of sensitive data — a password, API key, TLS certificate, or private key — that Docker mounts into a container as a <strong>read-only file</strong> under <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/run/secrets/&lt;name&gt;</code>. It is never stored in an image layer, passed as an environment variable, or visible in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker inspect</code>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--red-bg)">😱</div>
+          <div class="concept-title">Why Env Vars Aren't Enough</div>
+        </div>
+        <div class="concept-body">
+          Environment variables are convenient but leak in multiple ways: they appear in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker inspect</code> output, in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/proc/&lt;pid&gt;/environ</code> on the host, in crash dumps and logging frameworks that capture all env vars, and in child processes. A secret mounted as a file has a <strong>much smaller exposure surface</strong>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--green-bg)">📁</div>
+          <div class="concept-title">The tmpfs Mount</div>
+        </div>
+        <div class="concept-body">
+          Compose (and Swarm) mount secrets on a <strong>tmpfs filesystem</strong> — stored only in memory, never written to disk. When the container stops, the secret vanishes. The mount point is <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/run/secrets/secret_name</code> and the file is readable only by the container's process — not other containers.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--blue-bg)">📂</div>
+          <div class="concept-title">File-based vs External Secrets</div>
+        </div>
+        <div class="concept-body">
+          In Compose for local dev, secrets come from <strong>files on the host</strong> (e.g. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">./secrets/db_password</code>). In Docker Swarm or production, they can come from the <strong>Swarm secret store</strong> — encrypted at rest and distributed only to nodes that run a service needing that secret. Same syntax either way.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--yellow-bg)">📋</div>
+          <div class="concept-title">Two-level Declaration</div>
+        </div>
+        <div class="concept-body">
+          Secrets are declared in two places in a compose file. At the <strong>top level</strong> (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">secrets:</code>) you define where the secret data comes from. Under each <strong>service</strong> (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">secrets:</code> list) you declare which secrets that service can access. A secret not listed for a service is completely invisible to it.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--purple-bg)">📖</div>
+          <div class="concept-title">Reading Secrets in App Code</div>
+        </div>
+        <div class="concept-body">
+          Your app reads the secret by opening the file at <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/run/secrets/secret_name</code> at startup. This is a deliberate, explicit read — unlike env vars which are just always there. Many frameworks support a <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">_FILE</code> suffix convention for this pattern.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: ENV VARS VS SECRETS              -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">⚖️</span>Env vars vs Docker secrets</div>
+
+    <div class="compare-table">
+      <div class="compare-header">
+        <span>Property</span>
+        <span style="text-align:center">Env var</span>
+        <span style="text-align:center">Docker secret</span>
+      </div>
+      <div class="compare-row">
+        <div class="compare-prop">Visible in <code style="font-family:var(--mono);font-size:12px">docker inspect</code></div>
+        <div class="compare-cell c-bad">✗ Yes</div>
+        <div class="compare-cell c-good">✓ No</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-prop">Visible in <code style="font-family:var(--mono);font-size:12px">/proc/environ</code></div>
+        <div class="compare-cell c-bad">✗ Yes</div>
+        <div class="compare-cell c-good">✓ No</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-prop">Captured by log frameworks</div>
+        <div class="compare-cell c-warn">⚠ Often</div>
+        <div class="compare-cell c-good">✓ No</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-prop">Written to disk</div>
+        <div class="compare-cell c-warn">⚠ Maybe</div>
+        <div class="compare-cell c-good">✓ tmpfs only</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-prop">Survives container stop</div>
+        <div class="compare-cell c-warn">⚠ In image</div>
+        <div class="compare-cell c-good">✓ Gone</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-prop">Per-service access control</div>
+        <div class="compare-cell c-bad">✗ No</div>
+        <div class="compare-cell c-good">✓ Explicit grant</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-prop">Supports binary data (certs)</div>
+        <div class="compare-cell c-bad">✗ Awkward</div>
+        <div class="compare-cell c-good">✓ Native</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-prop">Ease of use</div>
+        <div class="compare-cell c-good">✓ Simple</div>
+        <div class="compare-cell c-warn">⚠ Slightly more setup</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: HOW SECRETS FLOW                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔄</span>How secrets reach the container</div>
+
+    <div class="secret-flow">
+      <div class="sf-row">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div class="sf-box file">Secret file<br><span style="font-size:10px;opacity:.7">./secrets/api_key</span></div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;">host disk</div>
+        </div>
+        <div class="sf-arrow">→</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div class="sf-box docker">Docker<br><span style="font-size:10px;opacity:.7">reads &amp; holds</span></div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;">daemon</div>
+        </div>
+        <div class="sf-arrow">→</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div class="sf-box mount">/run/secrets/<br><span style="font-size:10px;opacity:.7">api_key (tmpfs)</span></div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;">in-memory mount</div>
+        </div>
+        <div class="sf-arrow">→</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div class="sf-box proc">app reads<br><span style="font-size:10px;opacity:.7">fs.readFile(…)</span></div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;">container process</div>
+        </div>
+      </div>
+      <div class="sf-note">
+        Secret travels as bytes — never as an env var, never written to a container layer.<br>
+        Mount path: <span>/run/secrets/&lt;secret_name&gt;</span> · Mode: <span>0400</span> (read-only, owner only)
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: COMPOSE FILE ANATOMY             -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔬</span>Compose file anatomy</div>
+
+    <div class="anatomy">
+      <div class="anatomy-cmd" style="flex-direction:column;gap:4px;font-size:13px;">
+        <div><span class="anatomy-part a-key">secrets</span><span style="color:var(--text-dim)">:  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color:var(--text-dim);font-size:11px;font-style:italic;">← top-level definition</span></div>
+        <div style="padding-left:1.5rem;"><span class="anatomy-part a-sec">stripe_key</span><span style="color:var(--text-dim)">:</span></div>
+        <div style="padding-left:3rem;"><span class="anatomy-part a-key">file</span><span style="color:var(--text-dim)">: </span><span class="anatomy-part a-path">./secrets/stripe_key.txt</span></div>
+        <div style="margin-top:.5rem;"><span class="anatomy-part a-svc">services</span><span style="color:var(--text-dim)">:</span></div>
+        <div style="padding-left:1.5rem;"><span class="anatomy-part a-svc">app</span><span style="color:var(--text-dim)">:</span></div>
+        <div style="padding-left:3rem;"><span class="anatomy-part a-key">secrets</span><span style="color:var(--text-dim)">: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color:var(--text-dim);font-size:11px;font-style:italic;">← per-service grant</span></div>
+        <div style="padding-left:4.5rem;"><span style="color:var(--text-dim)">- </span><span class="anatomy-part a-sec">stripe_key</span></div>
+      </div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-key">top-level</span>
+          <p>The <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">secrets:</code> block at the root of the compose file declares every secret that exists in this project, and where its data comes from.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-sec">name</span>
+          <p>The secret's logical name — used to reference it in service declarations and as the filename inside <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">/run/secrets/</code>.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-path">file:</span>
+          <p>Path to the file on the host whose content becomes the secret. The file can contain any bytes — a token string, a PEM certificate, a JSON key file.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag a-key">per-service</span>
+          <p>Under each service, <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">secrets:</code> is an allow-list. Only listed secrets are mounted into that container. Other services — even in the same project — cannot see them.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: STEP-BY-STEP                     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🪜</span>Step-by-step guide</div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Set up the project structure</div>
+          <div class="step-desc">Create a dedicated <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">secrets/</code> directory alongside your compose file. This directory must be in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.gitignore</code> — it holds real secret data.</div>
+          <div class="file-tree">
+            <div><span class="ft-dir">myproject/</span></div>
+            <div>&nbsp;&nbsp;<span class="ft-file">docker-compose.yml</span></div>
+            <div>&nbsp;&nbsp;<span class="ft-file">Dockerfile</span></div>
+            <div>&nbsp;&nbsp;<span class="ft-file">index.js</span></div>
+            <div>&nbsp;&nbsp;<span class="ft-ignore">.gitignore</span></div>
+            <div>&nbsp;&nbsp;<span class="ft-dir">secrets/</span> &nbsp;<span class="ft-note">← gitignored, real secrets live here</span></div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-secret">stripe_key.txt</span></div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-secret">db_password.txt</span></div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-secret">tls.crt</span></div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-secret">tls.key</span></div>
+            <div>&nbsp;&nbsp;<span class="ft-file">secrets.example/</span> &nbsp;<span class="ft-note">← committed, placeholder values only</span></div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ft-file">stripe_key.txt</span> &nbsp;<span class="ft-note">← contains "sk_test_REPLACE_ME"</span></div>
+          </div>
+          <div class="callout danger">
+            <span class="callout-icon">🔐</span>
+            <div class="callout-body">Add <code style="font-family:var(--mono);font-size:12px">secrets/</code> to <code style="font-family:var(--mono);font-size:12px">.gitignore</code> <em>before</em> creating any files inside it. Commit a <code style="font-family:var(--mono);font-size:12px">secrets.example/</code> with placeholder values so teammates know what files are needed.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Write the secret files</div>
+          <div class="step-desc">Each secret is a plain file. No quoting, no <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">KEY=</code> prefix — just the raw value. Docker mounts the entire file content at <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/run/secrets/&lt;name&gt;</code>.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Create the secrets directory</span>
+mkdir -p secrets
+
+<span class="comment"># Write raw values — no KEY= prefix, no quotes</span>
+echo -n <span class="str">"sk_live_abc123xyz"</span>          > secrets/stripe_key.txt
+echo -n <span class="str">"V3ryStr0ngP@ssword!"</span>        > secrets/db_password.txt
+
+<span class="comment"># Or copy an existing cert/key pair</span>
+cp /path/to/server.crt secrets/tls.crt
+cp /path/to/server.key secrets/tls.key
+
+<span class="comment"># Restrict permissions (good practice)</span>
+chmod 600 secrets/*.txt secrets/*.key</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">The <code style="font-family:var(--mono);font-size:12px">-n</code> flag on <code style="font-family:var(--mono);font-size:12px">echo</code> suppresses the trailing newline. Without it, your app will read the value with a <code style="font-family:var(--mono);font-size:12px">\n</code> appended — a common cause of "invalid token" errors with API keys. Always <code style="font-family:var(--mono);font-size:12px">.trim()</code> when reading secret files in code.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Declare secrets in docker-compose.yml</div>
+          <div class="step-desc">Register every secret at the top level, then grant access per service. A service only sees secrets explicitly listed under its <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">secrets:</code> key.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="key">services</span>:
+
+  <span class="key">app</span>:
+    <span class="key">build</span>: <span class="val">.</span>
+    <span class="key">environment</span>:
+      <span class="comment"># Non-sensitive config still fine as env vars</span>
+      <span class="key">NODE_ENV</span>: <span class="val">production</span>
+      <span class="key">PORT</span>: <span class="val">"3000"</span>
+    <span class="key">secrets</span>:
+      - <span class="sec">stripe_key</span>      <span class="comment"># mounted at /run/secrets/stripe_key</span>
+      - <span class="sec">db_password</span>     <span class="comment"># mounted at /run/secrets/db_password</span>
+    <span class="key">depends_on</span>:
+      - <span class="val">db</span>
+
+  <span class="key">db</span>:
+    <span class="key">image</span>: <span class="val">mongo:7</span>
+    <span class="key">secrets</span>:
+      - <span class="sec">db_password</span>     <span class="comment"># db gets only what it needs</span>
+    <span class="key">environment</span>:
+      <span class="comment"># Mongo supports _FILE convention for secrets</span>
+      <span class="key">MONGO_INITDB_ROOT_PASSWORD_FILE</span>: <span class="val">/run/secrets/db_password</span>
+
+<span class="comment"># ── Top-level secret definitions ────────────────</span>
+<span class="key">secrets</span>:
+  <span class="key">stripe_key</span>:
+    <span class="key">file</span>: <span class="val">./secrets/stripe_key.txt</span>
+  <span class="key">db_password</span>:
+    <span class="key">file</span>: <span class="val">./secrets/db_password.txt</span></pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">The <strong><code style="font-family:var(--mono);font-size:12px">_FILE</code> convention</strong> — used by Mongo, Postgres, Redis, and others — means the env var's value is a <em>path</em> to a file containing the secret, rather than the secret itself. This is the standard bridge between secrets-as-files and apps that expect env vars.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Start the stack and verify mounts</div>
+          <div class="step-desc">Bring up the project and confirm that secrets are mounted where you expect them — and that they're absent from environment variables.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> compose up <span class="flag">-d</span>
+
+<span class="comment"># ✓ Confirm the secret file is present inside the container</span>
+<span class="cmd">docker</span> compose exec app ls <span class="flag">-la</span> /run/secrets/
+
+<span class="comment"># ✓ Read its value (for debugging only — remove in prod)</span>
+<span class="cmd">docker</span> compose exec app cat /run/secrets/stripe_key
+
+<span class="comment"># ✓ Confirm it does NOT appear in env vars</span>
+<span class="cmd">docker</span> compose exec app env | grep -i stripe</pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="d">$ docker compose exec app ls -la /run/secrets/</span><br>
+<span class="w">total 8</span><br>
+<span class="g">-r--------  1 root root  18 Jul  3 09:12 db_password</span><br>
+<span class="g">-r--------  1 root root  22 Jul  3 09:12 stripe_key</span><br>
+<br>
+<span class="d">$ docker compose exec app cat /run/secrets/stripe_key</span><br>
+<span class="p">sk_live_abc123xyz</span><br>
+<br>
+<span class="d">$ docker compose exec app env | grep -i stripe</span><br>
+<span class="d">(no output — secret is not an env var)</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">The files are mode <strong>0400</strong> (read-only, owner only) and owned by root. The grep returns nothing — the secret value is nowhere in the environment.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Read secrets in your Node.js app</div>
+          <div class="step-desc">Open the file at startup, trim any trailing whitespace, and use it. Keep the read synchronous so a missing secret crashes immediately with a clear error before the server begins accepting connections.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">index.js</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="key">const</span> fs   = require(<span class="str">'fs'</span>);
+<span class="key">const</span> path = require(<span class="str">'path'</span>);
+
+<span class="comment">// Helper: read a secret file or throw at startup</span>
+<span class="key">function</span> readSecret(name) {
+  <span class="key">const</span> secretPath = path.join(<span class="str">'/run/secrets'</span>, name);
+  <span class="key">try</span> {
+    <span class="key">return</span> fs.readFileSync(secretPath, <span class="str">'utf8'</span>).trim();
+  } <span class="key">catch</span> {
+    console.<span class="err">error</span>(<span class="str">`Missing secret: ${secretPath}`</span>);
+    process.exit(<span class="num">1</span>);  <span class="comment">// fail fast — don't start without secrets</span>
+  }
+}
+
+<span class="comment">// Read at startup — never stored in a variable longer than needed</span>
+<span class="key">const</span> stripeKey  = readSecret(<span class="str">'stripe_key'</span>);
+<span class="key">const</span> dbPassword = readSecret(<span class="str">'db_password'</span>);
+
+<span class="key">const</span> dbUrl = <span class="str">`mongodb://root:${dbPassword}@db:27017/myapp`</span>;
+
+console.log(<span class="str">'Secrets loaded. Starting server...'</span>);
+<span class="comment">// ... rest of server setup</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Mount a TLS certificate pair</div>
+          <div class="step-desc">Certificates are binary-safe and work identically to text secrets. Declare both the cert and key as secrets, then read them in Node to configure HTTPS.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">docker-compose.yml — TLS cert secrets</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="key">services</span>:
+  <span class="key">app</span>:
+    <span class="key">build</span>: <span class="val">.</span>
+    <span class="key">ports</span>:
+      - <span class="val">"443:443"</span>
+    <span class="key">secrets</span>:
+      - <span class="sec">tls_cert</span>
+      - <span class="sec">tls_key</span>
+      - <span class="sec">stripe_key</span>
+
+<span class="key">secrets</span>:
+  <span class="key">tls_cert</span>:
+    <span class="key">file</span>: <span class="val">./secrets/tls.crt</span>
+  <span class="key">tls_key</span>:
+    <span class="key">file</span>: <span class="val">./secrets/tls.key</span>
+  <span class="key">stripe_key</span>:
+    <span class="key">file</span>: <span class="val">./secrets/stripe_key.txt</span></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">index.js — HTTPS with cert secrets</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre"><span class="key">const</span> https = require(<span class="str">'https'</span>);
+<span class="key">const</span> fs    = require(<span class="str">'fs'</span>);
+
+<span class="key">const</span> options = {
+  <span class="comment">// Read cert and key directly from secret mounts</span>
+  cert: fs.readFileSync(<span class="str">'/run/secrets/tls_cert'</span>),
+  key:  fs.readFileSync(<span class="str">'/run/secrets/tls_key'</span>),
+};
+
+https.createServer(options, (req, res) => {
+  res.end(<span class="str">'Secure hello!\n'</span>);
+}).listen(<span class="num">443</span>);</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Use a custom mount path or target name</div>
+          <div class="step-desc">By default the secret mounts as <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/run/secrets/&lt;name&gt;</code>. You can override the mount path using the long-form service secret declaration.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">docker-compose.yml — custom target path</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="key">services</span>:
+  <span class="key">app</span>:
+    <span class="key">build</span>: <span class="val">.</span>
+    <span class="key">secrets</span>:
+      <span class="comment"># Short form — mounts at /run/secrets/stripe_key</span>
+      - <span class="sec">stripe_key</span>
+
+      <span class="comment"># Long form — custom mount path and permissions</span>
+      - <span class="key">source</span>: <span class="sec">tls_cert</span>
+        <span class="key">target</span>: <span class="val">/etc/ssl/certs/server.crt</span>
+        <span class="key">mode</span>: <span class="num">0444</span>    <span class="comment"># world-readable for nginx etc.</span>
+      - <span class="key">source</span>: <span class="sec">tls_key</span>
+        <span class="key">target</span>: <span class="val">/etc/ssl/private/server.key</span>
+        <span class="key">mode</span>: <span class="num">0400</span>    <span class="comment"># owner-read only</span></pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Custom <code style="font-family:var(--mono);font-size:12px">target</code> paths are useful when integrating with software that looks for certs in a fixed path (Nginx, HAProxy) — you can point the secret directly to where the tool expects it without any code changes.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Confirm secrets don't appear in docker inspect</div>
+          <div class="step-desc">This is the acid test. Run <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker inspect</code> on the container and confirm no secret values leak through.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Check env vars exposed in inspect output</span>
+<span class="cmd">docker</span> inspect myproject-app-1 \
+  <span class="flag">--format</span> <span class="str">'{{json .Config.Env}}'</span>
+
+<span class="comment"># Check that secret names (not values) are listed in Mounts</span>
+<span class="cmd">docker</span> inspect myproject-app-1 \
+  <span class="flag">--format</span> <span class="str">'{{json .HostConfig.Mounts}}'</span></pre>
+          </div>
+          <div class="output-preview">
+            <div class="output-header">expected output</div>
+            <div class="output-body">
+<span class="d">$ docker inspect … --format '{{json .Config.Env}}'</span><br>
+<span class="g">["NODE_ENV=production","PORT=3000"]</span><br>
+<span class="d">← only non-secret vars appear; stripe_key value is absent</span><br>
+<br>
+<span class="d">$ docker inspect … --format '{{json .HostConfig.Mounts}}'</span><br>
+<span class="b">[{"Type":"tmpfs","Target":"/run/secrets/stripe_key",...}]</span><br>
+<span class="d">← mount path visible, but not the secret value itself</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">✅</span>
+            <div class="callout-body">The secret value <code style="font-family:var(--mono);font-size:12px">sk_live_abc123xyz</code> appears nowhere in the inspect output. Only the mount path — not the content — is recorded in the container spec.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Rotate a secret without rebuilding</div>
+          <div class="step-desc">To update a secret value, replace the file on the host, then recreate only the affected service. The image is unchanged — only the mounted content updates.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># 1. Replace the secret file on the host</span>
+echo -n <span class="str">"sk_live_newkey789"</span> > secrets/stripe_key.txt
+
+<span class="comment"># 2. Recreate only the app service — db is unaffected</span>
+<span class="cmd">docker</span> compose up <span class="flag">-d</span> <span class="flag">--force-recreate</span> app</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body"><code style="font-family:var(--mono);font-size:12px">--force-recreate</code> stops and restarts the container so the new file is mounted fresh. A running container does <strong>not</strong> see changes to the secret file while it's live — the mount is snapshotted at container start.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">10</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Tear down — secrets are gone</div>
+          <div class="step-desc">When the stack stops, the tmpfs mounts are destroyed. The secret data that was in memory is gone. The source files on the host remain untouched.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">docker</span> compose down
+<span class="comment"># Containers stopped → tmpfs mounts destroyed → secret data gone from memory</span>
+<span class="comment"># Source files in ./secrets/ are still on the host — manage them carefully</span></pre>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 6: KEY PROPERTIES                   -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">✨</span>What makes Docker secrets secure</div>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🧠</div>
+        <div class="feature-title">Memory-only mount</div>
+        <div class="feature-desc">Secret content lives on a tmpfs — RAM only. Never written to the container's writable layer or the host's disk during the container's lifetime.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <div class="feature-title">0400 permissions</div>
+        <div class="feature-desc">Files are read-only for the owner only. Other users in the same container cannot read them even if they have shell access.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🚪</div>
+        <div class="feature-title">Per-service access control</div>
+        <div class="feature-desc">A secret not explicitly granted to a service is completely invisible to it — not mounted, not accessible, not even known to exist.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <div class="feature-title">Absent from inspect</div>
+        <div class="feature-desc">Secret values never appear in <code style="font-family:var(--mono);font-size:12px">docker inspect</code>, logs, or crash reports — only the mount path (not content) is recorded.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🗑️</div>
+        <div class="feature-title">Auto-cleanup on stop</div>
+        <div class="feature-desc">When the container stops, the tmpfs is destroyed. No traces of the secret remain in the container filesystem.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📦</div>
+        <div class="feature-title">Image-independent</div>
+        <div class="feature-desc">The same image runs in dev with test keys and in prod with live keys. Nothing about the secret is baked into any layer.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 7: WHAT HAPPENED                    -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔍</span>What happened under the hood</div>
+
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Step 01</div>
+        <div class="flow-icon">📋</div>
+        <div class="flow-label">Compose parsed</div>
+        <div class="flow-desc">Compose read the top-level <code style="font-family:var(--mono);font-size:11px">secrets:</code> block and located each source file on the host.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 02</div>
+        <div class="flow-icon">🧠</div>
+        <div class="flow-label">tmpfs created</div>
+        <div class="flow-desc">Docker daemon created an in-memory tmpfs for each secret before the container started.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 03</div>
+        <div class="flow-icon">📁</div>
+        <div class="flow-label">File written</div>
+        <div class="flow-desc">Secret content was written into the tmpfs as a file at <code style="font-family:var(--mono);font-size:11px">/run/secrets/name</code> with mode 0400.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 04</div>
+        <div class="flow-icon">🚀</div>
+        <div class="flow-label">Container started</div>
+        <div class="flow-desc">Process started with tmpfs mounted — no env var injected, no layer written.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 05</div>
+        <div class="flow-icon">📖</div>
+        <div class="flow-label">App read file</div>
+        <div class="flow-desc">App opened <code style="font-family:var(--mono);font-size:11px">/run/secrets/stripe_key</code> at startup using standard filesystem I/O.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Step 06</div>
+        <div class="flow-icon">🗑️</div>
+        <div class="flow-label">Stop = gone</div>
+        <div class="flow-desc">Container stopped → tmpfs unmounted and freed → secret data erased from memory.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 8: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🎯</span>What you learned</div>
+    <ul class="checklist">
+      <li><span class="chk"></span>Why environment variables leak secrets through <code style="font-family:var(--mono);font-size:12px">docker inspect</code>, <code style="font-family:var(--mono);font-size:12px">/proc/environ</code>, and logging frameworks</li>
+      <li><span class="chk"></span>How Docker secrets mount as read-only tmpfs files at <code style="font-family:var(--mono);font-size:12px">/run/secrets/name</code> — never in env, never on disk</li>
+      <li><span class="chk"></span>The two-level declaration pattern: top-level <code style="font-family:var(--mono);font-size:12px">secrets:</code> defines sources; per-service <code style="font-family:var(--mono);font-size:12px">secrets:</code> grants access</li>
+      <li><span class="chk"></span>How to write secret files correctly — raw values, no <code style="font-family:var(--mono);font-size:12px">KEY=</code> prefix, no trailing newline</li>
+      <li><span class="chk"></span>How to read secrets safely in Node.js with fail-fast startup validation</li>
+      <li><span class="chk"></span>How to mount TLS certificates as secrets and use custom target paths</li>
+      <li><span class="chk"></span>The <code style="font-family:var(--mono);font-size:12px">_FILE</code> environment variable convention used by Mongo, Postgres, and Redis</li>
+      <li><span class="chk"></span>How to rotate a secret by replacing the source file and recreating the service — no rebuild needed</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

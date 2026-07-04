@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task 41 — CI Pipeline Integration</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #4d5562;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --green-border: rgba(63,185,80,0.2);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.08);
+    --yellow: #e3b341;
+    --yellow-bg: rgba(227,179,65,0.1);
+    --yellow-border: rgba(227,179,65,0.25);
+    --purple: #bc8cff;
+    --purple-bg: rgba(188,140,255,0.08);
+    --purple-border: rgba(188,140,255,0.2);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.08);
+    --red-border: rgba(248,81,73,0.2);
+    --orange: #ffa657;
+    --orange-bg: rgba(255,166,87,0.08);
+    --orange-border: rgba(255,166,87,0.2);
+    --actions: #2dba4e;
+    --actions-bg: rgba(45,186,78,0.08);
+    --actions-border: rgba(45,186,78,0.22);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --max: 780px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  /* ── Nav ── */
+  .nav { border-bottom: 1px solid var(--border); padding: .875rem 2rem; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; background: rgba(13,17,23,0.92); backdrop-filter: blur(8px); z-index: 100; }
+  .nav-back { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); text-decoration: none; transition: color .15s; }
+  .nav-back:hover { color: var(--text); }
+  .nav-back svg { flex-shrink: 0; }
+  .nav-sep { color: var(--text-dim); font-size: 13px; }
+  .nav-title { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+  .nav-badge { margin-left: auto; font-family: var(--mono); font-size: 10px; padding: 3px 10px; border-radius: 999px; background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); letter-spacing: .04em; text-transform: uppercase; }
+
+  /* ── Layout ── */
+  .page { max-width: var(--max); margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* ── Hero ── */
+  .hero { padding: 3.5rem 0 3rem; border-bottom: 1px solid var(--border); margin-bottom: 3rem; }
+  .hero-eyebrow { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--actions); }
+  .hero h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1rem; }
+  .hero h1 .hl { color: var(--actions); }
+  .hero-desc { font-size: 16px; color: var(--text-muted); line-height: 1.65; max-width: 560px; margin-bottom: 1.75rem; }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .meta-item svg { color: var(--text-dim); }
+
+  /* ── Section headings ── */
+  .section { margin-bottom: 3rem; }
+  .section-label { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-label .icon { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  p { color: var(--text-muted); margin-bottom: .85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Concept cards ── */
+  .concept-grid { display: grid; gap: 10px; }
+  .concept-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem; }
+  .concept-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: .6rem; }
+  .concept-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .concept-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; padding-top: 4px; }
+  .concept-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── Pipeline diagram ── */
+  .pipeline { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono); }
+  .pipeline-label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.25rem; }
+  .pipeline-stages { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding-bottom: .25rem; }
+  .pipeline-stage { display: flex; flex-direction: column; align-items: center; min-width: 110px; }
+  .ps-box { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 7px; padding: .55rem .75rem; text-align: center; width: 100%; }
+  .ps-icon { font-size: 1.25rem; margin-bottom: .25rem; }
+  .ps-name { font-size: 11.5px; font-weight: 600; color: var(--text); margin-bottom: .2rem; }
+  .ps-detail { font-size: 10px; color: var(--text-dim); line-height: 1.4; }
+  .ps-arrow { display: flex; align-items: center; padding: 0 6px; color: var(--text-dim); font-size: 16px; align-self: center; flex-shrink: 0; }
+  .ps-box.trigger { border-color: var(--actions-border); background: var(--actions-bg); }
+  .ps-box.trigger .ps-name { color: var(--actions); }
+  .ps-box.lint    { border-color: var(--yellow-border); background: var(--yellow-bg); }
+  .ps-box.lint    .ps-name { color: var(--yellow); }
+  .ps-box.build   { border-color: rgba(88,166,255,0.25); background: var(--blue-bg); }
+  .ps-box.build   .ps-name { color: var(--blue); }
+  .ps-box.scan    { border-color: var(--orange-border); background: var(--orange-bg); }
+  .ps-box.scan    .ps-name { color: var(--orange); }
+  .ps-box.push    { border-color: var(--green-border); background: var(--green-bg); }
+  .ps-box.push    .ps-name { color: var(--green); }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 0; position: relative; }
+  .step-left { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--actions); background: var(--bg); flex-shrink: 0; z-index: 1; }
+  .step-line { width: 1px; flex: 1; background: var(--border); margin: 4px 0; min-height: 16px; }
+  .step:last-child .step-line { display: none; }
+  .step-content { padding: 0 0 2rem 1rem; flex: 1; min-width: 0; }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: .35rem; padding-top: 3px; }
+  .step-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: .75rem; line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  .code-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .code-header { display: flex; align-items: center; justify-content: space-between; padding: .45rem .875rem; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .code-lang { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; }
+  .copy-btn { font-family: var(--mono); font-size: 10px; color: var(--text-dim); background: transparent; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s; display: flex; align-items: center; gap: 4px; letter-spacing: .04em; }
+  .copy-btn:hover { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .copy-btn.copied { color: var(--green); }
+  pre { padding: .875rem 1rem; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text); }
+  pre .cmd     { color: var(--blue); }
+  pre .flag    { color: var(--yellow); }
+  pre .str     { color: var(--green); }
+  pre .comment { color: var(--text-dim); font-style: italic; }
+  pre .key     { color: var(--blue); }
+  pre .val     { color: var(--green); }
+  pre .sec     { color: var(--purple); }
+  pre .act     { color: var(--actions); }
+  pre .warn    { color: var(--orange); }
+  pre .expr    { color: var(--yellow); }
+  pre .kw      { color: var(--purple); }
+
+  /* ── Callouts ── */
+  .callout { border-radius: 8px; padding: .875rem 1rem; margin: .75rem 0; font-size: 13.5px; line-height: 1.6; border: 1px solid; display: flex; gap: 10px; }
+  .callout-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); flex: 1; }
+  .callout-body strong { color: var(--text); font-weight: 500; }
+  .callout.info    { background: var(--blue-bg);     border-color: rgba(88,166,255,0.2); }
+  .callout.tip     { background: var(--green-bg);    border-color: var(--green-border); }
+  .callout.warn    { background: var(--yellow-bg);   border-color: var(--yellow-border); }
+  .callout.danger  { background: var(--red-bg);      border-color: var(--red-border); }
+  .callout.sec     { background: var(--purple-bg);   border-color: var(--purple-border); }
+  .callout.actions { background: var(--actions-bg);  border-color: var(--actions-border); }
+
+  /* ── Output preview ── */
+  .output-preview { background: #010409; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: .6rem 0; }
+  .output-header { background: var(--surface); padding: .4rem .875rem; font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .output-body { padding: .875rem 1rem; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: #8b949e; }
+  .output-body .g  { color: var(--green); }
+  .output-body .b  { color: var(--blue); }
+  .output-body .w  { color: var(--text); }
+  .output-body .y  { color: var(--yellow); }
+  .output-body .p  { color: var(--purple); }
+  .output-body .r  { color: var(--red); }
+  .output-body .ac { color: var(--actions); }
+
+  /* ── File tree ── */
+  .file-tree { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: .875rem 1rem; font-family: var(--mono); font-size: 12.5px; line-height: 1.9; margin: .6rem 0; }
+  .ft-dir  { color: var(--blue); }
+  .ft-file { color: var(--text-muted); }
+  .ft-new  { color: var(--actions); }
+  .ft-note { color: var(--text-dim); font-style: italic; font-size: 11px; }
+
+  /* ── Job anatomy ── */
+  .anatomy { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: var(--mono); }
+  .anatomy-rows { display: flex; flex-direction: column; gap: 6px; }
+  .anatomy-row  { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .anatomy-tag  { padding: 2px 8px; border-radius: 3px; font-size: 11px; flex-shrink: 0; min-width: 100px; text-align: center; }
+  .at-trigger { color: var(--actions); background: var(--actions-bg); border: 1px solid var(--actions-border); }
+  .at-job     { color: var(--blue);    background: var(--blue-bg);    border: 1px solid rgba(88,166,255,0.2); }
+  .at-step    { color: var(--yellow);  background: var(--yellow-bg);  border: 1px solid var(--yellow-border); }
+  .at-env     { color: var(--purple);  background: var(--purple-bg);  border: 1px solid var(--purple-border); }
+  .at-ctx     { color: var(--green);   background: var(--green-bg);   border: 1px solid var(--green-border); }
+  .anatomy-row p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* ── Tag strategy table ── */
+  .tag-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: .75rem 0; }
+  .tag-header { display: grid; grid-template-columns: 160px 1fr; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+  .tag-row    { display: grid; grid-template-columns: 160px 1fr; border-bottom: 1px solid var(--border); }
+  .tag-row:last-child { border-bottom: none; }
+  .tag-header span, .tag-row span { padding: .5rem .875rem; font-size: 12px; }
+  .tag-header span { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .08em; text-transform: uppercase; }
+  .tag-row span:first-child { font-family: var(--mono); font-size: 11.5px; color: var(--green); }
+  .tag-row span:last-child  { color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Flow grid ── */
+  .flow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 1rem 0; }
+  .flow-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .875rem; text-align: center; }
+  .flow-num  { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+  .flow-icon  { font-size: 1.5rem; margin-bottom: .4rem; }
+  .flow-label { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: .25rem; }
+  .flow-desc  { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--text-muted); padding: .6rem .875rem; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; line-height: 1.5; }
+  .checklist li .chk { width: 16px; height: 16px; border: 1.5px solid var(--border-strong); border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Next / Prev ── */
+  .next-prev { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .next-card { display: flex; align-items: center; gap: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; text-decoration: none; transition: border-color .15s; }
+  .next-card:hover { border-color: var(--border-strong); }
+  .next-card.prev { flex-direction: row-reverse; }
+  .next-arrow { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center; color: var(--text-muted); flex-shrink: 0; margin-left: auto; }
+  .next-card.prev .next-arrow { margin-left: 0; margin-right: auto; }
+  .next-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .next-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .page { padding: 0 1rem 4rem; }
+    .nav { padding: .875rem 1rem; }
+    .hero { padding: 2rem 0 2rem; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .next-prev { grid-template-columns: 1fr; }
+    .pipeline-stages { gap: 0; }
+    .pipeline-stage { min-width: 90px; }
+    .tag-header, .tag-row { grid-template-columns: 130px 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="9,2 4,7 9,12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Roadmap
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Task 41</span>
+  <span class="nav-badge">Advanced</span>
+</nav>
+
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <div class="dot"></div>
+      Task 41 &nbsp;·&nbsp; Advanced
+    </div>
+    <h1>CI Pipeline<br><span class="hl">Integration</span></h1>
+    <p class="hero-desc">Set up a GitHub Actions workflow that automatically lints your Dockerfile, builds your image, runs a vulnerability scan, and pushes to Docker Hub on every push to <code style="font-family:var(--mono);font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px;color:var(--actions)">main</code> — with layer caching so it's fast.</p>
+    <div class="hero-meta">
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><polyline points="6.5,3.5 6.5,6.5 8.5,8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ~30 minutes
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><polyline points="4,6 5.5,7.5 9,4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Tasks 19 &amp; 37 complete
+      </span>
+      <span class="meta-item">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="3" width="11" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        GitHub account + Docker Hub
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: PIPELINE OVERVIEW                -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🗺️</span>What we're building</div>
+
+    <p style="font-size:13.5px;">A single workflow file that runs five stages in sequence. Each stage is a gate — if any step fails, the push is blocked and no broken image reaches Docker Hub.</p>
+
+    <div class="pipeline">
+      <div class="pipeline-label">Workflow stages — push to main</div>
+      <div class="pipeline-stages">
+        <div class="pipeline-stage">
+          <div class="ps-box trigger">
+            <div class="ps-icon">⚡</div>
+            <div class="ps-name">Trigger</div>
+            <div class="ps-detail">push to main<br>or pull request</div>
+          </div>
+        </div>
+        <div class="ps-arrow">→</div>
+        <div class="pipeline-stage">
+          <div class="ps-box lint">
+            <div class="ps-icon">🔍</div>
+            <div class="ps-name">Lint</div>
+            <div class="ps-detail">hadolint<br>Dockerfile</div>
+          </div>
+        </div>
+        <div class="ps-arrow">→</div>
+        <div class="pipeline-stage">
+          <div class="ps-box build">
+            <div class="ps-icon">🏗️</div>
+            <div class="ps-name">Build</div>
+            <div class="ps-detail">docker buildx<br>layer cache</div>
+          </div>
+        </div>
+        <div class="ps-arrow">→</div>
+        <div class="pipeline-stage">
+          <div class="ps-box scan">
+            <div class="ps-icon">🛡️</div>
+            <div class="ps-name">Scan</div>
+            <div class="ps-detail">trivy CVE<br>scan</div>
+          </div>
+        </div>
+        <div class="ps-arrow">→</div>
+        <div class="pipeline-stage">
+          <div class="ps-box push">
+            <div class="ps-icon">🚀</div>
+            <div class="ps-name">Push</div>
+            <div class="ps-detail">Docker Hub<br>versioned tags</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: CONCEPTS                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">📖</span>Required concepts</div>
+    <div class="concept-grid">
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:var(--actions-bg)">⚙️</div>
+          <div class="concept-title">GitHub Actions anatomy</div>
+        </div>
+        <div class="concept-body">
+          A <strong>workflow</strong> is a YAML file in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.github/workflows/</code>. It contains one or more <strong>jobs</strong>, each running on a fresh virtual machine. Jobs contain <strong>steps</strong> — either shell commands (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">run:</code>) or pre-built <strong>actions</strong> (<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">uses:</code>) from the marketplace. Steps within a job share the same filesystem; jobs run in parallel by default unless you use <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">needs:</code>.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(188,140,255,0.1)">🔐</div>
+          <div class="concept-title">GitHub Actions secrets</div>
+        </div>
+        <div class="concept-body">
+          Sensitive values like Docker Hub credentials are stored in <strong>repository secrets</strong> (Settings → Secrets and variables → Actions). They're injected into the workflow via <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">${{ secrets.MY_SECRET }}</code> syntax and are never logged or exposed in build output — even if a step prints them, GitHub redacts the value.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(88,166,255,0.1)">⚡</div>
+          <div class="concept-title">Build cache with GitHub Actions Cache</div>
+        </div>
+        <div class="concept-body">
+          Docker Buildx can export layer cache to GitHub's cache store and restore it on the next run. The <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">cache-from</code> / <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">cache-to</code> options in <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker/build-push-action</code> handle this automatically. A warm cache turns a 3-minute build into a 20-second one when only app code changes.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(63,185,80,0.1)">🏷️</div>
+          <div class="concept-title">Image tagging strategy</div>
+        </div>
+        <div class="concept-body">
+          The <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker/metadata-action</code> generates smart tags automatically: <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">latest</code> on main pushes, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">v1.2.3</code> on git tags, <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">pr-42</code> on pull requests, and the short commit SHA on every push. This gives you full traceability — you can always roll back to an exact commit.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(227,179,65,0.1)">🔍</div>
+          <div class="concept-title">hadolint — Dockerfile linter</div>
+        </div>
+        <div class="concept-body">
+          <strong>hadolint</strong> statically analyses your Dockerfile against a set of best-practice rules — catching things like <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">apt-get install</code> without pinned versions, missing <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">--no-install-recommends</code>, using <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">ADD</code> instead of <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">COPY</code>, and unpinned base images. It fails the CI build on violations above a configurable severity.
+        </div>
+      </div>
+
+      <div class="concept-card">
+        <div class="concept-card-header">
+          <div class="concept-icon" style="background:rgba(255,166,87,0.1)">🛡️</div>
+          <div class="concept-title">trivy — image vulnerability scanner</div>
+        </div>
+        <div class="concept-body">
+          <strong>trivy</strong> (by Aqua Security) scans a built image for known CVEs in OS packages and language dependencies. In the pipeline it runs after the build step — if CRITICAL vulnerabilities are found, the push is blocked. It can also output SARIF reports that appear natively in GitHub's Security tab.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Workflow YAML anatomy -->
+    <div class="anatomy" style="margin-top:1.5rem;">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:1.25rem;">Workflow YAML structure</div>
+      <div class="anatomy-rows">
+        <div class="anatomy-row">
+          <span class="anatomy-tag at-trigger">on:</span>
+          <p>Defines when the workflow fires — push events, pull_request, schedule, or workflow_dispatch (manual). Can filter by branch or path.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag at-job">jobs:</span>
+          <p>Top-level map of job IDs. Each job gets a fresh runner VM. Jobs run in parallel unless <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">needs:</code> creates a dependency chain.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag at-step">steps:</span>
+          <p>Ordered list within a job. Each step is either a shell <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">run:</code> command or a reusable <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">uses:</code> action. Steps share the same workspace and environment.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag at-env">secrets:</span>
+          <p>Repository secrets injected via <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">${{ secrets.NAME }}</code>. Values are masked in all logs — never exposed even if accidentally printed.</p>
+        </div>
+        <div class="anatomy-row">
+          <span class="anatomy-tag at-ctx">context:</span>
+          <p>GitHub provides rich context objects: <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">github.sha</code>, <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">github.ref_name</code>, <code style="font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 4px;border-radius:3px">github.event_name</code>, and more — available in any expression.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: STEP-BY-STEP GUIDE               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🪜</span>Step-by-step guide</div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Set up the project structure</div>
+          <div class="step-desc">Create the GitHub Actions workflow directory inside your existing Docker project. The workflow file must live at exactly this path.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">mkdir</span> <span class="flag">-p</span> .github/workflows</pre>
+          </div>
+          <div class="file-tree">
+<span class="ft-dir">my-docker-app/</span><br>
+├── <span class="ft-file">Dockerfile</span><br>
+├── <span class="ft-file">docker-compose.yml</span><br>
+├── <span class="ft-file">app.js</span>  <span class="ft-note">(or your app files)</span><br>
+├── <span class="ft-file">.hadolint.yaml</span>  <span class="ft-note">← linter config (Step 2)</span><br>
+└── <span class="ft-dir">.github/</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="ft-dir">workflows/</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="ft-new">docker-publish.yml</span>  <span class="ft-note">← the workflow (Step 4)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Add Docker Hub credentials as repository secrets</div>
+          <div class="step-desc">Your Docker Hub username and a Personal Access Token (PAT) must be stored as secrets — never hardcoded. Create the PAT in Docker Hub under Account Settings → Security → New Access Token.</div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Go to your GitHub repo → <strong>Settings → Secrets and variables → Actions → New repository secret</strong>. Create two secrets:
+              <br><br>
+              <code style="font-family:var(--mono);font-size:12px">DOCKERHUB_USERNAME</code> — your Docker Hub username<br>
+              <code style="font-family:var(--mono);font-size:12px">DOCKERHUB_TOKEN</code> — a Docker Hub Access Token (not your password)
+            </div>
+          </div>
+          <div class="callout sec">
+            <span class="callout-icon">🔐</span>
+            <div class="callout-body"><strong>Use an Access Token, not your password.</strong> Tokens can be scoped to read/write only and revoked individually without changing your account password. Create one at <strong>hub.docker.com → Account Settings → Security</strong>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Configure hadolint</div>
+          <div class="step-desc">Create a <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.hadolint.yaml</code> to configure which rules to enforce and which to ignore for your project. Commit this alongside the Dockerfile.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">.hadolint.yaml</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Fail the build on warnings and above</span>
+<span class="key">failure-threshold</span>: <span class="val">warning</span>
+
+<span class="comment"># Rules to ignore (add your own justified exceptions)</span>
+<span class="key">ignore</span>:
+  - <span class="val">DL3008</span>  <span class="comment"># pin versions in apt — we'll accept unpinned for now</span>
+  - <span class="val">DL3018</span>  <span class="comment"># pin versions in apk</span>
+
+<span class="comment"># Trusted registries — images from these don't need digest pinning</span>
+<span class="key">trustedRegistries</span>:
+  - <span class="val">docker.io</span>
+  - <span class="val">ghcr.io</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Write the complete workflow file</div>
+          <div class="step-desc">Create <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">.github/workflows/docker-publish.yml</code>. Read through each section — the inline comments explain every decision.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">.github/workflows/docker-publish.yml</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="key">name</span>: <span class="act">Docker Build, Scan &amp; Publish</span>
+
+<span class="comment"># ── Triggers ──────────────────────────────────────</span>
+<span class="key">on</span>:
+  <span class="key">push</span>:
+    <span class="key">branches</span>: [<span class="str">"main"</span>]
+    <span class="key">tags</span>:    [<span class="str">"v*.*.*"</span>]     <span class="comment"># also fire on semver tags</span>
+  <span class="key">pull_request</span>:
+    <span class="key">branches</span>: [<span class="str">"main"</span>]       <span class="comment"># build+scan PRs, but don't push</span>
+
+<span class="comment"># ── Global env ────────────────────────────────────</span>
+<span class="key">env</span>:
+  <span class="key">IMAGE_NAME</span>: <span class="expr">${{ secrets.DOCKERHUB_USERNAME }}</span>/my-app
+
+<span class="key">jobs</span>:
+
+  <span class="comment"># ── Job 1: Lint ───────────────────────────────────</span>
+  <span class="key">lint</span>:
+    <span class="key">name</span>: <span class="val">Lint Dockerfile</span>
+    <span class="key">runs-on</span>: <span class="val">ubuntu-latest</span>
+    <span class="key">steps</span>:
+      - <span class="key">name</span>: <span class="val">Checkout code</span>
+        <span class="key">uses</span>: <span class="act">actions/checkout@v4</span>
+
+      - <span class="key">name</span>: <span class="val">Run hadolint</span>
+        <span class="key">uses</span>: <span class="act">hadolint/hadolint-action@v3.1.0</span>
+        <span class="key">with</span>:
+          <span class="key">dockerfile</span>: <span class="val">Dockerfile</span>
+          <span class="key">config</span>: <span class="val">.hadolint.yaml</span>
+
+  <span class="comment"># ── Job 2: Build, Scan &amp; Push ─────────────────────</span>
+  <span class="key">build-and-push</span>:
+    <span class="key">name</span>: <span class="val">Build → Scan → Push</span>
+    <span class="key">runs-on</span>: <span class="val">ubuntu-latest</span>
+    <span class="key">needs</span>: <span class="val">lint</span>            <span class="comment"># only runs if lint passes</span>
+    <span class="key">permissions</span>:
+      <span class="key">contents</span>: <span class="val">read</span>
+      <span class="key">security-events</span>: <span class="val">write</span>  <span class="comment"># for SARIF upload to Security tab</span>
+
+    <span class="key">steps</span>:
+      - <span class="key">name</span>: <span class="val">Checkout code</span>
+        <span class="key">uses</span>: <span class="act">actions/checkout@v4</span>
+
+      <span class="comment"># Set up Buildx for cache support and multi-arch</span>
+      - <span class="key">name</span>: <span class="val">Set up Docker Buildx</span>
+        <span class="key">uses</span>: <span class="act">docker/setup-buildx-action@v3</span>
+
+      <span class="comment"># Log in only on pushes — not on pull requests</span>
+      - <span class="key">name</span>: <span class="val">Log in to Docker Hub</span>
+        <span class="key">if</span>: <span class="expr">github.event_name != 'pull_request'</span>
+        <span class="key">uses</span>: <span class="act">docker/login-action@v3</span>
+        <span class="key">with</span>:
+          <span class="key">username</span>: <span class="expr">${{ secrets.DOCKERHUB_USERNAME }}</span>
+          <span class="key">password</span>: <span class="expr">${{ secrets.DOCKERHUB_TOKEN }}</span>
+
+      <span class="comment"># Generate smart tags from git context</span>
+      - <span class="key">name</span>: <span class="val">Extract Docker metadata</span>
+        <span class="key">id</span>: <span class="val">meta</span>
+        <span class="key">uses</span>: <span class="act">docker/metadata-action@v5</span>
+        <span class="key">with</span>:
+          <span class="key">images</span>: <span class="expr">${{ env.IMAGE_NAME }}</span>
+          <span class="key">tags</span>: |
+            <span class="comment"># latest on main branch pushes</span>
+            <span class="val">type=raw,value=latest,enable={{is_default_branch}}</span>
+            <span class="comment"># semver tags: v1.2.3 → 1.2.3, 1.2, 1</span>
+            <span class="val">type=semver,pattern={{version}}</span>
+            <span class="val">type=semver,pattern={{major}}.{{minor}}</span>
+            <span class="comment"># short SHA on every push for traceability</span>
+            <span class="val">type=sha,prefix=sha-,format=short</span>
+            <span class="comment"># pr-42 label on pull requests</span>
+            <span class="val">type=ref,event=pr</span>
+
+      <span class="comment"># Build with layer cache — load locally for the scan step</span>
+      - <span class="key">name</span>: <span class="val">Build image (cached)</span>
+        <span class="key">uses</span>: <span class="act">docker/build-push-action@v5</span>
+        <span class="key">with</span>:
+          <span class="key">context</span>: <span class="val">.</span>
+          <span class="key">push</span>: <span class="val">false</span>           <span class="comment"># don't push yet — scan first</span>
+          <span class="key">load</span>: <span class="val">true</span>            <span class="comment"># load into local Docker for trivy</span>
+          <span class="key">tags</span>: <span class="expr">${{ steps.meta.outputs.tags }}</span>
+          <span class="key">labels</span>: <span class="expr">${{ steps.meta.outputs.labels }}</span>
+          <span class="key">cache-from</span>: <span class="val">type=gha</span>   <span class="comment"># restore from GitHub Actions Cache</span>
+          <span class="key">cache-to</span>: <span class="val">type=gha,mode=max</span>  <span class="comment"># save all layers</span>
+
+      <span class="comment"># Scan the built image for CVEs</span>
+      - <span class="key">name</span>: <span class="val">Scan image with Trivy</span>
+        <span class="key">uses</span>: <span class="act">aquasecurity/trivy-action@master</span>
+        <span class="key">with</span>:
+          <span class="key">image-ref</span>: <span class="expr">${{ env.IMAGE_NAME }}:latest</span>
+          <span class="key">format</span>: <span class="val">sarif</span>
+          <span class="key">output</span>: <span class="val">trivy-results.sarif</span>
+          <span class="key">severity</span>: <span class="val">CRITICAL,HIGH</span>   <span class="comment"># fail on critical + high</span>
+          <span class="key">exit-code</span>: <span class="str">'1'</span>           <span class="comment"># non-zero = block the push</span>
+
+      <span class="comment"># Upload SARIF to GitHub Security tab (always, even on failure)</span>
+      - <span class="key">name</span>: <span class="val">Upload Trivy SARIF report</span>
+        <span class="key">uses</span>: <span class="act">github/codeql-action/upload-sarif@v3</span>
+        <span class="key">if</span>: <span class="expr">always()</span>
+        <span class="key">with</span>:
+          <span class="key">sarif_file</span>: <span class="val">trivy-results.sarif</span>
+
+      <span class="comment"># Push to Docker Hub — only if scan passed &amp; not a PR</span>
+      - <span class="key">name</span>: <span class="val">Push image to Docker Hub</span>
+        <span class="key">if</span>: <span class="expr">github.event_name != 'pull_request'</span>
+        <span class="key">uses</span>: <span class="act">docker/build-push-action@v5</span>
+        <span class="key">with</span>:
+          <span class="key">context</span>: <span class="val">.</span>
+          <span class="key">push</span>: <span class="val">true</span>
+          <span class="key">tags</span>: <span class="expr">${{ steps.meta.outputs.tags }}</span>
+          <span class="key">labels</span>: <span class="expr">${{ steps.meta.outputs.labels }}</span>
+          <span class="key">cache-from</span>: <span class="val">type=gha</span>   <span class="comment"># warm cache — almost instant</span>
+          <span class="key">cache-to</span>: <span class="val">type=gha,mode=max</span></pre>
+          </div>
+          <div class="callout actions">
+            <span class="callout-icon">⚡</span>
+            <div class="callout-body"><strong>Why build twice?</strong> The first build uses <code style="font-family:var(--mono);font-size:12px">load: true</code> to make the image available locally for Trivy to scan. The final push step rebuilds from the warm cache — because <code style="font-family:var(--mono);font-size:12px">load</code> and <code style="font-family:var(--mono);font-size:12px">push</code> can't be used together with Buildx in the same invocation. With a hot cache, the second build takes only a few seconds.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Commit and push to trigger the workflow</div>
+          <div class="step-desc">Add all files, commit, and push to <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">main</code>. GitHub automatically detects the new workflow file and queues a run.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="cmd">git</span> add .github/workflows/docker-publish.yml .hadolint.yaml
+<span class="cmd">git</span> commit <span class="flag">-m</span> <span class="str">"ci: add Docker build, scan and publish workflow"</span>
+<span class="cmd">git</span> push origin main</pre>
+          </div>
+          <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <div class="callout-body">Navigate to your repo on GitHub → <strong>Actions tab</strong>. You'll see the workflow run appear within seconds. Click into it to watch each step execute in real time with live log streaming.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Read the workflow run output</div>
+          <div class="step-desc">A successful run shows green checkmarks for both jobs and all steps. Here's what each job's summary looks like.</div>
+          <div class="output-preview">
+            <div class="output-header">Actions tab — workflow run summary</div>
+            <div class="output-body">
+<span class="ac">✓ Lint Dockerfile</span>          <span style="color:var(--text-dim)">10s</span><br>
+<span class="w">  ✓ Checkout code</span><br>
+<span class="g">  ✓ Run hadolint              — 0 violations found</span><br>
+<br>
+<span class="ac">✓ Build → Scan → Push</span>      <span style="color:var(--text-dim)">1m 42s</span><br>
+<span class="w">  ✓ Checkout code</span><br>
+<span class="w">  ✓ Set up Docker Buildx</span><br>
+<span class="w">  ✓ Log in to Docker Hub</span><br>
+<span class="g">  ✓ Extract Docker metadata</span><br>
+<span class="b">  ✓ Build image (cached)      — cache HIT 94% layers restored</span><br>
+<span class="g">  ✓ Scan image with Trivy     — 0 CRITICAL, 0 HIGH CVEs</span><br>
+<span class="g">  ✓ Upload Trivy SARIF report</span><br>
+<span class="g">  ✓ Push image to Docker Hub</span><br>
+<br>
+<span class="w">Tags pushed:</span><br>
+<span class="g">  alice/my-app:latest</span><br>
+<span class="g">  alice/my-app:sha-a1b2c3d</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Understand the tag strategy in practice</div>
+          <div class="step-desc">The tags generated by <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">docker/metadata-action</code> change based on what triggered the workflow. Here's the full matrix:</div>
+          <div class="tag-table">
+            <div class="tag-header">
+              <span>Git event</span>
+              <span>Tags pushed to Docker Hub</span>
+            </div>
+            <div class="tag-row">
+              <span>push to main</span>
+              <span><code style="font-family:var(--mono);font-size:11.5px">latest</code>, <code style="font-family:var(--mono);font-size:11.5px">sha-a1b2c3d</code></span>
+            </div>
+            <div class="tag-row">
+              <span>git tag v1.2.3</span>
+              <span><code style="font-family:var(--mono);font-size:11.5px">1.2.3</code>, <code style="font-family:var(--mono);font-size:11.5px">1.2</code>, <code style="font-family:var(--mono);font-size:11.5px">latest</code>, <code style="font-family:var(--mono);font-size:11.5px">sha-a1b2c3d</code></span>
+            </div>
+            <div class="tag-row">
+              <span>pull request #42</span>
+              <span><code style="font-family:var(--mono);font-size:11.5px">pr-42</code>, <code style="font-family:var(--mono);font-size:11.5px">sha-a1b2c3d</code> — <strong style="color:var(--text)">not pushed</strong>, only built+scanned</span>
+            </div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">To trigger a versioned release, push a semver git tag: <code style="font-family:var(--mono);font-size:12px">git tag v1.0.0 &amp;&amp; git push origin v1.0.0</code>. The workflow fires again and pushes the <code style="font-family:var(--mono);font-size:12px">1.0.0</code>, <code style="font-family:var(--mono);font-size:12px">1.0</code>, and <code style="font-family:var(--mono);font-size:12px">latest</code> tags atomically.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Add a status badge to your README</div>
+          <div class="step-desc">Show the current build status directly in your repository README. GitHub generates a badge URL for every workflow.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">README.md</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"><!-- Replace YOUR_USERNAME and YOUR_REPO --></span>
+![Docker CI](<span class="str">https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/docker-publish.yml/badge.svg</span>)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Handle a failing Trivy scan</div>
+          <div class="step-desc">When Trivy finds a CRITICAL CVE, the push step is skipped and the run fails. Here's how to triage and fix it.</div>
+          <div class="output-preview">
+            <div class="output-header">trivy scan failure output</div>
+            <div class="output-body">
+<span class="r">CRITICAL  CVE-2024-1234  libssl3  3.0.8-1  Fix: upgrade to 3.0.11</span><br>
+<span class="r">HIGH      CVE-2024-5678  libc6    2.35     Fix: upgrade to 2.36</span><br>
+<br>
+<span class="r">2 vulnerabilities found (exit code 1)</span><br>
+<span class="r">✗ Push image to Docker Hub  — skipped (previous step failed)</span>
+            </div>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Dockerfile — fix: use a newer base image with patches</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="comment"># Before: unpinned, may have old vulnerable packages</span>
+<span class="bad">FROM node:20-alpine</span>
+
+<span class="comment"># After: pin to a specific digest for reproducibility</span>
+<span class="comment"># or bump to a newer patch that has the fix</span>
+<span class="str">FROM node:20.11-alpine3.19</span></pre>
+          </div>
+          <div class="callout warn">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">If a CVE exists in your base image but no fix is available yet, you can temporarily add it to a Trivy ignore file (<code style="font-family:var(--mono);font-size:12px">.trivyignore</code>) with a comment explaining when to revisit. Don't use this as a permanent workaround.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-left"><div class="step-num">10</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Add a scheduled weekly scan</div>
+          <div class="step-desc">CVEs are discovered continuously — even images that passed last week may be vulnerable now. Add a scheduled trigger to re-scan the latest published image weekly, without requiring a code change.</div>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">docker-publish.yml — add to the on: block</span><button class="copy-btn" onclick="copyCode(this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>copy</button></div>
+            <pre><span class="key">on</span>:
+  <span class="key">push</span>:
+    <span class="key">branches</span>: [<span class="str">"main"</span>]
+    <span class="key">tags</span>:    [<span class="str">"v*.*.*"</span>]
+  <span class="key">pull_request</span>:
+    <span class="key">branches</span>: [<span class="str">"main"</span>]
+  <span class="comment"># Re-scan every Monday at 08:00 UTC</span>
+  <span class="key">schedule</span>:
+    - <span class="key">cron</span>: <span class="str">'0 8 * * 1'</span></pre>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">💡</span>
+            <div class="callout-body">Scheduled runs on the default branch use the latest committed workflow file. If a new CVE is found by the weekly scan, GitHub will email the repository owner and mark the Security tab with the findings from the uploaded SARIF report.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /steps -->
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: WHAT JUST HAPPENED               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🔍</span>What happened under the hood</div>
+    <div class="flow-grid">
+      <div class="flow-item">
+        <div class="flow-num">Push event</div>
+        <div class="flow-icon">⚡</div>
+        <div class="flow-label">Webhook fires</div>
+        <div class="flow-desc">GitHub receives the push, matches the workflow trigger, and queues a runner.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Lint job</div>
+        <div class="flow-icon">🔍</div>
+        <div class="flow-label">hadolint runs</div>
+        <div class="flow-desc">Dockerfile parsed against best-practice rules. Any violation above threshold fails the job immediately.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Build step</div>
+        <div class="flow-icon">⚡</div>
+        <div class="flow-label">Cache restored</div>
+        <div class="flow-desc">Buildx pulls unchanged layers from GHA cache. Only layers above the changed instruction rebuild.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Scan step</div>
+        <div class="flow-icon">🛡️</div>
+        <div class="flow-label">CVE database</div>
+        <div class="flow-desc">Trivy checks every package against the NVD, GitHub Advisory, and OS vendor databases.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Push step</div>
+        <div class="flow-icon">🚀</div>
+        <div class="flow-label">Multi-tagged push</div>
+        <div class="flow-desc">All generated tags pushed to Docker Hub in one operation using the registry manifest API.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-num">Security tab</div>
+        <div class="flow-icon">📋</div>
+        <div class="flow-label">SARIF uploaded</div>
+        <div class="flow-desc">Trivy findings appear in GitHub's Code Scanning tab as structured alerts, even on passing runs.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 5: WHAT YOU LEARNED                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section">
+    <div class="section-label"><span class="icon">🎯</span>What you learned</div>
+    <ul class="checklist">
+      <li><span class="chk"></span>How GitHub Actions workflows are structured — triggers, jobs, steps, and the <code style="font-family:var(--mono);font-size:12px">needs:</code> dependency chain</li>
+      <li><span class="chk"></span>How to store Docker Hub credentials as repository secrets and inject them safely via <code style="font-family:var(--mono);font-size:12px">${{ secrets.NAME }}</code></li>
+      <li><span class="chk"></span>How to lint a Dockerfile with <code style="font-family:var(--mono);font-size:12px">hadolint</code> and fail the build on policy violations before anything is built</li>
+      <li><span class="chk"></span>How <code style="font-family:var(--mono);font-size:12px">docker/build-push-action</code> with <code style="font-family:var(--mono);font-size:12px">type=gha</code> cache dramatically speeds up repeated builds</li>
+      <li><span class="chk"></span>How <code style="font-family:var(--mono);font-size:12px">docker/metadata-action</code> automatically generates correct image tags for main pushes, semver git tags, and pull requests</li>
+      <li><span class="chk"></span>How to gate Docker Hub pushes behind a Trivy CVE scan and surface results in GitHub's Security tab via SARIF</li>
+    </ul>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1.5,6 4,8.5 9.5,2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> copied`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7.5V1.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> copy`;
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>
